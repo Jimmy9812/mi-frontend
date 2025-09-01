@@ -1,11 +1,7 @@
+import Login from "./components/Login";
+
 function App() {
-  return (
-    <div className="flex h-screen items-center justify-center bg-purple-500">
-      <h1 className="text-4xl font-bold text-white">
-        ¡Hola Mundo con Tailwind v4 + Vite!
-      </h1>
-    </div>
-  )
+  return <Login />;
 }
 
-export default App
+export default App;
