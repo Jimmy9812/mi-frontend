@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 
 // --- fake login (mientras no hay backend) ---
 function fakeLogin({ email, password }) {
@@ -28,6 +29,8 @@ const Login = () => {
     setFormData((p) => ({ ...p, [name]: value }));
   };
 
+  const { login } = useAuth();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -35,8 +38,8 @@ const Login = () => {
     try {
       const api = useFake ? fakeLogin : authService.login;
       const res = await api(formData);
-      localStorage.setItem("token", res.token);
-      navigate("/dashboard"); // 👈 redirección
+      login(res); // usa el contexto en vez de navegar directo 
+
     } catch (err) {
       setError(err.message || "Error desconocido");
     } finally {
