@@ -14,7 +14,10 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedRole, setSelectedRole] = useState(null);
   const navigate = useNavigate();
+const [showRoleSelector, setShowRoleSelector] = useState(false);
+const [activeRole, setActiveRole] = useState(null);
 
   // Recuperar datos de autenticación al cargar
   useEffect(() => {
@@ -37,13 +40,33 @@ export function AuthProvider({ children }) {
   const login = ({ token, usuario }) => {
     setToken(token);
     setUser(usuario);
-    
-    // Guardar en localStorage
     localStorage.setItem("auth", JSON.stringify({ token, usuario }));
     
-    // Redireccionar según roles
-    const initialRoute = getInitialRoute(usuario.roles);
-    navigate(initialRoute);
+    // Mostrar selector de rol si tiene múltiples roles
+    if (usuario.roles.length > 1) {
+      setShowRoleSelector(true);
+      // Redirigir a una ruta neutra para mostrar el selector
+      navigate("/dashboard", { replace: true });
+    } else if (usuario.roles.length === 1) {
+      // Si solo tiene un rol, establecerlo y navegar
+      const role = usuario.roles[0];
+      setActiveRole(role);
+      setSelectedRole(role);
+      const route = getInitialRoute([role]);
+      navigate(route, { replace: true });
+    }
+  };
+
+  // Seleccionar rol
+  const selectRole = (role) => {
+    setSelectedRole(role);
+    setActiveRole(role);
+    setShowRoleSelector(false);
+    localStorage.setItem("selectedRole", role);
+    
+    // Usar la función helper para determinar la ruta
+    const route = getInitialRoute([role]);
+    navigate(route);
   };
 
   // Logout
@@ -78,13 +101,15 @@ export function AuthProvider({ children }) {
       isAuthenticated,
       login,
       logout,
+      showRoleSelector,
+      activeRole,
+      selectRole,
       hasRole,
       hasAnyRole,
-      // Exponer datos específicos del usuario para fácil acceso
       nombreCompleto: user ? `${user.nombre_usuario} ${user.apellidos_usuario}` : '',
       roles: user?.roles || [],
     }),
-    [token, user, loading]
+    [token, user, loading, showRoleSelector, activeRole]
   );
 
   // No mostrar nada mientras se verifica la autenticación inicial
