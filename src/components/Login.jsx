@@ -3,23 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 
-// --- fake login (mientras no hay backend) ---
-function fakeLogin({ email, password }) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (email === "login@gmail.com" && password === "123456") {
-        resolve({ token: "fake-jwt-123", user: { email } });
-      } else {
-        reject(new Error("Credenciales inválidas"));
-      }
-    }, 900);
-  });
-}
-
-const useFake = import.meta.env.VITE_USE_FAKE === "true";
-
 const Login = () => {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ correo_usuario: "", contrasenia_usuario: "" });
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
   const navigate = useNavigate();
@@ -36,12 +21,10 @@ const Login = () => {
     setError("");
     setLoading(true);
     try {
-      const api = useFake ? fakeLogin : authService.login;
-      const res = await api(formData);
-      login(res); // usa el contexto en vez de navegar directo 
-
+      const res = await authService.login(formData);
+      login(res); // usa el contexto de autenticación
     } catch (err) {
-      setError(err.message || "Error desconocido");
+      setError(err.message || "Error al iniciar sesión. Por favor, verifica tus credenciales.");
     } finally {
       setLoading(false);
     }
@@ -79,18 +62,30 @@ const Login = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-white mb-1">Correo electrónico</label>
+                <label htmlFor="correo_usuario" className="block text-white mb-1">Correo electrónico</label>
                 <input
-                  id="email" name="email" type="email" placeholder="login@gmail.com"
-                  value={formData.email} onChange={handleChange} required disabled={loading}
+                  id="correo_usuario" 
+                  name="correo_usuario" 
+                  type="email" 
+                  placeholder="correo@ejemplo.com"
+                  value={formData.correo_usuario} 
+                  onChange={handleChange} 
+                  required 
+                  disabled={loading}
                   className="w-full px-4 py-2 rounded-lg bg-white/80 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                 />
               </div>
               <div>
-                <label htmlFor="password" className="block text-white mb-1">Contraseña</label>
+                <label htmlFor="contrasenia_usuario" className="block text-white mb-1">Contraseña</label>
                 <input
-                  id="password" name="password" type="password" placeholder="********"
-                  value={formData.password} onChange={handleChange} required disabled={loading}
+                  id="contrasenia_usuario" 
+                  name="contrasenia_usuario" 
+                  type="password" 
+                  placeholder="********"
+                  value={formData.contrasenia_usuario} 
+                  onChange={handleChange} 
+                  required 
+                  disabled={loading}
                   className="w-full px-4 py-2 rounded-lg bg-white/80 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                 />
                 <p className="text-sm text-right text-blue-300 mt-1 cursor-pointer hover:underline">

@@ -43,7 +43,7 @@ export default function Dashboard() {
     >
       <User className="w-8 h-8" />
       <span className="text-sm font-medium">
-        {user?.name || user?.email || "Usuario"}
+        {user ? `${user.nombre_usuario} ${user.apellidos_usuario}` : "Usuario"}
       </span>
     </button>
 
@@ -96,24 +96,24 @@ export default function Dashboard() {
       style={{ transform: "translateY(70px)" }}
     >
         {[
-          { label: "SIREC-Q", icon: <FileText className="w-7 h-7" />, offset: -720 },
-          { label: "EXTERNOS", icon: <Users className="w-7 h-7" />, offset: -690 },
-          { label: "PRUEBA/PRODUCCIÓN", icon: <Database className="w-7 h-7" />, offset: -660 },
-          { label: "ACCIDENTES", icon: <AlertTriangle className="w-7 h-7" />, offset: -630 },
-          { label: "INCIDENTES", icon: <Activity className="w-7 h-7" />, offset: -600 },
-        ].map((item, idx) => (
-          <Link
-            key={idx}
-            to="/#"
-            className="flex items-center gap-4 text-white font-extrabold tracking-wide hover:scale-[1.05] transition transform -skew-x-6"
-            style={{ transform: `translateX(${item.offset}px) skewX(-6deg)` }}
-          >
-            <span className="inline-grid place-items-center h-15 w-15 rounded-full bg-white text-blue-900 shadow-md text-xl skew-x-6">
-              {item.icon}
-            </span>
-            <span className="text-xl drop-shadow skew-x-6">{item.label}</span>
-          </Link>
-        ))}
+  { label: "SIREC-Q", icon: <FileText className="w-7 h-7" />, offset: -720, to: "/#" },
+  { label: "EXTERNOS", icon: <Users className="w-7 h-7" />, offset: -690, to: "/#" },
+  { label: "PRUEBA/PRODUCCIÓN", icon: <Database className="w-7 h-7" />, offset: -660, to: "/#" },
+  { label: "ACCIDENTES", icon: <AlertTriangle className="w-7 h-7" />, offset: -630, to: "/#" },
+  { label: "INCIDENTES", icon: <Activity className="w-7 h-7" />, offset: -600, to: "/incidentes" }, // 👈
+].map((item, idx) => (
+  <Link
+    key={idx}
+    to={item.to}                                 // 👈 usa su ruta
+    className="flex items-center gap-4 text-white font-extrabold tracking-wide hover:scale-[1.05] transition transform -skew-x-6"
+    style={{ transform: `translateX(${item.offset}px) skewX(-6deg)` }}
+  >
+    <span className="inline-grid place-items-center h-20 w-20 rounded-full bg-white text-blue-900 shadow-md text-xl skew-x-6">
+      {item.icon}
+    </span>
+    <span className="text-xl drop-shadow skew-x-6">{item.label}</span>
+  </Link>
+))}
       </div>
     </div>
   );

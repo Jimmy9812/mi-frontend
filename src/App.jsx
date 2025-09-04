@@ -1,16 +1,15 @@
-// src/App.jsx
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Incidentes from "./pages/Incidentes.jsx";      // 👈 nueva
 import PrivateRoute from "./routes/PrivateRoute.jsx";
 
-function App() {
+export default function App() {
   return (
     <Routes>
-      {/* Login siempre accesible */}
-      <Route path="/" element={<Login />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/login" element={<Login />} />
 
-      {/* Dashboard protegido */}
       <Route
         path="/dashboard"
         element={
@@ -19,8 +18,17 @@ function App() {
           </PrivateRoute>
         }
       />
+
+      <Route                            // 👇 nueva ruta protegida
+        path="/incidentes"
+        element={
+          <PrivateRoute>
+            <Incidentes />
+          </PrivateRoute>
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
-
-export default App;
