@@ -1,35 +1,30 @@
-import React from 'react';
+// src/components/ErrorBoundary.jsx
+import React from "react";
 
-class ErrorBoundary extends React.Component {
+export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true };
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.log('Error caught:', error, errorInfo);
+    console.error("Error capturado por ErrorBoundary:", error, errorInfo);
+    this.setState({ error, errorInfo });
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-          <div className="bg-white p-8 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Algo salió mal</h2>
-            <p className="text-gray-600 mb-4">
-              Ha ocurrido un error inesperado. Por favor, intenta recargar la página.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-              Recargar página
-            </button>
-          </div>
+        <div className="p-6 bg-red-100 text-red-900 rounded-lg">
+          <h2 className="text-xl font-bold mb-2">⚠️ Ocurrió un error</h2>
+          <p>{this.state.error?.message}</p>
+          <pre className="whitespace-pre-wrap text-sm mt-2">
+            {this.state.errorInfo?.componentStack}
+          </pre>
         </div>
       );
     }
@@ -37,5 +32,3 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
-
-export default ErrorBoundary;
