@@ -5,6 +5,8 @@ import Dashboard from "./pages/Dashboard";
 import Incidentes from "./pages/Incidentes";
 import PrivateRoute from "./routes/PrivateRoute";
 import ErrorBoundary from "./components/ErrorBoundary"; // 👈 importar
+import IncidenteEditor from "./pages/IncidenteEditor"; // 👈 nuevo
+
 
 export default function App() {
   return (
@@ -29,6 +31,33 @@ export default function App() {
               </PrivateRoute>
             }
           />
+
+          <Route
+    path="/incidentes"
+    element={
+      <PrivateRoute>
+        <Incidentes />
+      </PrivateRoute>
+    }
+  />
+  {/* 👇 nuevas rutas */}
+  <Route
+    path="/incidentes/nuevo"
+    element={
+      <PrivateRoute>
+        <IncidenteEditor mode="create" />
+      </PrivateRoute>
+    }
+  />
+  <Route
+    path="/incidentes/:id"
+    element={
+      <PrivateRoute>
+        <IncidenteEditor mode="view" />
+      </PrivateRoute>
+    }
+  />
+  {/* ... */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Layout>

@@ -10,6 +10,17 @@ export function AuthProvider({ children }) {
   const [showRoleSelector, setShowRoleSelector] = useState(false);
   const navigate = useNavigate();
 
+  // 👇👇👇 NUEVO: matriz simple de permisos por rol (ajusta nombres si tu backend usa otros)
+  const ROLE_PERMISSIONS = {
+    ADMIN: ["INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT"],
+    "ADMINISTRACIÓN": ["INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT"],
+    OPERADOR: ["INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT"],
+    ANALISTA: ["INCIDENTES_VIEW", "INCIDENTES_EXPORT"],
+    TÉCNICO: ["INCIDENTES_VIEW", "INCIDENTES_WRITE"],
+    USUARIO: ["INCIDENTES_VIEW"],
+  };
+  // 👆👆👆 NUEVO
+
   const login = async (data) => {
     const { usuario, token } = data;
     setUser(usuario);
@@ -42,6 +53,11 @@ export function AuthProvider({ children }) {
     navigate("/login", { replace: true });
   };
 
+  // 👇👇👇 NUEVO: calcula permisos del rol activo y expone hasPermission
+  const permissions = activeRole ? (ROLE_PERMISSIONS[activeRole] || []) : [];
+  const hasPermission = (...perms) => perms.every(p => permissions.includes(p));
+  // 👆👆👆 NUEVO
+
   return (
     <AuthContext.Provider
       value={{
@@ -52,7 +68,11 @@ export function AuthProvider({ children }) {
         isAuthenticated: !!user,
         login,
         logout,
-        selectRole
+        selectRole,
+        // 👇👇👇 NUEVO: expongo permisos y hasPermission
+        permissions,
+        hasPermission,
+        // 👆👆👆 NUEVO
       }}
     >
       {children}

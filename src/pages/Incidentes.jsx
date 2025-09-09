@@ -1,11 +1,10 @@
 // src/pages/Incidentes.jsx
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import {
   listIncidentes,
-  createIncidente,
   exportIncidentesCsv,
 } from "../services/incidentesService";
 
@@ -17,8 +16,11 @@ const ESTADOS = [
 ];
 
 export default function Incidentes() {
-  const { user, hasPermission } = useAuth();
+  const { user, token, hasPermission } = useAuth();
+  const navigate = useNavigate();
+
   const canWrite = hasPermission("INCIDENTES_WRITE");
+  const canExport = hasPermission("INCIDENTES_EXPORT");
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
@@ -36,7 +38,7 @@ export default function Incidentes() {
   async function load() {
     setLoading(true);
     try {
-      const res = await listIncidentes({ page, pageSize, search, status });
+      const res = await listIncidentes({ token, page, pageSize, search, status });
       setData(res);
     } finally {
       setLoading(false);
@@ -46,7 +48,7 @@ export default function Incidentes() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, status]);
+  }, [token, page, pageSize, status]);
 
   const showingRange = useMemo(() => {
     const start = (data.page - 1) * pageSize + 1;
@@ -59,11 +61,22 @@ export default function Incidentes() {
     await load();
   };
 
-  const addIncidente = async () => {
+  // 👉 ahora solo navegamos al formulario de creación
+  const addIncidente = () => {
     if (!canWrite) return;
-    await createIncidente({ estado: "PENDIENTE" });
-    await load();
+    navigate("/incidentes/nuevo");
   };
+
+  // 👉 export con token y filtros actuales (usa API si está configurada)
+  const doExport = async () => {
+    if (!canExport) return;
+    await exportIncidentesCsv({ token, search, status });
+  };
+
+  const fullName =
+    user?.nombre_usuario
+      ? `${user?.nombre_usuario} ${user?.apellidos_usuario || ""}`.trim()
+      : (user?.name || user?.email || "Usuario");
 
   return (
     <div className="min-h-screen w-full grid grid-cols-[380px_1fr]">
@@ -88,9 +101,7 @@ export default function Incidentes() {
             <span className="text-slate-400">/</span>
             <span className="font-semibold">Incidentes</span>
           </div>
-          <div className="text-sm text-slate-600">
-            {user?.name || user?.email}
-          </div>
+          <div className="text-sm text-slate-600">{fullName}</div>
         </div>
 
         {/* Contenido principal */}
@@ -102,13 +113,15 @@ export default function Incidentes() {
 
           {/* Acciones */}
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => exportIncidentesCsv(data.items)}
-              className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
-            >
-              <Download className="w-4 h-4" />
-              EXPORT
-            </button>
+            {canExport && (
+              <button
+                onClick={doExport}
+                className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
+              >
+                <Download className="w-4 h-4" />
+                EXPORT
+              </button>
+            )}
 
             <div className="relative">
               <input
@@ -170,7 +183,7 @@ export default function Incidentes() {
                   </div>
                   <div className="px-4 py-3 flex items-center justify-center">
                     <button
-                      onClick={() => alert(`Ver ${row.numero}`)}
+                      onClick={() => navigate(`/incidentes/${row.id}`)} // 👈 ver detalle
                       className="px-3 py-1 bg-[#7d3d5a] text-white rounded-md hover:opacity-90"
                       title="Ver"
                     >
@@ -194,7 +207,7 @@ export default function Incidentes() {
                 }}
                 className="px-2 py-1 border rounded"
               >
-                {[5,8].map((n) => (
+                {[5, 8].map((n) => (
                   <option key={n} value={n}>
                     {n}
                   </option>
@@ -241,7 +254,7 @@ export default function Incidentes() {
               </div>
             </div>
 
-            {/* Botón agregar */}
+            {/* Botón agregar → navega al editor */}
             {canWrite && (
               <button
                 onClick={addIncidente}
