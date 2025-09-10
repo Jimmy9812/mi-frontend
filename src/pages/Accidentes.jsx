@@ -1,8 +1,12 @@
+// src/pages/Accidentes.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { listIncidentes, exportIncidentesCsv } from "../services/incidentesService";
+import {
+  listAccidentes,
+  exportAccidentesCsv,
+} from "../services/accidentesService";
 
 const ESTADOS = [
   { label: "Todos", value: "ALL" },
@@ -11,10 +15,13 @@ const ESTADOS = [
   { label: "RECHAZADO", value: "RECHAZADO" },
 ];
 
-export default function Incidentes() {
+export default function Accidentes() {
   const { user, hasPermission, token } = useAuth();
   const navigate = useNavigate();
-  const canWrite = hasPermission("INCIDENTES_WRITE");
+
+  // ✅ Mostrar botón si es admin o tiene permiso específico
+  const canWrite =
+    (user?.rol === "ADMIN") || hasPermission("ACCIDENTES_WRITE");
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
@@ -32,7 +39,7 @@ export default function Incidentes() {
   async function load() {
     setLoading(true);
     try {
-      const res = await listIncidentes({ token, page, pageSize, search, status });
+      const res = await listAccidentes({ token, page, pageSize, search, status });
       setData(res);
     } finally {
       setLoading(false);
@@ -57,7 +64,7 @@ export default function Incidentes() {
 
   return (
     <div className="min-h-screen w-full grid grid-cols-[380px_1fr]">
-      {/* Columna izquierda - imagen */}
+      {/* Columna izquierda - imagen ocupa toda la pantalla */}
       <div className="h-screen">
         <img
           src="/iglesia.jpg"
@@ -68,7 +75,7 @@ export default function Incidentes() {
 
       {/* Columna derecha */}
       <div className="flex flex-col">
-        {/* Header */}
+        {/* Header (Home + Usuario logueado) */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2 text-slate-600">
             <Home className="w-5 h-5" />
@@ -76,28 +83,28 @@ export default function Incidentes() {
               Home
             </Link>
             <span className="text-slate-400">/</span>
-            <span className="font-semibold">Incidentes</span>
+            <span className="font-semibold">Accidentes</span>
           </div>
           <div className="text-sm text-slate-600">
-            {user?.nombre_usuario} {user?.apellidos_usuario}
+            {user ? `${user.nombre_usuario} ${user.apellidos_usuario}` : "Usuario"}
           </div>
         </div>
 
         {/* Contenido principal */}
         <div className="flex flex-col gap-4 p-6">
           {/* Título */}
-          <div className="rounded-lg bg-[#7d3d5a] text-white px-5 py-3 font-bold tracking-wide shadow">
-            INCIDENTES
+          <div className="rounded-lg bg-[#325d81] text-white px-5 py-3 font-bold tracking-wide shadow">
+            ACCIDENTES
           </div>
 
           {/* Acciones */}
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => exportIncidentesCsv(data.items)}
+              onClick={() => exportAccidentesCsv(data.items)}
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
             >
               <Download className="w-4 h-4" />
-              EXPORT
+              EXPORTAR
             </button>
 
             <div className="relative">
@@ -134,8 +141,8 @@ export default function Incidentes() {
 
           {/* Tabla */}
           <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="grid grid-cols-[1.2fr_1fr_1fr_120px] bg-[#5b0f2c] text-white font-semibold text-sm">
-              <div className="px-4 py-3">N° de Incidencia</div>
+            <div className="grid grid-cols-[1.2fr_1fr_1fr_120px] bg-[#325d81] text-white font-semibold text-sm">
+              <div className="px-4 py-3">Trámite</div>
               <div className="px-4 py-3">Estado</div>
               <div className="px-4 py-3">Fecha</div>
               <div className="px-4 py-3 text-center">Acción</div>
@@ -153,15 +160,15 @@ export default function Incidentes() {
                   key={row.id}
                   className="grid grid-cols-[1.2fr_1fr_1fr_120px] border-t items-center text-sm"
                 >
-                  <div className="px-4 py-3">{row.numero}</div>
+                  <div className="px-4 py-3">{row.tramite}</div>
                   <div className="px-4 py-3">{row.estado}</div>
                   <div className="px-4 py-3">
                     {new Date(row.fecha).toLocaleDateString()}
                   </div>
                   <div className="px-4 py-3 flex items-center justify-center">
                     <button
-                      onClick={() => navigate(`/incidentes/${row.id}`)} // 👈 ir a detalle
-                      className="px-3 py-1 bg-[#7d3d5a] text-white rounded-md hover:opacity-90"
+                      onClick={() => navigate(`/accidentes/${row.id}`)}
+                      className="px-3 py-1 bg-[#325d81] text-white rounded-md hover:opacity-90"
                       title="Ver"
                     >
                       <Eye className="w-4 h-4" />
@@ -211,7 +218,7 @@ export default function Incidentes() {
                       onClick={() => setPage(n)}
                       className={`w-8 h-8 rounded ${
                         n === data.page
-                          ? "bg-[#7d3d5a] text-white"
+                          ? "bg-[#325d81] text-white"
                           : "hover:bg-slate-100"
                       }`}
                     >
@@ -234,11 +241,11 @@ export default function Incidentes() {
             {/* Botón agregar */}
             {canWrite && (
               <button
-                onClick={() => navigate("/incidentes/nuevo")} // 👈 ir a crear
-                className="flex items-center gap-2 bg-[#7d3d5a] text-white px-4 py-2 rounded-lg shadow hover:opacity-90"
+                onClick={() => navigate("/accidentes/nuevo")}
+                className="flex items-center gap-2 bg-[#325d81] text-white px-4 py-2 rounded-lg shadow hover:opacity-90"
               >
                 <Plus className="w-4 h-4" />
-                ADD NUEVO INCIDENTE
+                AÑADIR NUEVO ACCIDENTE
               </button>
             )}
           </div>
