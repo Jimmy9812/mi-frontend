@@ -1,5 +1,5 @@
 // src/services/accidentesService.js
-const API = import.meta.env.VITE_API_URL; // si existe → usa backend
+const API = import.meta.env.VITE_API_URL; // si existe, usamos backend
 const LS_KEY = "accidentes@seed";
 const ESTADOS = ["FAVORABLE", "PENDIENTE", "RECHAZADO"];
 
@@ -25,18 +25,18 @@ function seed() {
   const exists = localStorage.getItem(LS_KEY);
   if (exists) return JSON.parse(exists);
 
-  const list = Array.from({ length: 20 }).map((_, i) => {
-    const idx = (i + 1).toString().padStart(4, "0");
+  const list = Array.from({ length: 25 }).map((_, i) => {
+    const idx = (i + 1).toString().padStart(5, "0");
     return {
       id: `AC${idx}`,
-      tramite: `TRAMITE-${idx}`,
+      tramite: `TRAM-${idx}`,
       estado: ESTADOS[Math.floor(Math.random() * ESTADOS.length)],
       fecha: randomDate().toISOString().slice(0, 10),
 
-      // campos adicionales para detalle
-      descripcion: "Descripción del accidente...",
-      lugar: ["Norte", "Centro", "Sur"][i % 3],
-      responsable: ["Juan Pérez", "Ana Gómez", "Carlos Ruiz"][i % 3],
+      // Campos adicionales que vimos en el formulario
+      lugar: "Quito",
+      descripcion: "Descripción breve del accidente...",
+      responsable: "Responsable X",
       observaciones: "",
     };
   });
@@ -58,9 +58,6 @@ function writeAll(list) {
  * API pública
  * ===================== */
 
-/**
- * Lista paginada con filtros
- */
 export async function listAccidentes({
   token,
   page = 1,
@@ -77,7 +74,6 @@ export async function listAccidentes({
     return res.json();
   }
 
-  // FAKE
   await sleep();
   const all = readAll();
   const filtered = all.filter((x) => {
@@ -93,13 +89,25 @@ export async function listAccidentes({
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize;
   const items = filtered.slice(start, start + pageSize);
-
   return { items, page, total, totalPages };
 }
 
-/**
- * Crear accidente
- */
+export async function getAccidente({ token, id }) {
+  if (API) {
+    const res = await fetch(`${API}/accidentes/${id}`, {
+      headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error("No se pudo obtener el accidente");
+    return res.json();
+  }
+
+  await sleep();
+  const all = readAll();
+  const found = all.find((x) => x.id === id || x.tramite === id);
+  if (!found) throw new Error("Accidente no encontrado");
+  return found;
+}
+
 export async function createAccidente(arg) {
   const token = arg?.token;
   const payload = arg?.payload ?? arg;
@@ -114,17 +122,16 @@ export async function createAccidente(arg) {
     return res.json();
   }
 
-  // FAKE
   await sleep();
   const all = readAll();
-  const next = (all.length + 1).toString().padStart(4, "0");
+  const next = (all.length + 1).toString().padStart(5, "0");
   const nuevo = {
     id: `AC${next}`,
-    tramite: `TRAMITE-${next}`,
+    tramite: `TRAM-${next}`,
     estado: payload?.estado || "PENDIENTE",
     fecha: payload?.fecha || new Date().toISOString().slice(0, 10),
-    descripcion: payload?.descripcion || "",
     lugar: payload?.lugar || "",
+    descripcion: payload?.descripcion || "",
     responsable: payload?.responsable || "",
     observaciones: payload?.observaciones || "",
   };
@@ -133,29 +140,27 @@ export async function createAccidente(arg) {
   return nuevo;
 }
 
-/**
- * Obtener accidente por id
- */
-export async function getAccidente({ token, id }) {
+export async function updateAccidente({ token, id, payload }) {
   if (API) {
     const res = await fetch(`${API}/accidentes/${id}`, {
+      method: "PUT",
       headers: authHeaders(token),
+      body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("No se pudo obtener accidente");
+    if (!res.ok) throw new Error("No se pudo actualizar el accidente");
     return res.json();
   }
 
-  // FAKE
   await sleep();
   const all = readAll();
-  const found = all.find((x) => x.id === id || x.tramite === id);
-  if (!found) throw new Error("Accidente no encontrado");
-  return found;
+  const idx = all.findIndex((x) => x.id === id || x.tramite === id);
+  if (idx === -1) throw new Error("Accidente no encontrado");
+  const updated = { ...all[idx], ...payload };
+  all[idx] = updated;
+  writeAll(all);
+  return updated;
 }
 
-/**
- * Exportar CSV
- */
 export async function exportAccidentesCsv(arg = {}) {
   if (API && (arg.token || arg.search !== undefined || arg.status !== undefined)) {
     const { token, search = "", status = "ALL" } = arg;
@@ -174,7 +179,6 @@ export async function exportAccidentesCsv(arg = {}) {
     return;
   }
 
-  // FAKE
   const items = Array.isArray(arg) ? arg : arg.items;
   const headers = ["tramite", "estado", "fecha"];
   const rows = (items || []).map((i) => [i.tramite, i.estado, i.fecha]);
