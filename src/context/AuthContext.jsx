@@ -10,57 +10,57 @@ export function AuthProvider({ children }) {
   const [showRoleSelector, setShowRoleSelector] = useState(false);
   const navigate = useNavigate();
 
-  // 👇👇👇 NUEVO: matriz simple de permisos por rol (ajusta nombres si tu backend usa otros)
+  // 🔹 Permisos por rol
   const ROLE_PERMISSIONS = {
-  ADMIN: [
-    "INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT",
-    "ACCIDENTES_VIEW", "ACCIDENTES_WRITE", "ACCIDENTES_EXPORT"
-  ],
-  "ADMINISTRACIÓN": [
-    "INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT",
-    "ACCIDENTES_VIEW", "ACCIDENTES_WRITE", "ACCIDENTES_EXPORT"
-  ],
-  OPERADOR: [
-    "INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT",
-    "ACCIDENTES_VIEW", "ACCIDENTES_WRITE", "ACCIDENTES_EXPORT"
-  ],
-  ANALISTA: [
-    "INCIDENTES_VIEW", "INCIDENTES_EXPORT",
-    "ACCIDENTES_VIEW", "ACCIDENTES_EXPORT"
-  ],
-  TÉCNICO: [
-    "INCIDENTES_VIEW", "INCIDENTES_WRITE",
-    "ACCIDENTES_VIEW", "ACCIDENTES_WRITE"
-  ],
-  USUARIO: [
-    "INCIDENTES_VIEW",
-    "ACCIDENTES_VIEW"
-  ],
-};
-
-  // 👆👆👆 NUEVO
+    Administrador: [
+      "INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT",
+      "ACCIDENTES_VIEW", "ACCIDENTES_WRITE", "ACCIDENTES_EXPORT",
+      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_WRITE", "TESTPRODUCCION_EXPORT"
+    ],
+    "ADMINISTRACIÓN": [
+      "INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT",
+      "ACCIDENTES_VIEW", "ACCIDENTES_WRITE", "ACCIDENTES_EXPORT",
+      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_WRITE", "TESTPRODUCCION_EXPORT"
+    ],
+    OPERADOR: [
+      "INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT",
+      "ACCIDENTES_VIEW", "ACCIDENTES_WRITE", "ACCIDENTES_EXPORT",
+      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_WRITE", "TESTPRODUCCION_EXPORT"
+    ],
+    ANALISTA: [
+      "INCIDENTES_VIEW", "INCIDENTES_EXPORT",
+      "ACCIDENTES_VIEW", "ACCIDENTES_EXPORT",
+      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_EXPORT"
+    ],
+    TÉCNICO: [
+      "INCIDENTES_VIEW", "INCIDENTES_WRITE",
+      "ACCIDENTES_VIEW", "ACCIDENTES_WRITE",
+      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_WRITE"
+    ],
+    USUARIO: [
+      "INCIDENTES_VIEW",
+      "ACCIDENTES_VIEW",
+      "TESTPRODUCCION_VIEW"
+    ],
+  };
 
   const login = async (data) => {
     const { usuario, token } = data;
     setUser(usuario);
     setToken(token);
 
-    // Si tiene múltiples roles, mostrar selector
     if (usuario.roles.length > 1) {
       setShowRoleSelector(true);
     } else {
-      // Si solo tiene un rol, establecerlo directamente
       setActiveRole(usuario.roles[0]);
     }
 
-    // Siempre redirigir al dashboard después del login
     navigate("/dashboard", { replace: true });
   };
 
   const selectRole = (role) => {
     setActiveRole(role);
     setShowRoleSelector(false);
-    // Aquí puedes agregar lógica adicional según el rol seleccionado
     navigate("/dashboard", { replace: true });
   };
 
@@ -72,10 +72,9 @@ export function AuthProvider({ children }) {
     navigate("/login", { replace: true });
   };
 
-  // 👇👇👇 NUEVO: calcula permisos del rol activo y expone hasPermission
+  // 🔹 Calcula permisos del rol activo
   const permissions = activeRole ? (ROLE_PERMISSIONS[activeRole] || []) : [];
-  const hasPermission = (...perms) => perms.every(p => permissions.includes(p));
-  // 👆👆👆 NUEVO
+  const hasPermission = (...perms) => perms.every((p) => permissions.includes(p));
 
   return (
     <AuthContext.Provider
@@ -88,10 +87,8 @@ export function AuthProvider({ children }) {
         login,
         logout,
         selectRole,
-        // 👇👇👇 NUEVO: expongo permisos y hasPermission
         permissions,
         hasPermission,
-        // 👆👆👆 NUEVO
       }}
     >
       {children}

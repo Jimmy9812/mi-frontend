@@ -1,14 +1,15 @@
-// src/App.jsx
 import { Routes, Route, Navigate } from "react-router-dom"; 
 import Layout from "./components/Layout";
 import Login from "./components/Login";
 import Dashboard from "./pages/Dashboard";
 import Incidentes from "./pages/Incidentes";
-import Accidentes from "./pages/Accidentes"; // 👈 nuevo
+import Accidentes from "./pages/Accidentes";
+import TestProduccion from "./pages/TestProduccion";
 import PrivateRoute from "./routes/PrivateRoute";
 import ErrorBoundary from "./components/ErrorBoundary"; 
-import IncidenteEditor from "./pages/IncidenteEditor"; 
-import AccidenteEditor from "./pages/AccidenteEditor"; // 👈 nuevo
+import IncidenteEditor from "./pages/IncidenteEditor";
+import AccidenteEditor from "./pages/AccidenteEditor";
+import TestProduccionEditor from "./pages/TestProduccionEditor";
 
 export default function App() {
   return (
@@ -31,7 +32,7 @@ export default function App() {
             }
           />
 
-          {/* Lista de incidentes */}
+          {/* INCIDENTES */}
           <Route
             path="/incidentes"
             element={
@@ -40,8 +41,6 @@ export default function App() {
               </PrivateRoute>
             }
           />
-
-          {/* Crear incidente */}
           <Route
             path="/incidentes/nuevo"
             element={
@@ -50,8 +49,6 @@ export default function App() {
               </PrivateRoute>
             }
           />
-
-          {/* Ver/editar incidente */}
           <Route
             path="/incidentes/:id"
             element={
@@ -61,7 +58,7 @@ export default function App() {
             }
           />
 
-          {/* Lista de accidentes */}
+          {/* ACCIDENTES */}
           <Route
             path="/accidentes"
             element={
@@ -70,8 +67,6 @@ export default function App() {
               </PrivateRoute>
             }
           />
-
-          {/* Crear accidente */}
           <Route
             path="/accidentes/nuevo"
             element={
@@ -80,13 +75,37 @@ export default function App() {
               </PrivateRoute>
             }
           />
-
-          {/* Ver/editar accidente */}
           <Route
             path="/accidentes/:id"
             element={
               <PrivateRoute>
                 <AccidenteEditor mode="view" />
+              </PrivateRoute>
+            }
+          />
+
+          {/* TEST PRODUCCIÓN */}
+          <Route
+            path="/test-produccion"
+            element={
+              <PrivateRoute>
+                <TestProduccion />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/test-produccion/nuevo"
+            element={
+              <PrivateRoute>
+                <TestProduccionEditor mode="create" />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/test-produccion/:id"
+            element={
+              <PrivateRoute>
+                <TestProduccionEditor mode="view" />
               </PrivateRoute>
             }
           />

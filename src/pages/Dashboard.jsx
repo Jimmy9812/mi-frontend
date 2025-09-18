@@ -98,7 +98,7 @@ export default function Dashboard() {
         {[
   { label: "SIREC-Q", icon: <FileText className="w-7 h-7" />, offset: -720, to: "/#" },
   { label: "EXTERNOS", icon: <Users className="w-7 h-7" />, offset: -690, to: "/#" },
-  { label: "PRUEBA/PRODUCCIÓN", icon: <Database className="w-7 h-7" />, offset: -660, to: "/#" },
+  { label: "PRUEBA/PRODUCCIÓN", icon: <Database className="w-7 h-7" />, offset: -660, to: "/test-produccion" },
   { label: "ACCIDENTES", icon: <AlertTriangle className="w-7 h-7" />, offset: -630, to: "/accidentes" },
   { label: "INCIDENTES", icon: <Activity className="w-7 h-7" />, offset: -600, to: "/incidentes" }, // 👈
 ].map((item, idx) => (

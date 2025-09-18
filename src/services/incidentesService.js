@@ -66,59 +66,107 @@ function writeAll(list) {
 }
 
 /* =====================
+ * Función para transformar datos del backend
+ * ===================== */
+function transformBackendData(backendItems) {
+  if (!Array.isArray(backendItems)) return [];
+  
+  return backendItems.map(item => ({
+    id: item.id_incidente,
+    numero: item.no_incidente,
+    estado: item.estado_acc_inc?.nombre_estado_acc_inc || 'Sin estado',
+    fecha: item.fechaingresoerror,
+    // Campos adicionales que puedas necesitar
+    descripcion: item.descripcionerror,
+    zona: item.zona?.nombre_zona,
+    tipologia: item.tipologia,
+    anio_sirecq: item.añosirecq,
+    mensaje_error: item.mensajeerror,
+    fecha_solucion: item.fech_solucion,
+    observaciones: item.obs_incidente,
+  }));
+}
+
+/* =====================
+ * Función de paginación en frontend
+ * ===================== */
+function paginateData(items, page, pageSize, search = "", status = "ALL") {
+  // Filtros
+  const filtered = items.filter((x) => {
+    const s = (search || "").toLowerCase();
+    const bySearch = !s || 
+      x.numero?.toLowerCase().includes(s) || 
+      x.estado?.toLowerCase().includes(s) ||
+      x.descripcion?.toLowerCase().includes(s);
+    const byStatus = status === "ALL" || x.estado === status;
+    return bySearch && byStatus;
+  });
+
+  // Paginación
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = (page - 1) * pageSize;
+  const paginatedItems = filtered.slice(start, start + pageSize);
+
+  return {
+    items: paginatedItems,
+    page,
+    total,
+    totalPages
+  };
+}
+
+/* =====================
  * API pública
  * ===================== */
 
 /**
  * Lista paginada con filtros
- * - API: GET /incidentes?page=&pageSize=&search=&status=
+ * - API: GET /incidentes (obtiene todos y pagina en frontend)
  * - FAKE: LocalStorage
  */
 export async function listIncidentes({
   token,
+  role,
   page = 1,
   pageSize = 5,
   search = "",
   status = "ALL",
 } = {}) {
+  let endpoint = 'incidentes';
+  if (role === 'TÉCNICO') endpoint = 'incidentes/tecnicos';
+  else if (role === 'ANALISTA') endpoint = 'incidentes/analistas';
+
   if (API) {
-    const params = new URLSearchParams({
-      page: String(page),
-      pageSize: String(pageSize),
-      search: search || "",
-    });
-    if (status && status !== "ALL") params.set("status", status);
-
-    const res = await fetch(`${API}/incidentes?${params.toString()}`, {
-      headers: authHeaders(token),
-    });
-    if (!res.ok) throw new Error("No se pudo obtener incidentes");
-    const data = await res.json();
-
-    // Mapeo defensivo por si tu backend usa nombres distintos
-    const items = Array.isArray(data.items) ? data.items : Array.isArray(data.data) ? data.data : [];
-    const pageNum = Number(data.page ?? 1);
-    const total = Number(data.total ?? items.length);
-    const totalPages = Number(data.totalPages ?? data.pages ?? Math.max(1, Math.ceil(total / pageSize)));
-
-    return { items, page: pageNum, total, totalPages };
+    try {
+      const res = await fetch(`${API}/${endpoint}`, {
+        headers: authHeaders(token),
+      });
+      
+      if (!res.ok) throw new Error("No se pudo obtener incidentes");
+      
+      const data = await res.json();
+      console.log('Datos del backend:', data);
+      
+      // Transformar los datos del backend
+      const transformedItems = transformBackendData(data);
+      console.log('Datos transformados:', transformedItems);
+      
+      // Aplicar paginación y filtros en el frontend
+      const result = paginateData(transformedItems, page, pageSize, search, status);
+      console.log('Resultado final:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Error en listIncidentes:', error);
+      throw error;
+    }
   }
 
   // ---- FAKE ----
   await sleep();
   const all = readAll();
-  const filtered = all.filter((x) => {
-    const s = (search || "").toLowerCase();
-    const bySearch = !s || x.numero.toLowerCase().includes(s) || x.estado.toLowerCase().includes(s);
-    const byStatus = status === "ALL" || x.estado === status;
-    return bySearch && byStatus;
-  });
-
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const start = (page - 1) * pageSize;
-  const items = filtered.slice(start, start + pageSize);
-  return { items, page, total, totalPages };
+  return paginateData(all, page, pageSize, search, status);
 }
 
 /**
@@ -133,7 +181,22 @@ export async function getIncidente({ token, id }) {
       headers: authHeaders(token),
     });
     if (!res.ok) throw new Error("No se pudo obtener el incidente");
-    return res.json();
+    const data = await res.json();
+    
+    // Transformar los datos individuales también
+    return {
+      id: data.id_incidente,
+      numero: data.no_incidente,
+      estado: data.estado_acc_inc?.nombre_estado_acc_inc || 'Sin estado',
+      fecha: data.fechaingresoerror,
+      descripcion: data.descripcionerror,
+      zona: data.zona?.nombre_zona,
+      tipologia: data.tipologia,
+      anio_sirecq: data.añosirecq,
+      mensaje_error: data.mensajeerror,
+      fecha_solucion: data.fech_solucion,
+      observaciones: data.obs_incidente,
+    };
   }
 
   await sleep();
@@ -147,20 +210,42 @@ export async function getIncidente({ token, id }) {
  * Crear incidente
  * - API: POST /incidentes
  * - FAKE: inserta en LocalStorage
- * Compat: createIncidente(payload) o createIncidente({ token, payload })
  */
 export async function createIncidente(arg) {
   const token = arg?.token;
   const payload = arg?.payload ?? arg;
 
+  // Mapear payload al formato del backend
+  const mappedPayload = {
+    no_incidente: payload.numero,
+    fechaingresoerror: payload.fecha_ingreso,
+    tipologia: payload.tipologia_tramite,
+    descripcionerror: payload.descripcion,
+    añosirecq: parseInt(payload.anio_sirecq) || 2024,
+    id_zona: parseInt(payload.id_zona) || 1,
+    id_tecnico: parseInt(payload.id_tecnico),
+    id_analista: parseInt(payload.id_analista),
+    asignaciones: payload.asignaciones ? payload.asignaciones.split(',').map(id => ({ idRolUsuario: parseInt(id.trim()) })) : [],
+    error_reportado: payload.error_reportado || "", // base64 image
+  };
+
   if (API) {
     const res = await fetch(`${API}/incidentes`, {
       method: "POST",
       headers: authHeaders(token),
-      body: JSON.stringify(payload),
+      body: JSON.stringify(mappedPayload),
     });
     if (!res.ok) throw new Error("No se pudo crear el incidente");
-    return res.json();
+    const data = await res.json();
+    
+    // Transformar respuesta
+    return {
+      id: data.id_incidente,
+      numero: data.no_incidente,
+      estado: data.estado_acc_inc?.nombre_estado_acc_inc || 'PENDIENTE',
+      fecha: data.fechaingresoerror,
+      descripcion: data.descripcionerror,
+    };
   }
 
   await sleep();
@@ -171,9 +256,9 @@ export async function createIncidente(arg) {
     numero: `IN${next}`,
     estado: payload?.estado || "PENDIENTE",
     fecha: payload?.fecha || new Date().toISOString().slice(0, 10),
-    tecnico: payload?.tecnico || "",
-    analista: payload?.analista || "",
-    unidad_zonal: payload?.unidad_zonal || "",
+    id_tecnico: payload?.id_tecnico || 1,
+    id_analista: payload?.id_analista || 3,
+    id_zona: payload?.id_zona || 1,
     fecha_ingreso: payload?.fecha_ingreso || new Date().toISOString().slice(0, 10),
     tipologia_tramite: payload?.tipologia_tramite || "",
     anio_sirecq: payload?.anio_sirecq || "",
@@ -189,9 +274,7 @@ export async function createIncidente(arg) {
 }
 
 /**
- * Actualizar incidente (para edición futura)
- * - API: PUT /incidentes/:id
- * - FAKE: actualiza en LocalStorage
+ * Actualizar incidente
  */
 export async function updateIncidente({ token, id, payload }) {
   if (!id) throw new Error("Id requerido");
@@ -217,12 +300,6 @@ export async function updateIncidente({ token, id, payload }) {
 
 /**
  * Exportar CSV
- * - API: GET /incidentes/export?search=&status= (devuelve blob)
- * - FAKE: genera CSV local a partir de items
- *
- * Compat:
- *   exportIncidentesCsv({ token, search, status })
- *   exportIncidentesCsv(items)
  */
 export async function exportIncidentesCsv(arg = {}) {
   // API
@@ -238,8 +315,6 @@ export async function exportIncidentesCsv(arg = {}) {
     if (!res.ok) throw new Error("No se pudo exportar");
 
     const blob = await res.blob();
-
-    // Nombre desde Content-Disposition si viene del back
     const cd = res.headers.get("Content-Disposition") || "";
     const match = /filename="?([^"]+)"?/i.exec(cd);
     const filename =
@@ -256,8 +331,13 @@ export async function exportIncidentesCsv(arg = {}) {
 
   // FAKE: si me pasan items directamente
   const items = Array.isArray(arg) ? arg : arg.items;
-  const headers = ["numero", "estado", "fecha"];
-  const rows = (items || []).map((i) => [i.numero, i.estado, i.fecha]);
+  const headers = ["numero", "estado", "fecha", "descripcion"];
+  const rows = (items || []).map((i) => [
+    i.numero || '', 
+    i.estado || '', 
+    i.fecha || '',
+    i.descripcion || ''
+  ]);
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });

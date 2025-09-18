@@ -21,7 +21,7 @@ export default function Accidentes() {
 
   // ✅ Mostrar botón si es admin o tiene permiso específico
   const canWrite =
-    (user?.rol === "ADMIN") || hasPermission("ACCIDENTES_WRITE");
+    (user?.rol === "Administrador") || hasPermission("ACCIDENTES_WRITE");
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
