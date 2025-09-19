@@ -1,109 +1,96 @@
 // src/services/testProduccionService.js
 
-// 🔹 Mock temporal con un requerimiento inicial
-let mockRequerimientos = [
+// 🚨 Mock de datos para pruebas
+let MOCK_TEST_PRODUCCION = [
   {
     id: 1,
-    numero: "RSW_SIREC_Q_2024_011",
+    numero: "TP-001",
     estado: "ENVIADO",
-    fecha: "2025-01-07",
-    ejecutor: "José Campoverde",
-    etapa: "Producción",
-    oficios: [
-      { version: 1, oficio: "GADDMQ-SHOT-DMC-2024-0711-O", fecha: "2025-01-10" },
-    ],
-    propuestas: [
-      { version: 1, oficio: "GADDMQ-SGDTIC-DMSIST-2024-00312-O", fecha: "2025-01-10" },
-    ],
-    respuestas: [
-      { version: 1, texto: "Desarrollo inicia 14 de mayo y termina 30 de mayo 2025" },
-    ],
-    descripcion: "CREACIÓN DE SERVICIO WEB REST DE CONSULTA DE INFORMACIÓN CATASTRAL",
-    observaciones: "Pendiente de validación final",
+    fecha: "2025-09-10",
+    descripcion: "Prueba inicial del sistema",
+  },
+  {
+    id: 2,
+    numero: "TP-002",
+    estado: "ATENDIDO",
+    fecha: "2025-09-12",
+    descripcion: "Versión propuesta técnica",
+  },
+  {
+    id: 3,
+    numero: "TP-003",
+    estado: "RECHAZADO",
+    fecha: "2025-09-14",
+    descripcion: "Respuesta observada",
   },
 ];
 
-// 🔹 Simula una llamada async con retraso
-function delay(ms = 300) {
-  return new Promise((res) => setTimeout(res, ms));
-}
+// 🔹 Listar requerimientos con paginación y filtros
+export async function listRequerimientos({ page, pageSize, search, status }) {
+  let filtered = MOCK_TEST_PRODUCCION;
 
-// ================== CRUD ==================
-
-export async function listRequerimientos({ page = 1, pageSize = 5, search = "", status = "ALL" }) {
-  await delay();
-
-  let items = [...mockRequerimientos];
+  if (status && status !== "ALL") {
+    filtered = filtered.filter((r) => r.estado === status);
+  }
 
   if (search) {
-    items = items.filter((i) =>
-      i.numero.toLowerCase().includes(search.toLowerCase())
+    filtered = filtered.filter(
+      (r) =>
+        r.numero.toLowerCase().includes(search.toLowerCase()) ||
+        r.descripcion.toLowerCase().includes(search.toLowerCase())
     );
   }
 
-  if (status && status !== "ALL") {
-    items = items.filter((i) => i.estado === status);
-  }
-
-  const total = items.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const total = filtered.length;
+  const totalPages = Math.ceil(total / pageSize) || 1;
   const start = (page - 1) * pageSize;
-  const paginated = items.slice(start, start + pageSize);
+  const end = start + pageSize;
+  const items = filtered.slice(start, end);
 
   return {
-    items: paginated,
+    items,
     page,
     total,
     totalPages,
   };
 }
 
+// 🔹 Obtener detalle
 export async function getRequerimientoById(id) {
-  await delay();
-  return mockRequerimientos.find((i) => i.id === Number(id));
+  return MOCK_TEST_PRODUCCION.find((r) => r.id === Number(id)) || null;
 }
 
+// 🔹 Crear
 export async function createRequerimiento(data) {
-  await delay();
-  const newReq = {
-    id: Date.now(),
-    estado: "ENVIADO", // 🔹 por defecto
-    fecha: new Date().toISOString().slice(0, 10),
-    ...data,
-    oficios: data.oficios || [],
-    propuestas: data.propuestas || [],
-    respuestas: data.respuestas || [],
-  };
-  mockRequerimientos.push(newReq);
-  return newReq;
+  const newItem = { ...data, id: Date.now() };
+  MOCK_TEST_PRODUCCION.push(newItem);
+  return newItem;
 }
 
+// 🔹 Actualizar
 export async function updateRequerimiento(id, data) {
-  await delay();
-  const idx = mockRequerimientos.findIndex((i) => i.id === Number(id));
-  if (idx !== -1) {
-    mockRequerimientos[idx] = { ...mockRequerimientos[idx], ...data };
-    return mockRequerimientos[idx];
+  const index = MOCK_TEST_PRODUCCION.findIndex((r) => r.id === Number(id));
+  if (index !== -1) {
+    MOCK_TEST_PRODUCCION[index] = { ...MOCK_TEST_PRODUCCION[index], ...data };
+    return MOCK_TEST_PRODUCCION[index];
   }
   return null;
 }
 
+// 🔹 Exportar CSV
 export async function exportRequerimientosCsv(items) {
-  const header = ["N° Requerimiento", "Estado", "Fecha", "Ejecutor", "Etapa"];
-  const rows = items.map((i) => [
-    i.numero,
-    i.estado,
-    i.fecha,
-    i.ejecutor,
-    i.etapa,
-  ]);
-  const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+  const csvContent =
+    "data:text/csv;charset=utf-8," +
+    ["numero,estado,fecha,descripcion"]
+      .concat(
+        items.map((row) => `${row.numero},${row.estado},${row.fecha},${row.descripcion}`)
+      )
+      .join("\n");
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `test_produccion_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const link = document.createElement("a");
+  link.href = encodeURI(csvContent);
+  link.download = "test_produccion.csv";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }

@@ -4,6 +4,8 @@ import Login from "./components/Login";
 import Dashboard from "./pages/Dashboard";
 import Incidentes from "./pages/Incidentes";
 import Accidentes from "./pages/Accidentes";
+import Externos from "./pages/Externos";
+import ExternosEditor from "./pages/ExternoEditor";
 import TestProduccion from "./pages/TestProduccion";
 import PrivateRoute from "./routes/PrivateRoute";
 import ErrorBoundary from "./components/ErrorBoundary"; 
@@ -106,6 +108,31 @@ export default function App() {
             element={
               <PrivateRoute>
                 <TestProduccionEditor mode="view" />
+              </PrivateRoute>
+            }
+          />
+          {/* EXTERNOS */}
+          <Route
+            path="/externos"
+            element={
+              <PrivateRoute>
+                <Externos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/externos/nuevo"
+            element={
+              <PrivateRoute>
+                <ExternosEditor mode="create" />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/externos/:id"
+            element={
+              <PrivateRoute>
+                <ExternosEditor mode="view" />
               </PrivateRoute>
             }
           />

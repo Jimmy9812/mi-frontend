@@ -29,7 +29,7 @@ export default function IncidenteEditor({ mode = "view" }) {
         return;
       }
       try {
-        const res = await getIncidente({ id });
+        const res = await getIncidente(id, token);
         setIncidente(res);
       } catch (err) {
         console.error(err);
@@ -40,7 +40,7 @@ export default function IncidenteEditor({ mode = "view" }) {
       }
     }
     load();
-  }, [id, mode, navigate]);
+  }, [id, mode, navigate, token]);
 
   useEffect(() => {
     async function loadOptions() {
@@ -75,22 +75,19 @@ export default function IncidenteEditor({ mode = "view" }) {
   const handleSave = async () => {
     try {
       if (mode === "create") {
-        await createIncidente({ payload: incidente });
+        await createIncidente({ token, payload: incidente });
         alert("Incidente creado");
         navigate("/incidentes");
       } else if (resolveMode) {
-        await updateIncidente({
-          id,
-          payload: {
+        await updateIncidente({ token, id, payload: {
             mensaje_error: incidente.mensaje_error,
             fecha_solucion: incidente.fecha_solucion,
             observaciones: incidente.observaciones,
-          },
-        });
+          }});
         alert("Incidente resuelto");
         setResolveMode(false);
       } else {
-        await updateIncidente({ id, payload: incidente });
+        await updateIncidente({ token, id, payload: incidente });
         alert("Incidente actualizado");
       }
       setEditMode(false);
@@ -174,8 +171,8 @@ export default function IncidenteEditor({ mode = "view" }) {
 
           {/* Columna 2 */}
           <div className="space-y-3 border rounded-lg p-4">
-            <Field label="Tipología de trámite" name="tipologia_tramite" value={incidente.tipologia_tramite} onChange={handleChange} disabled={!editMode && !isCreate} />
-            <Field label="Año Sirec-Q error" name="anio_sirecq" value={incidente.anio_sirecq} onChange={handleChange} disabled={!editMode && !isCreate} />
+            <Field label="Tipología de trámite" name="tipologia_tramite" value={incidente.tipologia_tramite || incidente.tipologia_tramite} onChange={handleChange} disabled={!editMode && !isCreate} />
+            <Field label="Año Sirec-Q error" name="añosirecq" value={incidente.añosirecq} onChange={handleChange} disabled={!editMode && !isCreate} />
 
             {/* Campos fase 2 */}
             {(!isCreate || resolveMode) && (
@@ -188,15 +185,21 @@ export default function IncidenteEditor({ mode = "view" }) {
 
           {/* Columna 3 */}
           <div className="space-y-3 border rounded-lg p-4">
-            <Field label="Descripción del error" name="descripcion" value={incidente.descripcion} onChange={handleChange} textarea disabled={!editMode && !isCreate} />
-            <Field label="Asignaciones (IDs separados por coma)" name="asignaciones" value={incidente.asignaciones} onChange={handleChange} disabled={!editMode && !isCreate} />
-
+            <Field label="Descripción del error" name="descripcion" value={incidente.descripcion || incidente.descripcion} onChange={handleChange} textarea disabled={!editMode && !isCreate} />
+            
             {/* Campo Observaciones solo en fase 2 */}
             {(!isCreate || resolveMode) && (
               <Field label="Observaciones" name="observaciones" value={incidente.observaciones} onChange={handleChange} textarea disabled={!resolveMode} />
             )}
 
             <Field label="Error reportado (imagen)" name="error_reportado" onChange={handleChange} type="file" disabled={!editMode && !isCreate} />
+            {/* Preview if backend provided image as data URL */}
+            {incidente.error_reportado && (
+              <div className="mt-2">
+                <label className="block text-sm font-semibold mb-1">Vista previa</label>
+                <img src={incidente.error_reportado} alt="Error reportado" className="max-w-full max-h-64 rounded border" />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -227,19 +230,25 @@ function Field({ label, name, value, onChange, disabled, textarea, type = "text"
           className="w-full p-2 border rounded bg-gray-50 disabled:opacity-70"
         />
       ) : type === "select" ? (
-        <select
-          name={name}
-          value={value || ""}
-          onChange={onChange}
-          disabled={disabled}
-          className="w-full p-2 border rounded bg-gray-50 disabled:opacity-70"
-        >
+<select
+  name={name}
+  value={value || ""}
+  onChange={onChange}
+  disabled={disabled}
+  className="w-full p-2 border rounded bg-gray-50 text-gray-900 disabled:opacity-70"
+>
           <option value="">Seleccionar...</option>
-          {options.map((option) => (
-            <option key={option.id_zona || option.id_usuario} value={option.id_zona || option.id_usuario}>
-              {option.nombre_completo || option.nombre}
-            </option>
-          ))}
+          {options.map((option) => {
+            // soportar distintos shapes: zonas {id_zona,nombre_zona}, usuarios {id_usuario,nombre_completo} u otros
+            const optionKey = option.id_zona ?? option.id_usuario ?? option.id ?? option.id_usuario_role;
+            const optionValue = optionKey;
+            const optionLabel = option.nombre_zona ?? option.nombre_completo ?? (option.nombre && option.apellidos_usuario ? `${option.nombre} ${option.apellidos_usuario}` : option.nombre) ?? option.nombre_usuario ?? option.descripcion ?? String(optionKey);
+            return (
+              <option key={optionKey} value={optionValue}>
+                {optionLabel}
+              </option>
+            );
+          })}
         </select>
       ) : textarea ? (
         <textarea

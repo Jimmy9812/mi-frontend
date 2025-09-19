@@ -1,4 +1,4 @@
-import { createContext, useState, useContext } from "react";
+import { createContext, useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
@@ -44,15 +44,35 @@ export function AuthProvider({ children }) {
     ],
   };
 
+  // 🔹 Restaurar sesión desde localStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+    const storedRole = localStorage.getItem("activeRole");
+
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
+      if (storedRole) {
+        setActiveRole(storedRole);
+      }
+    }
+  }, []);
+
+  // 🔹 Guardar sesión en localStorage al hacer login
   const login = async (data) => {
     const { usuario, token } = data;
     setUser(usuario);
     setToken(token);
 
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(usuario));
+
     if (usuario.roles.length > 1) {
       setShowRoleSelector(true);
     } else {
       setActiveRole(usuario.roles[0]);
+      localStorage.setItem("activeRole", usuario.roles[0]);
     }
 
     navigate("/dashboard", { replace: true });
@@ -60,6 +80,7 @@ export function AuthProvider({ children }) {
 
   const selectRole = (role) => {
     setActiveRole(role);
+    localStorage.setItem("activeRole", role);
     setShowRoleSelector(false);
     navigate("/dashboard", { replace: true });
   };
@@ -69,6 +90,11 @@ export function AuthProvider({ children }) {
     setToken(null);
     setActiveRole(null);
     setShowRoleSelector(false);
+
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("activeRole");
+
     navigate("/login", { replace: true });
   };
 

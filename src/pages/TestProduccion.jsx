@@ -2,10 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import {
-  listRequerimientos,
-  exportRequerimientosCsv,
-} from "../services/testProduccionService";
 
 // 🔹 Estados posibles (mock)
 const ESTADOS = [
@@ -15,8 +11,15 @@ const ESTADOS = [
   { label: "RECHAZADO", value: "RECHAZADO" },
 ];
 
+// 🔹 Datos MOCK
+const MOCK_DATA = [
+  { id: 1, numero: "TP-001", estado: "ENVIADO", fecha: "2025-09-10" },
+  { id: 2, numero: "TP-002", estado: "ATENDIDO", fecha: "2025-09-12" },
+  { id: 3, numero: "TP-003", estado: "RECHAZADO", fecha: "2025-09-14" },
+];
+
 export default function TestProduccion() {
-  const { user, hasPermission, token } = useAuth();
+  const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const canWrite = hasPermission("TESTPRODUCCION_WRITE");
 
@@ -25,28 +28,37 @@ export default function TestProduccion() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  const [data, setData] = useState({
-    items: [],
-    page: 1,
-    total: 0,
-    totalPages: 1,
-  });
+  const [data, setData] = useState({ items: [], page: 1, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(false);
 
-  async function load() {
+  // 🚨 Mock load
+  function loadMock() {
     setLoading(true);
-    try {
-      const res = await listRequerimientos({ token, page, pageSize, search, status });
-      setData(res);
-    } finally {
-      setLoading(false);
+    let filtered = MOCK_DATA;
+
+    if (status !== "ALL") {
+      filtered = filtered.filter((r) => r.estado === status);
     }
+    if (search) {
+      filtered = filtered.filter((r) =>
+        r.numero.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const items = filtered.slice(start, end);
+
+    setData({ items, page, total, totalPages });
+    setLoading(false);
   }
 
   useEffect(() => {
-    load();
+    loadMock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, status]);
+  }, [page, pageSize, status, search]);
 
   const showingRange = useMemo(() => {
     const start = (data.page - 1) * pageSize + 1;
@@ -54,20 +66,11 @@ export default function TestProduccion() {
     return `${start}-${end} de ${data.total}`;
   }, [data, pageSize]);
 
-  const doSearch = async () => {
-    setPage(1);
-    await load();
-  };
-
   return (
     <div className="min-h-screen w-full grid grid-cols-[380px_1fr]">
-      {/* Columna izquierda - Imagen */}
+      {/* Columna izquierda */}
       <div className="h-screen">
-        <img
-          src="/iglesia.jpg"
-          alt="Quito"
-          className="w-full h-full object-cover"
-        />
+        <img src="/iglesia.jpg" alt="Quito" className="w-full h-full object-cover" />
       </div>
 
       {/* Columna derecha */}
@@ -87,17 +90,16 @@ export default function TestProduccion() {
           </div>
         </div>
 
-        {/* Contenido principal */}
+        {/* Contenido */}
         <div className="flex flex-col gap-4 p-6">
-          {/* Título */}
-          <div className="rounded-lg bg-[#8B5E3C] text-white px-5 py-3 font-bold tracking-wide shadow">
+          <div className="rounded-lg bg-[#8B5E3C] text-white px-5 py-3 font-bold shadow">
             TEST/PRODUCCIÓN
           </div>
 
           {/* Acciones */}
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => exportRequerimientosCsv(data.items)}
+              onClick={() => alert("Export CSV mock 🚀")}
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
             >
               <Download className="w-4 h-4" />
@@ -110,11 +112,11 @@ export default function TestProduccion() {
                 placeholder="Buscar"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-3 pr-10 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="pl-3 pr-10 py-2 rounded-md border focus:ring-2 focus:ring-indigo-500"
               />
               <button
-                onClick={doSearch}
-                className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-slate-100"
+                onClick={loadMock}
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100"
               >
                 <Search className="w-4 h-4 text-slate-600" />
               </button>
@@ -126,7 +128,7 @@ export default function TestProduccion() {
                 setStatus(e.target.value);
                 setPage(1);
               }}
-              className="px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="px-3 py-2 rounded-md border focus:ring-2 focus:ring-indigo-500"
             >
               {ESTADOS.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -148,9 +150,7 @@ export default function TestProduccion() {
             {loading ? (
               <div className="p-6 text-center text-slate-500">Cargando…</div>
             ) : data.items.length === 0 ? (
-              <div className="p-6 text-center text-slate-500">
-                No hay resultados
-              </div>
+              <div className="p-6 text-center text-slate-500">No hay resultados</div>
             ) : (
               data.items.map((row) => (
                 <div
@@ -162,11 +162,10 @@ export default function TestProduccion() {
                   <div className="px-4 py-3">
                     {new Date(row.fecha).toLocaleDateString()}
                   </div>
-                  <div className="px-4 py-3 flex items-center justify-center">
+                  <div className="px-4 py-3 flex justify-center">
                     <button
-                      onClick={() => navigate(`/testproduccion/${row.id}`)} // 👈 Ir al detalle
+                      onClick={() => navigate(`/test-produccion/${row.id}`)} // ✅ corregido
                       className="px-3 py-1 bg-[#8B5E3C] text-white rounded-md hover:opacity-90"
-                      title="Ver"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
@@ -178,7 +177,6 @@ export default function TestProduccion() {
 
           {/* Footer */}
           <div className="mt-0 flex items-center justify-between">
-            {/* Page size */}
             <div className="flex items-center gap-2 text-sm">
               <select
                 value={pageSize}
@@ -197,48 +195,37 @@ export default function TestProduccion() {
               <span className="text-slate-500">{showingRange}</span>
             </div>
 
-            {/* Paginación */}
-            <div className="flex flex-col items-center gap-1">
-              <p className="uppercase text-sm text-gray-600">Página</p>
-              <div className="flex items-center gap-1">
+            <div className="flex gap-1">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40"
+              >
+                «
+              </button>
+              {Array.from({ length: data.totalPages }, (_, i) => i + 1).map((n) => (
                 <button
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40"
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`w-8 h-8 rounded ${
+                    n === data.page ? "bg-[#8B5E3C] text-white" : "hover:bg-slate-100"
+                  }`}
                 >
-                  «
+                  {n}
                 </button>
-                {Array.from({ length: data.totalPages }, (_, i) => i + 1).map(
-                  (n) => (
-                    <button
-                      key={n}
-                      onClick={() => setPage(n)}
-                      className={`w-8 h-8 rounded ${
-                        n === data.page
-                          ? "bg-[#8B5E3C] text-white"
-                          : "hover:bg-slate-100"
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  )
-                )}
-                <button
-                  disabled={page === data.totalPages}
-                  onClick={() =>
-                    setPage((p) => Math.min(data.totalPages, p + 1))
-                  }
-                  className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40"
-                >
-                  »
-                </button>
-              </div>
+              ))}
+              <button
+                disabled={page === data.totalPages}
+                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+                className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40"
+              >
+                »
+              </button>
             </div>
 
-            {/* Botón agregar */}
             {canWrite && (
               <button
-                onClick={() => navigate("/testproduccion/nuevo")} // 👈 Crear nuevo
+                onClick={() => navigate("/test-produccion/nuevo")} // ✅ corregido
                 className="flex items-center gap-2 bg-[#8B5E3C] text-white px-4 py-2 rounded-lg shadow hover:opacity-90"
               >
                 <Plus className="w-4 h-4" />

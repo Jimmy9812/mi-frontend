@@ -1,0 +1,258 @@
+// src/services/externosService.js
+// -----------------------------------------------
+// Modo API: SOLO si VITE_USE_API_EXTERNOS === "true"
+// Por defecto: MOCK en LocalStorage (semilla)
+// Si falla el fetch, hace fallback automático a MOCK.
+// -----------------------------------------------
+
+const API = (import.meta.env.VITE_API_URL || "").trim() || null;
+const USE_API =
+  (import.meta.env.VITE_USE_API_EXTERNOS || "false").toLowerCase() === "true";
+
+const LS_KEY = "externos@seed";
+
+const authHeaders = (token) => ({
+  "Content-Type": "application/json",
+  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+});
+
+const sleep = (ms = 200) => new Promise((r) => setTimeout(r, ms));
+
+// --------- MOCK SEED ---------
+const ESTADOS = ["ENVIADO", "PENDIENTE", "EN PROCESO"];
+const TIPOS = ["RSW", "RST", "RSD"];
+
+function pad(n, len = 3) {
+  return n.toString().padStart(len, "0");
+}
+function toISO(date) {
+  const d = new Date(date);
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function randomDate(y = 2025) {
+  const start = new Date(y, 0, 1).getTime();
+  const end = new Date(y, 11, 31).getTime();
+  return toISO(new Date(start + Math.random() * (end - start)));
+}
+
+function makeItem(i) {
+  const tipo = TIPOS[i % TIPOS.length];
+  const numero = `${tipo}_SUIM_${2024 + (i % 2)}_${pad(i + 1, 3)}`;
+  return {
+    id: `EXT${pad(i + 1, 4)}`,
+    tipo, // RSW / RST / RSD
+    no_requerimiento: numero,
+    estado: ESTADOS[i % ESTADOS.length],
+    fecha: randomDate(2025),
+
+    // Campos del formulario (editor)
+    prioridad: `${(i % 3) + 1}`,
+    clasificacion: ["A", "B", "C"][i % 3],
+    descripcion:
+      "Implementación de controles para validación de campos determinados en el informe.",
+    responsable: ["Pedro Zhinín", "Ana Gómez", "Luis Pérez"][i % 3],
+    dependencia: ["DMSIST", "DMI", "DMC"][i % 3],
+    tramite_pri: "ACTUALIZACIÓN DE PREDIOS",
+    seguimiento: "Contraloría General del Estado - Cartera Vencida",
+    tramite_cat: "CAT-42, CAT-43",
+    oficio_despacho: "GADDMQ-SHOT-DMC-2025-0387-M",
+    oficio_dmi: "GADDMQ-SHOT-DMC-2024-2114-O",
+    fecha_despacho: randomDate(2025),
+    fecha_envio_dmc: randomDate(2025),
+    fecha_envio_req: randomDate(2024),
+    observaciones:
+      "Mediante memorando... el desarrollo inicia el 14 de mayo de 2025.",
+  };
+}
+
+function seed() {
+  if (typeof localStorage === "undefined") return [];
+  const exists = localStorage.getItem(LS_KEY);
+  if (exists) return JSON.parse(exists);
+
+  const list = Array.from({ length: 38 }).map((_, i) => makeItem(i));
+  localStorage.setItem(LS_KEY, JSON.stringify(list));
+  return list;
+}
+function readAll() {
+  if (typeof localStorage === "undefined") return seed();
+  const data = localStorage.getItem(LS_KEY);
+  return data ? JSON.parse(data) : seed();
+}
+function writeAll(list) {
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(LS_KEY, JSON.stringify(list));
+  }
+}
+
+// --------- UTILS ---------
+function paginate(items, page, pageSize, search, tipo) {
+  const s = (search || "").trim().toLowerCase();
+  const filtered = items.filter((x) => {
+    const okSearch =
+      !s ||
+      x.no_requerimiento.toLowerCase().includes(s) ||
+      x.estado.toLowerCase().includes(s) ||
+      x.descripcion.toLowerCase().includes(s);
+    const okTipo = !tipo || x.tipo === tipo;
+    return okSearch && okTipo;
+  });
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+
+  return { items: pageItems, page, total, totalPages };
+}
+
+// --------- API PÚBLICA ---------
+export async function listExternos({
+  token,
+  page = 1,
+  pageSize = 5,
+  search = "",
+  tipo = "RSW",
+} = {}) {
+  // API real (solo si flag activo)
+  if (API && USE_API) {
+    try {
+      const url = `${API}/externos?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(
+        search
+      )}&tipo=${encodeURIComponent(tipo)}`;
+      const res = await fetch(url, { headers: authHeaders(token) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn(
+        "[externosService] Fallback a MOCK por error de API:",
+        err?.message
+      );
+      // continúa en MOCK...
+    }
+  }
+
+  // MOCK
+  await sleep();
+  const all = readAll();
+  return paginate(all, page, pageSize, search, tipo);
+}
+
+export async function getExterno(id, token) {
+  if (API && USE_API) {
+    try {
+      const res = await fetch(`${API}/externos/${encodeURIComponent(id)}`, {
+        headers: authHeaders(token),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn("[externosService] Fallback a MOCK getExterno:", err?.message);
+    }
+  }
+  await sleep();
+  const all = readAll();
+  return all.find((x) => x.id === id || x.no_requerimiento === id) || null;
+}
+
+export async function createExterno({ token, payload }) {
+  if (API && USE_API) {
+    try {
+      const res = await fetch(`${API}/externos`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn("[externosService] Fallback a MOCK create:", err?.message);
+    }
+  }
+  await sleep();
+  const all = readAll();
+  const nuevo = {
+    ...makeItem(all.length),
+    ...payload,
+    id: `EXT${pad(all.length + 1, 4)}`,
+    fecha: payload?.fecha ? toISO(payload.fecha) : toISO(new Date()),
+  };
+  all.unshift(nuevo);
+  writeAll(all);
+  return nuevo;
+}
+
+export async function updateExterno({ token, id, payload }) {
+  if (!id) throw new Error("id requerido");
+  if (API && USE_API) {
+    try {
+      const res = await fetch(`${API}/externos/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        headers: authHeaders(token),
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn("[externosService] Fallback a MOCK update:", err?.message);
+    }
+  }
+  await sleep();
+  const all = readAll();
+  const idx = all.findIndex((x) => x.id === id || x.no_requerimiento === id);
+  if (idx === -1) throw new Error("No encontrado");
+  const updated = { ...all[idx], ...payload };
+  all[idx] = updated;
+  writeAll(all);
+  return updated;
+}
+
+export async function exportExternosCsv(arg = {}) {
+  // Si quieres usar API para export, activa flag
+  if (API && USE_API && (arg.token || arg.search !== undefined || arg.tipo)) {
+    const { token, search = "", tipo = "" } = arg;
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (tipo) params.set("tipo", tipo);
+
+    try {
+      const res = await fetch(`${API}/externos/export?${params}`, {
+        headers: authHeaders(token),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `externos_${toISO(new Date())}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    } catch (err) {
+      console.warn("[externosService] Fallback export MOCK:", err?.message);
+    }
+  }
+
+  // MOCK export: si me pasan items o quiero exportar lo de la página actual
+  const items = Array.isArray(arg) ? arg : arg.items;
+  const headers = ["no_requerimiento", "estado", "fecha", "tipo", "responsable"];
+  const rows = (items || []).map((i) => [
+    i.no_requerimiento || "",
+    i.estado || "",
+    i.fecha || "",
+    i.tipo || "",
+    i.responsable || "",
+  ]);
+  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `externos_${toISO(new Date())}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}

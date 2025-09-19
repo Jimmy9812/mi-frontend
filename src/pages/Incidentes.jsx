@@ -62,13 +62,32 @@ export default function Incidentes() {
     await load();
   };
 
-  const handleExport = () => {
-    try {
-      exportIncidentesCsv(data.items);
-    } catch (error) {
-      console.error('Error al exportar:', error);
-    }
-  };
+  const handleExport = async () => {
+  try {
+    setLoading(true);
+    
+    // Obtener TODOS los incidentes sin paginación usando pageSize muy grande
+    const allIncidentes = await listIncidentes({ 
+      token, 
+      role: user?.activeRole, 
+      page: 1, 
+      pageSize: 10000, // Número muy alto para obtener todos
+      search, // Mantener filtros actuales
+      status 
+    });
+    
+    console.log(`Exportando ${allIncidentes.items.length} incidentes de ${allIncidentes.total} totales`);
+    
+    // Exportar todos los elementos obtenidos
+    exportIncidentesCsv(allIncidentes.items);
+    
+  } catch (error) {
+    console.error('Error al exportar:', error);
+    alert('Error al exportar los incidentes');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const formatDate = (dateString) => {
     if (!dateString) return "Sin fecha";
