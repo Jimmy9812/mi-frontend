@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   listAccidentes,
   exportAccidentesCsv,
+  seed, // 👈 importamos la semilla
 } from "../services/accidentesService";
 
 const ESTADOS = [
@@ -19,9 +20,8 @@ export default function Accidentes() {
   const { user, hasPermission, token } = useAuth();
   const navigate = useNavigate();
 
-  // ✅ Mostrar botón si es admin o tiene permiso específico
   const canWrite =
-    (user?.rol === "Administrador") || hasPermission("ACCIDENTES_WRITE");
+    user?.rol === "Administrador" || hasPermission("ACCIDENTES_WRITE");
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
@@ -47,6 +47,10 @@ export default function Accidentes() {
   }
 
   useEffect(() => {
+    // 👇 si no hay datos en localStorage, genera la semilla
+    if (!localStorage.getItem("accidentes@seed")) {
+      seed();
+    }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, status]);
@@ -75,7 +79,7 @@ export default function Accidentes() {
 
       {/* Columna derecha */}
       <div className="flex flex-col">
-        {/* Header (Home + Usuario logueado) */}
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2 text-slate-600">
             <Home className="w-5 h-5" />
@@ -163,7 +167,7 @@ export default function Accidentes() {
                   <div className="px-4 py-3">{row.tramite}</div>
                   <div className="px-4 py-3">{row.estado}</div>
                   <div className="px-4 py-3">
-                    {new Date(row.fecha).toLocaleDateString()}
+                    {new Date(row.fecha).toLocaleDateString("es-EC")}
                   </div>
                   <div className="px-4 py-3 flex items-center justify-center">
                     <button
