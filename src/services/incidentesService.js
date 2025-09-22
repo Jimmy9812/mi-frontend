@@ -399,7 +399,7 @@ export async function updateIncidente({ token, id, payload }) {
     error_img: payload.error_reportado 
       ? (payload.error_reportado.startsWith('data:') 
          ? payload.error_reportado.split(',')[1]  // Solo el base64
-         : payload.error_reportado)
+        : payload.error_reportado)
       : undefined,
   };
 

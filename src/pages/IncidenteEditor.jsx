@@ -105,59 +105,62 @@ export default function IncidenteEditor({ mode = "view" }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b">
+      {/* Barra superior con Atrás */}
+      <div className="flex items-center justify-between px-6 py-3">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-slate-600 hover:underline"
+          className="flex items-center gap-2 text-slate-700 hover:underline"
         >
-          <ArrowLeft className="w-5 h-5" /> Atrás
+          <ArrowLeft className="w-5 h-5" />
+          <span>Atrás</span>
         </button>
+      </div>
 
-        {/* Botones dinámicos */}
-        <div className="flex gap-2">
-          {!isCreate && isView && !editMode && !resolveMode && (
-            <button
-              onClick={() => setEditMode(true)}
-              className="p-2 bg-yellow-500 rounded hover:bg-yellow-600"
-              title="Editar"
-            >
-              <Edit className="w-5 h-5 text-white" />
-            </button>
-          )}
+      {/* Línea superior con margen lateral */}
+      <div className="h-[2px] bg-[#5b0f2c] mx-6 my-2"></div>
 
-          {/* Botón de resolver solo si está pendiente */}
-          {!isCreate && isView && incidente.estado === "PENDIENTE" && !resolveMode && (
-            <button
-              onClick={() => setResolveMode(true)}
-              className="p-2 bg-blue-600 rounded hover:bg-blue-700"
-              title="Resolver"
-            >
-              <CheckCircle className="w-5 h-5 text-white" />
-            </button>
-          )}
+      {/* Encabezado con fondo claro y botones */}
+      <div className="px-6 mt-2 mb-4">
+        <div className="flex items-center justify-between bg-[#7d3d5a] text-white rounded px-5 py-3 font-bold tracking-wide shadow">
+          <span>INCIDENTES</span>
 
-          {(editMode || resolveMode) && (
-            <button
-              onClick={handleSave}
-              className="p-2 bg-green-600 rounded hover:bg-green-700"
-              title="Guardar"
-            >
-              <Save className="w-5 h-5 text-white" />
-            </button>
-          )}
+          <div className="flex gap-2">
+            {!isCreate && isView && !editMode && !resolveMode && (
+              <button
+                onClick={() => setEditMode(true)}
+                className="p-2 rounded bg-yellow-500 hover:bg-yellow-600"
+                title="Editar"
+              >
+                <Edit className="w-5 h-5 text-white" />
+              </button>
+            )}
+            {!isCreate && isView && incidente.estado === "PENDIENTE" && !resolveMode && (
+              <button
+                onClick={() => setResolveMode(true)}
+                className="p-2 rounded bg-blue-600 hover:bg-blue-700"
+                title="Resolver"
+              >
+                <CheckCircle className="w-5 h-5 text-white" />
+              </button>
+            )}
+            {(editMode || resolveMode) && (
+              <button
+                onClick={handleSave}
+                className="p-2 rounded bg-green-600 hover:bg-green-700"
+                title="Guardar"
+              >
+                <Save className="w-5 h-5 text-white" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Línea superior */}
-      <div className="h-[2px] bg-[#5b0f2c] mt-2 mb-4"></div>
+      {/* Línea inferior con margen lateral */}
+      <div className="h-[2px] bg-[#5b0f2c] mx-6 my-2"></div>
 
       {/* Contenido principal */}
       <div className="flex flex-col gap-4 p-6">
-        <div className="rounded-lg bg-[#7d3d5a] text-white px-5 py-3 font-bold tracking-wide shadow">
-          INCIDENTES
-        </div>
-
         {/* Formulario en columnas */}
         <div className="grid grid-cols-3 gap-4">
           {/* Columna 1 */}
@@ -174,7 +177,6 @@ export default function IncidenteEditor({ mode = "view" }) {
             <Field label="Tipología de trámite" name="tipologia_tramite" value={incidente.tipologia_tramite || incidente.tipologia_tramite} onChange={handleChange} disabled={!editMode && !isCreate} />
             <Field label="Año Sirec-Q error" name="añosirecq" value={incidente.añosirecq} onChange={handleChange} disabled={!editMode && !isCreate} />
 
-            {/* Campos fase 2 */}
             {(!isCreate || resolveMode) && (
               <>
                 <Field label="Mensaje visualizado del error" name="mensaje_error" value={incidente.mensaje_error} onChange={handleChange} disabled={!resolveMode} />
@@ -186,14 +188,10 @@ export default function IncidenteEditor({ mode = "view" }) {
           {/* Columna 3 */}
           <div className="space-y-3 border rounded-lg p-4">
             <Field label="Descripción del error" name="descripcion" value={incidente.descripcion || incidente.descripcion} onChange={handleChange} textarea disabled={!editMode && !isCreate} />
-            
-            {/* Campo Observaciones solo en fase 2 */}
             {(!isCreate || resolveMode) && (
               <Field label="Observaciones" name="observaciones" value={incidente.observaciones} onChange={handleChange} textarea disabled={!resolveMode} />
             )}
-
             <Field label="Error reportado (imagen)" name="error_reportado" onChange={handleChange} type="file" disabled={!editMode && !isCreate} />
-            {/* Preview if backend provided image as data URL */}
             {incidente.error_reportado && (
               <div className="mt-2">
                 <label className="block text-sm font-semibold mb-1">Vista previa</label>
@@ -204,8 +202,8 @@ export default function IncidenteEditor({ mode = "view" }) {
         </div>
       </div>
 
-      {/* Línea inferior */}
-      <div className="h-[2px] bg-[#5b0f2c] mt-6"></div>
+      {/* Línea inferior con margen lateral */}
+      <div className="h-[2px] bg-[#5b0f2c] mx-6 my-2"></div>
 
       {/* Footer con GIF */}
       <div className="p-6 flex justify-center">
@@ -219,7 +217,7 @@ export default function IncidenteEditor({ mode = "view" }) {
 function Field({ label, name, value, onChange, disabled, textarea, type = "text", options = [] }) {
   return (
     <div>
-      <label className="block text-sm font-semibold mb-1">{label}</label>
+      <label className="block text-sm font-semibold mb-1 text-[#5b0f2c]">{label}</label>
       {type === "file" ? (
         <input
           type="file"
@@ -230,19 +228,24 @@ function Field({ label, name, value, onChange, disabled, textarea, type = "text"
           className="w-full p-2 border rounded bg-gray-50 disabled:opacity-70"
         />
       ) : type === "select" ? (
-<select
-  name={name}
-  value={value || ""}
-  onChange={onChange}
-  disabled={disabled}
-  className="w-full p-2 border rounded bg-gray-50 text-gray-900 disabled:opacity-70"
->
+        <select
+          name={name}
+          value={value || ""}
+          onChange={onChange}
+          disabled={disabled}
+          className="w-full p-2 border rounded bg-gray-50 text-gray-900 disabled:opacity-70"
+        >
           <option value="">Seleccionar...</option>
           {options.map((option) => {
-            // soportar distintos shapes: zonas {id_zona,nombre_zona}, usuarios {id_usuario,nombre_completo} u otros
             const optionKey = option.id_zona ?? option.id_usuario ?? option.id ?? option.id_usuario_role;
             const optionValue = optionKey;
-            const optionLabel = option.nombre_zona ?? option.nombre_completo ?? (option.nombre && option.apellidos_usuario ? `${option.nombre} ${option.apellidos_usuario}` : option.nombre) ?? option.nombre_usuario ?? option.descripcion ?? String(optionKey);
+            const optionLabel =
+              option.nombre_zona ??
+              option.nombre_completo ??
+              (option.nombre && option.apellidos_usuario ? `${option.nombre} ${option.apellidos_usuario}` : option.nombre) ??
+              option.nombre_usuario ??
+              option.descripcion ??
+              String(optionKey);
             return (
               <option key={optionKey} value={optionValue}>
                 {optionLabel}

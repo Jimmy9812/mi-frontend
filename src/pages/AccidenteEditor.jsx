@@ -75,21 +75,21 @@ export default function AccidenteEditor({ mode = "view" }) {
         </button>
       </div>
 
-      {/* Línea superior */}
-      <div className="h-[2px] bg-[#3a577c]"></div>
+      {/* Línea superior con margen lateral */}
+      <div className="h-[2px] bg-[#3a577c] mx-6 my-2"></div>
 
-      {/* Título + acciones (derecha) */}
-      <div className="px-6 pt-4">
-        <div className="flex items-center justify-between">
-          <div className="rounded-lg bg-[#5b7093] text-white px-5 py-3 font-bold tracking-wide shadow">
+      {/* Encabezado con fondo claro y botones */}
+      <div className="px-6 mt-2 mb-4">
+        <div className="flex items-center justify-between bg-[#f1f5f9] rounded px-5 py-3">
+          <span className="font-bold text-[#3a577c] text-lg tracking-wide">
             ACCIDENTES
-          </div>
+          </span>
 
           <div className="flex gap-2">
             {!editMode && mode !== "create" && (
               <button
                 onClick={() => setEditMode(true)}
-                className="p-2 rounded bg-[#5b7093] hover:bg-[#4a5e7f] text-white"
+                className="p-2 rounded bg-[#3a577c] hover:bg-[#2e4666] text-white"
                 title="Editar"
               >
                 <Edit className="w-5 h-5" />
@@ -98,7 +98,7 @@ export default function AccidenteEditor({ mode = "view" }) {
             {(editMode || mode === "create") && (
               <button
                 onClick={handleSave}
-                className="p-2 rounded bg-[#1f8f5a] hover:bg-[#18734a] text-white"
+                className="p-2 rounded bg-[#3a577c] hover:bg-[#2e4666] text-white"
                 title="Guardar"
               >
                 <Save className="w-5 h-5" />
@@ -108,7 +108,10 @@ export default function AccidenteEditor({ mode = "view" }) {
         </div>
       </div>
 
-      {/* Contenido – bloques con borde azul como la maqueta */}
+      {/* Línea inferior con margen lateral */}
+      <div className="h-[2px] bg-[#3a577c] mx-6 my-2"></div>
+
+      {/* Contenido – bloques con borde azul */}
       <div className="p-6 space-y-6">
         {/* BLOQUE 1 */}
         <div className="border rounded-xl p-4 space-y-4 border-[#3a577c]">
@@ -138,9 +141,8 @@ export default function AccidenteEditor({ mode = "view" }) {
               />
             </div>
 
-            {/* Columna central (sub-box de fechas + tipología/inspección) */}
+            {/* Columna central */}
             <div className="space-y-4">
-              {/* Sub-box Fechas (Ingreso / Asignación) */}
               <div className="border rounded-lg p-4">
                 <div className="grid grid-cols-2 gap-4">
                   <DateField
@@ -240,7 +242,7 @@ export default function AccidenteEditor({ mode = "view" }) {
               />
             </div>
 
-            {/* Columna central (sub-box Fecha/Control/Código) */}
+            {/* Columna central */}
             <div className="space-y-4">
               <div className="border rounded-lg p-4">
                 <div className="grid grid-cols-1 gap-4">
@@ -269,7 +271,7 @@ export default function AccidenteEditor({ mode = "view" }) {
               </div>
             </div>
 
-            {/* Columna derecha (Observaciones) */}
+            {/* Columna derecha */}
             <div className="space-y-4">
               <TextArea
                 label="Observaciones"
@@ -285,9 +287,9 @@ export default function AccidenteEditor({ mode = "view" }) {
       </div>
 
       {/* Línea inferior */}
-      <div className="h-[2px] bg-[#3a577c] mx-6"></div>
+      <div className="h-[2px] bg-[#3a577c] mx-6 my-2"></div>
 
-      {/* GIF institucional reutilizable */}
+      {/* GIF institucional */}
       <div className="p-6 flex justify-center">
         <LoadingGif />
       </div>
@@ -299,7 +301,9 @@ export default function AccidenteEditor({ mode = "view" }) {
 function Field({ label, name, value, onChange, disabled, type = "text" }) {
   return (
     <div>
-      <label className="block text-sm font-semibold mb-1">{label}</label>
+      <label className="block text-sm font-semibold mb-1 text-[#3a577c]">
+        {label}
+      </label>
       <input
         type={type}
         name={name}
@@ -315,7 +319,9 @@ function Field({ label, name, value, onChange, disabled, type = "text" }) {
 function TextArea({ label, name, value, onChange, disabled, rows = 4 }) {
   return (
     <div>
-      <label className="block text-sm font-semibold mb-1">{label}</label>
+      <label className="block text-sm font-semibold mb-1 text-[#3a577c]">
+        {label}
+      </label>
       <textarea
         name={name}
         value={value || ""}
@@ -331,7 +337,9 @@ function TextArea({ label, name, value, onChange, disabled, rows = 4 }) {
 function DateField({ label, name, value, onChange, disabled }) {
   return (
     <div>
-      <label className="block text-sm font-semibold mb-1">{label}</label>
+      <label className="block text-sm font-semibold mb-1 text-[#3a577c]">
+        {label}
+      </label>
       <div className="relative">
         <input
           type="date"
