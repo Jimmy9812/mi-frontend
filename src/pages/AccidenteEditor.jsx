@@ -76,12 +76,12 @@ export default function AccidenteEditor({ mode = "view" }) {
       </div>
 
       {/* Línea superior con margen lateral */}
-      <div className="h-[2px] bg-[#3a577c] mx-6 my-2"></div>
+      <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 
       {/* Encabezado con fondo claro y botones */}
       <div className="px-6 mt-2 mb-4">
         <div className="flex items-center justify-between bg-[#f1f5f9] rounded px-5 py-3">
-          <span className="font-bold text-[#3a577c] text-lg tracking-wide">
+          <span className="font-bold text-[#3F6592] text-lg tracking-wide">
             ACCIDENTES
           </span>
 
@@ -89,7 +89,7 @@ export default function AccidenteEditor({ mode = "view" }) {
             {!editMode && mode !== "create" && (
               <button
                 onClick={() => setEditMode(true)}
-                className="p-2 rounded bg-[#3a577c] hover:bg-[#2e4666] text-white"
+                className="p-2 rounded bg-[#3F6592] hover:bg-[#2e4666] text-white"
                 title="Editar"
               >
                 <Edit className="w-5 h-5" />
@@ -98,7 +98,7 @@ export default function AccidenteEditor({ mode = "view" }) {
             {(editMode || mode === "create") && (
               <button
                 onClick={handleSave}
-                className="p-2 rounded bg-[#3a577c] hover:bg-[#2e4666] text-white"
+                className="p-2 rounded bg-[#3F6592] hover:bg-[#2e4666] text-white"
                 title="Guardar"
               >
                 <Save className="w-5 h-5" />
@@ -109,12 +109,12 @@ export default function AccidenteEditor({ mode = "view" }) {
       </div>
 
       {/* Línea inferior con margen lateral */}
-      <div className="h-[2px] bg-[#3a577c] mx-6 my-2"></div>
+      <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 
       {/* Contenido – bloques con borde azul */}
       <div className="p-6 space-y-6">
         {/* BLOQUE 1 */}
-        <div className="border rounded-xl p-4 space-y-4 border-[#3a577c]">
+        <div className="border rounded-xl p-4 space-y-4 border-[#3F6592]">
           <div className="grid grid-cols-3 gap-6">
             {/* Columna izquierda */}
             <div className="space-y-4">
@@ -208,7 +208,7 @@ export default function AccidenteEditor({ mode = "view" }) {
         </div>
 
         {/* BLOQUE 2 */}
-        <div className="border rounded-xl p-4 space-y-4 border-[#3a577c]">
+        <div className="border rounded-xl p-4 space-y-4 border-[#3F6592]">
           <div className="grid grid-cols-3 gap-6">
             {/* Columna izquierda */}
             <div className="space-y-4">
@@ -287,7 +287,7 @@ export default function AccidenteEditor({ mode = "view" }) {
       </div>
 
       {/* Línea inferior */}
-      <div className="h-[2px] bg-[#3a577c] mx-6 my-2"></div>
+      <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 
       {/* GIF institucional */}
       <div className="p-6 flex justify-center">
@@ -301,7 +301,7 @@ export default function AccidenteEditor({ mode = "view" }) {
 function Field({ label, name, value, onChange, disabled, type = "text" }) {
   return (
     <div>
-      <label className="block text-sm font-semibold mb-1 text-[#3a577c]">
+      <label className="block text-sm font-semibold mb-1 text-[#3F6592]">
         {label}
       </label>
       <input
@@ -319,7 +319,7 @@ function Field({ label, name, value, onChange, disabled, type = "text" }) {
 function TextArea({ label, name, value, onChange, disabled, rows = 4 }) {
   return (
     <div>
-      <label className="block text-sm font-semibold mb-1 text-[#3a577c]">
+      <label className="block text-sm font-semibold mb-1 text-[#3F6592]">
         {label}
       </label>
       <textarea
@@ -337,7 +337,7 @@ function TextArea({ label, name, value, onChange, disabled, rows = 4 }) {
 function DateField({ label, name, value, onChange, disabled }) {
   return (
     <div>
-      <label className="block text-sm font-semibold mb-1 text-[#3a577c]">
+      <label className="block text-sm font-semibold mb-1 text-[#3F6592]">
         {label}
       </label>
       <div className="relative">

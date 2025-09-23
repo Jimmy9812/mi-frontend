@@ -117,12 +117,14 @@ export default function IncidenteEditor({ mode = "view" }) {
       </div>
 
       {/* Línea superior con margen lateral */}
-      <div className="h-[2px] bg-[#5b0f2c] mx-6 my-2"></div>
+      <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 
       {/* Encabezado con fondo claro y botones */}
       <div className="px-6 mt-2 mb-4">
-        <div className="flex items-center justify-between bg-[#7d3d5a] text-white rounded px-5 py-3 font-bold tracking-wide shadow">
-          <span>INCIDENTES</span>
+        <div className="flex items-center justify-between bg-[#f1f5f9] rounded px-5 py-3">
+          <span className="font-bold text-[#3F6592] text-lg tracking-wide">
+            INCIDENTES
+          </span>
 
           <div className="flex gap-2">
             {!isCreate && isView && !editMode && !resolveMode && (
@@ -157,7 +159,7 @@ export default function IncidenteEditor({ mode = "view" }) {
       </div>
 
       {/* Línea inferior con margen lateral */}
-      <div className="h-[2px] bg-[#5b0f2c] mx-6 my-2"></div>
+      <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 
       {/* Contenido principal */}
       <div className="flex flex-col gap-4 p-6">
@@ -203,7 +205,7 @@ export default function IncidenteEditor({ mode = "view" }) {
       </div>
 
       {/* Línea inferior con margen lateral */}
-      <div className="h-[2px] bg-[#5b0f2c] mx-6 my-2"></div>
+      <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 
       {/* Footer con GIF */}
       <div className="p-6 flex justify-center">
@@ -217,7 +219,7 @@ export default function IncidenteEditor({ mode = "view" }) {
 function Field({ label, name, value, onChange, disabled, textarea, type = "text", options = [] }) {
   return (
     <div>
-      <label className="block text-sm font-semibold mb-1 text-[#5b0f2c]">{label}</label>
+      <label className="block text-sm font-semibold mb-1 text-[#3F6592]">{label}</label>
       {type === "file" ? (
         <input
           type="file"

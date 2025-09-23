@@ -88,7 +88,7 @@ export default function Externos() {
 
         {/* Barra título dorada */}
         <div className="px-6 pt-4">
-          <div className="rounded-lg bg-[#c8b451] text-white px-5 py-3 font-bold tracking-wide shadow">
+          <div className="rounded-lg bg-[#3F6592] text-white px-5 py-3 font-bold tracking-wide shadow">
             EXTERNOS SIREC-Q
           </div>
         </div>
@@ -143,7 +143,7 @@ export default function Externos() {
         {/* Tabla */}
         <div className="mx-6 my-4 rounded-xl border overflow-hidden bg-white">
           {/* Cabecera tabla */}
-          <div className="grid grid-cols-[1.4fr_1fr_1fr_120px] bg-[#bfae52] text-white font-semibold text-sm">
+          <div className="grid grid-cols-[1.4fr_1fr_1fr_120px] bg-[#3F6592] text-white font-semibold text-sm">
             <div className="px-4 py-3">N° Requerimiento</div>
             <div className="px-4 py-3">Estado</div>
             <div className="px-4 py-3">Fecha</div>
@@ -171,7 +171,7 @@ export default function Externos() {
                 <div className="px-4 py-3 flex items-center justify-center">
                   <button
                     onClick={() => navigate(`/externos/${row.id}`)}
-                    className="px-3 py-1 bg-[#c8b451] text-white rounded-md hover:opacity-90 transition-opacity"
+                    className="px-3 py-1 bg-[#3F6592] text-white rounded-md hover:opacity-90 transition-opacity"
                     title="Ver/Editar"
                   >
                     <Eye className="w-4 h-4" />
@@ -227,7 +227,7 @@ export default function Externos() {
                     onClick={() => setPage(pageNum)}
                     className={`w-8 h-8 rounded ${
                       pageNum === page
-                        ? "bg-[#c8b451] text-white"
+                        ? "bg-[#3F6592] text-white"
                         : "hover:bg-slate-100"
                     }`}
                   >
@@ -248,7 +248,7 @@ export default function Externos() {
           {/* Botón agregar (abajo derecha) */}
           <button
             onClick={() => navigate("/externos/nuevo")}
-            className="flex items-center gap-2 bg-[#c8b451] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 bg-[#3F6592] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-opacity"
           >
             <Plus className="w-4 h-4" />
             ADD NUEVO REQUERIMIENTO

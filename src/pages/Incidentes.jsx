@@ -133,7 +133,7 @@ export default function Incidentes() {
         {/* Contenido principal */}
         <div className="flex flex-col gap-4 p-6">
           {/* Título */}
-          <div className="rounded-lg bg-[#7d3d5a] text-white px-5 py-3 font-bold tracking-wide shadow">
+          <div className="rounded-lg bg-[#3F6592] text-white px-5 py-3 font-bold tracking-wide shadow">
             INCIDENTES
           </div>
 
@@ -181,7 +181,7 @@ export default function Incidentes() {
 
           {/* Tabla */}
           <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="grid grid-cols-[1.2fr_1fr_1fr_120px] bg-[#5b0f2c] text-white font-semibold text-sm">
+            <div className="grid grid-cols-[1.2fr_1fr_1fr_120px] bg-[#3F6592] text-white font-semibold text-sm">
               <div className="px-4 py-3">N° de Incidencia</div>
               <div className="px-4 py-3">Estado</div>
               <div className="px-4 py-3">Fecha</div>
@@ -219,7 +219,7 @@ export default function Incidentes() {
                   <div className="px-4 py-3 flex items-center justify-center">
                     <button
                       onClick={() => navigate(`/incidentes/${row.id}`)}
-                      className="px-3 py-1 bg-[#7d3d5a] text-white rounded-md hover:opacity-90 transition-opacity"
+                      className="px-3 py-1 bg-[#3F6592] text-white rounded-md hover:opacity-90 transition-opacity"
                       title="Ver detalles"
                     >
                       <Eye className="w-4 h-4" />
@@ -280,7 +280,7 @@ export default function Incidentes() {
                       onClick={() => setPage(pageNum)}
                       className={`w-8 h-8 rounded ${
                         pageNum === data.page
-                          ? "bg-[#7d3d5a] text-white"
+                          ? "bg-[#3F6592] text-white"
                           : "hover:bg-slate-100"
                       }`}
                     >
@@ -304,7 +304,7 @@ export default function Incidentes() {
             {canWrite && (
               <button
                 onClick={() => navigate("/incidentes/nuevo")}
-                className="flex items-center gap-2 bg-[#7d3d5a] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-opacity"
+                className="flex items-center gap-2 bg-[#3F6592] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-opacity"
               >
                 <Plus className="w-4 h-4" />
                 ADD NUEVO INCIDENTE

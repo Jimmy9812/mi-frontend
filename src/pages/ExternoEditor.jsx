@@ -85,35 +85,39 @@ export default function ExternosEditor({ mode = "view" }) {
       </div>
 
       {/* Línea superior */}
-      <div className="h-[2px] bg-[#5b0f2c]"></div>
+      <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 
-      {/* Título + acciones */}
-      <div className="flex items-center justify-between bg-[#d4c05f] text-black px-6 py-3 font-bold text-lg">
-        <span>EXTERNOS SIREC-Q</span>
-        <div className="flex gap-2">
-          {!isCreate && isView && !editMode && (
-            <button
-              onClick={() => setEditMode(true)}
-              className="p-2 bg-yellow-500 rounded hover:bg-yellow-600"
-              title="Editar"
-            >
-              <Edit className="w-5 h-5 text-white" />
-            </button>
-          )}
-          {(editMode || isCreate) && (
-            <button
-              onClick={handleSave}
-              className="p-2 bg-green-600 rounded hover:bg-green-700"
-              title="Guardar"
-            >
-              <Save className="w-5 h-5 text-white" />
-            </button>
-          )}
+      {/* Encabezado con fondo claro y botones */}
+      <div className="px-6 mt-2 mb-4">
+        <div className="flex items-center justify-between bg-[#f1f5f9] rounded px-5 py-3">
+          <span className="font-bold text-[#3F6592] text-lg tracking-wide">
+            EXTERNOS SIREC-Q
+          </span>
+          <div className="flex gap-2">
+            {!isCreate && isView && !editMode && (
+              <button
+                onClick={() => setEditMode(true)}
+                className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174] transition"
+                title="Editar"
+              >
+                <Edit className="w-5 h-5" />
+              </button>
+            )}
+            {(editMode || isCreate) && (
+              <button
+                onClick={handleSave}
+                className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174] transition"
+                title="Guardar"
+              >
+                <Save className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Línea debajo del título */}
-      <div className="h-[2px] bg-[#5b0f2c] mb-6"></div>
+      <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 
       {/* ================= SECCIÓN 1 ================= */}
       <div className="px-6 mb-6">
@@ -158,7 +162,7 @@ export default function ExternosEditor({ mode = "view" }) {
                 rows={6}
               />
             ) : (
-              <div className="w-full min-h-[160px] p-3 rounded bg-[#d4c05f]">
+              <div className="w-full min-h-[160px] p-3 rounded bg-[#f1f5f9] text-gray-800">
                 {externo.descripcion || "-"}
               </div>
             )}
@@ -256,7 +260,7 @@ export default function ExternosEditor({ mode = "view" }) {
                 rows={6}
               />
             ) : (
-              <div className="w-full min-h-[160px] p-3 rounded bg-[#d4c05f]">
+              <div className="w-full min-h-[160px] p-3 rounded bg-[#f1f5f9] text-gray-800">
                 {externo.observaciones || "-"}
               </div>
             )}
@@ -289,7 +293,7 @@ export default function ExternosEditor({ mode = "view" }) {
       </div>
 
       {/* Línea inferior */}
-      <div className="h-[2px] bg-[#5b0f2c] mt-6"></div>
+      <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 
       {/* Footer con GIF */}
       <div className="p-6 flex justify-center">
@@ -314,7 +318,9 @@ function EditableField({ label, name, value, onChange, editMode }) {
           className="w-full p-2 border rounded bg-gray-50"
         />
       ) : (
-        <div className="w-full p-2 rounded bg-[#d4c05f]">{value || "-"}</div>
+        <div className="w-full p-2 rounded bg-[#f1f5f9] text-gray-800">
+          {value || "-"}
+        </div>
       )}
     </div>
   );
@@ -333,7 +339,7 @@ function PaintedPicker({
   return (
     <div>
       <label className="block text-sm font-semibold mb-1">{label}</label>
-      <div className="flex items-center justify-between bg-[#d4c05f] rounded px-2 py-2">
+      <div className="flex items-center justify-between bg-[#f1f5f9] rounded px-2 py-2 text-gray-800">
         <div className="flex-1" />
         {kind === "select" ? (
           <select
@@ -377,7 +383,9 @@ function DateField({ label, name, value, onChange, editMode }) {
           className="w-full p-2 border rounded bg-gray-50"
         />
       ) : (
-        <div className="w-full p-2 rounded bg-[#d4c05f]">{value || "-"}</div>
+        <div className="w-full p-2 rounded bg-[#f1f5f9] text-gray-800">
+          {value || "-"}
+        </div>
       )}
     </div>
   );

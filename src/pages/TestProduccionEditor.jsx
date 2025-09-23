@@ -165,31 +165,36 @@ export default function TestProduccionEditor() {
       </div>
 
       {/* Línea superior */}
-      <hr className="border-t-2 border-[#8B5E3C] mb-2" />
+      <hr className="border-t-2 border-[#3F6592] mb-2" />
 
-      {/* Título */}
-      <div className="flex justify-between items-center bg-[#D6C7BF] p-3 rounded mb-2">
-        <span className="font-bold text-white">TEST PRODUCCIÓN</span>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setIsEditing((v) => !v)}
-            className="p-2 bg-[#8B5E3C] text-white rounded"
-            title="Editar"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleSave}
-            className="p-2 bg-[#8B5E3C] text-white rounded"
-            title="Guardar"
-          >
-            <Save className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+     {/* Encabezado con fondo claro y botones */}
+<div className="px-6 mt-2 mb-4">
+  <div className="flex items-center justify-between bg-[#f1f5f9] rounded px-5 py-3">
+    <span className="font-bold text-[#3F6592] text-lg tracking-wide">
+      TEST PRODUCCIÓN
+    </span>
+    <div className="flex gap-2">
+      <button
+        onClick={() => setIsEditing((v) => !v)}
+        className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174] transition"
+        title="Editar"
+      >
+        <Edit className="w-4 h-4" />
+      </button>
+      <button
+        onClick={handleSave}
+        className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174] transition"
+        title="Guardar"
+      >
+        <Save className="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+</div>
+
 
       {/* Línea inferior del título */}
-      <hr className="border-t-2 border-[#8B5E3C] mb-6" />
+      <hr className="border-t-2 border-[#3F6592] mb-6" />
 
       {/* ---- FORMULARIO ---- */}
       <div className="border rounded-xl p-4 space-y-6">
@@ -272,7 +277,7 @@ export default function TestProduccionEditor() {
       </div>
 
       {/* Línea final y GIF */}
-      <hr className="border-t-2 border-[#8B5E3C] mt-6 mb-4" />
+      <hr className="border-t-2 border-[#3F6592] mt-6 mb-4" />
       <div className="flex justify-center">
         <img src="/metro-responsive.gif" alt="Municipio de Quito" className="h-24" />
       </div>
@@ -402,7 +407,7 @@ function SectionWithBox({
         {isEditing && (
           <button
             onClick={onAdd}
-            className="p-2 border border-[#8B5E3C] rounded-full text-[#8B5E3C] hover:bg-[#8B5E3C] hover:text-white"
+            className="p-2 border border-[#3F6592] rounded-full text-[#3F6592] hover:bg-[#3F6592] hover:text-white"
             title="Añadir versión"
           >
             <Plus className="w-4 h-4" />

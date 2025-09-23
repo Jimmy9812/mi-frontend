@@ -92,7 +92,7 @@ export default function TestProduccion() {
 
         {/* Contenido */}
         <div className="flex flex-col gap-4 p-6">
-          <div className="rounded-lg bg-[#8B5E3C] text-white px-5 py-3 font-bold shadow">
+          <div className="rounded-lg bg-[#3F6592] text-white px-5 py-3 font-bold shadow">
             TEST/PRODUCCIÓN
           </div>
 
@@ -140,7 +140,7 @@ export default function TestProduccion() {
 
           {/* Tabla */}
           <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="grid grid-cols-[1.2fr_1fr_1fr_120px] bg-[#6F4E37] text-white font-semibold text-sm">
+            <div className="grid grid-cols-[1.2fr_1fr_1fr_120px] bg-[#3F6592] text-white font-semibold text-sm">
               <div className="px-4 py-3">N° Requerimiento</div>
               <div className="px-4 py-3">Estado</div>
               <div className="px-4 py-3">Fecha</div>
@@ -165,7 +165,7 @@ export default function TestProduccion() {
                   <div className="px-4 py-3 flex justify-center">
                     <button
                       onClick={() => navigate(`/test-produccion/${row.id}`)} // ✅ corregido
-                      className="px-3 py-1 bg-[#8B5E3C] text-white rounded-md hover:opacity-90"
+                      className="px-3 py-1 bg-[#3F6592] text-white rounded-md hover:opacity-90"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
@@ -208,7 +208,7 @@ export default function TestProduccion() {
                   key={n}
                   onClick={() => setPage(n)}
                   className={`w-8 h-8 rounded ${
-                    n === data.page ? "bg-[#8B5E3C] text-white" : "hover:bg-slate-100"
+                    n === data.page ? "bg-[#3F6592] text-white" : "hover:bg-slate-100"
                   }`}
                 >
                   {n}
@@ -226,7 +226,7 @@ export default function TestProduccion() {
             {canWrite && (
               <button
                 onClick={() => navigate("/test-produccion/nuevo")} // ✅ corregido
-                className="flex items-center gap-2 bg-[#8B5E3C] text-white px-4 py-2 rounded-lg shadow hover:opacity-90"
+                className="flex items-center gap-2 bg-[#3F6592] text-white px-4 py-2 rounded-lg shadow hover:opacity-90"
               >
                 <Plus className="w-4 h-4" />
                 ADD NUEVO REQUERIMIENTO
