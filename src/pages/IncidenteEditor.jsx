@@ -174,36 +174,129 @@ export default function IncidenteEditor({ mode = "view" }) {
             <Field label="Fecha de ingreso del error" name="fecha_ingreso" value={incidente.fecha_ingreso} onChange={handleChange} type="date" disabled={!editMode && !isCreate} />
           </div>
 
-          {/* Columna 2 */}
+                    {/* Columna 2 */}
           <div className="space-y-3 border rounded-lg p-4">
-            <Field label="Tipología de trámite" name="tipologia_tramite" value={incidente.tipologia_tramite || incidente.tipologia_tramite} onChange={handleChange} disabled={!editMode && !isCreate} />
-            <Field label="Año Sirec-Q error" name="añosirecq" value={incidente.añosirecq} onChange={handleChange} disabled={!editMode && !isCreate} />
+            <Field
+              label="Tipología de trámite"
+              name="tipologia_tramite"
+              value={incidente.tipologia_tramite || incidente.tipologia_tramite}
+              onChange={handleChange}
+              disabled={!editMode && !isCreate}
+            />
+
+            {/* Select dinámico de Año Sirec-Q */}
+            <Field
+              label="Año Sirec-Q error"
+              name="añosirecq"
+              value={incidente.añosirecq}
+              onChange={handleChange}
+              type="select"
+              options={Array.from(
+                { length: new Date().getFullYear() - 2007 + 1 },
+                (_, i) => {
+                  const year = 2007 + i;
+                  return { id: year, nombre: year };
+                }
+              )}
+              disabled={!editMode && !isCreate}
+            />
 
             {(!isCreate || resolveMode) && (
               <>
-                <Field label="Mensaje visualizado del error" name="mensaje_error" value={incidente.mensaje_error} onChange={handleChange} disabled={!resolveMode} />
-                <Field label="Fecha Solución" name="fecha_solucion" value={incidente.fecha_solucion} onChange={handleChange} type="date" disabled={!resolveMode} />
+                {/* Select SGDTIC / DMI */}
+                <Field
+                  label="Mensaje visualizado del error"
+                  name="mensaje_error"
+                  value={incidente.mensaje_error}
+                  onChange={handleChange}
+                  type="select"
+                  options={[
+                    { id: "SGDTIC", nombre: "SGDTIC" },
+                    { id: "DMI", nombre: "DMI" },
+                  ]}
+                  disabled={!resolveMode}
+                />
+
+                <Field
+                  label="Fecha Solución"
+                  name="fecha_solucion"
+                  value={incidente.fecha_solucion}
+                  onChange={handleChange}
+                  type="date"
+                  disabled={!resolveMode}
+                />
               </>
             )}
           </div>
 
-          {/* Columna 3 */}
+                  {/* Columna 3 */}
           <div className="space-y-3 border rounded-lg p-4">
-            <Field label="Descripción del error" name="descripcion" value={incidente.descripcion || incidente.descripcion} onChange={handleChange} textarea disabled={!editMode && !isCreate} />
-            {(!isCreate || resolveMode) && (
-              <Field label="Observaciones" name="observaciones" value={incidente.observaciones} onChange={handleChange} textarea disabled={!resolveMode} />
-            )}
-            <Field label="Error reportado (imagen)" name="error_reportado" onChange={handleChange} type="file" disabled={!editMode && !isCreate} />
-            {incidente.error_reportado && (
-              <div className="mt-2">
-                <label className="block text-sm font-semibold mb-1">Vista previa</label>
-                <img src={incidente.error_reportado} alt="Error reportado" className="max-w-full max-h-64 rounded border" />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+            <Field
+              label="Descripción del error"
+              name="descripcion"
+              value={incidente.descripcion || incidente.descripcion}
+              onChange={handleChange}
+              textarea
+              disabled={!editMode && !isCreate}
+            />
 
+            {(!isCreate || resolveMode) && (
+              <Field
+                label="Observaciones"
+                name="observaciones"
+                value={incidente.observaciones}
+                onChange={handleChange}
+                textarea
+                disabled={!resolveMode}
+              />
+            )}
+
+            {/* Input dinámico para imagen */}
+            <div>
+              <label className="block text-sm font-semibold mb-1 text-[#3F6592]">
+                Error reportado (imagen)
+              </label>
+
+              {/* Input file oculto */}
+              <input
+                id="fileInput"
+                type="file"
+                name="error_reportado"
+                onChange={handleChange}
+                disabled={!editMode && !isCreate}
+                accept="image/*"
+                className="hidden"
+              />
+
+              {/* Botón personalizado */}
+              <label
+                htmlFor="fileInput"
+                className={`inline-flex items-center px-4 py-2 rounded cursor-pointer ${
+                  incidente.error_reportado
+                    ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                } ${!editMode && !isCreate ? "opacity-70 cursor-not-allowed" : ""}`}
+              >
+                {incidente.error_reportado ? "Cambiar imagen" : "Seleccionar archivo"}
+              </label>
+
+              {/* Vista previa si ya existe imagen */}
+              {incidente.error_reportado && (
+                <div className="mt-2">
+                  <label className="block text-sm font-semibold mb-1">
+                    Vista previa guardada
+                  </label>
+                  <img
+                    src={incidente.error_reportado}
+                    alt="Error reportado"
+                    className="max-w-full max-h-64 rounded border"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          </div>
+          </div>
       {/* Línea inferior con margen lateral */}
       <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
 

@@ -8,8 +8,7 @@ const ESTADOS = [
   { label: "Todos", value: "ALL" },
   { label: "FAVORABLE", value: "FAVORABLE" },
   { label: "PENDIENTE", value: "PENDIENTE" },
-  { label: "RECHAZADO", value: "RECHAZADO" },
-];
+  ];
 
 export default function Incidentes() {
   const { user, hasPermission, token } = useAuth();
