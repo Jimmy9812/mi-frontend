@@ -472,3 +472,46 @@ export async function exportIncidentesCsv(arg = {}) {
   a.click();
   URL.revokeObjectURL(url);
 }
+// Resolver incidente (cambiar estado a FAVORABLE)
+export async function resolveIncidente({ token, no_incidente, payload }) {
+  if (!no_incidente) throw new Error("Número de incidente requerido");
+
+  // Normalizamos campos para backend
+  const mappedPayload = {
+    fech_solucion: toBackendDate(payload.fecha_solucion),
+    obs_incidente: payload.observaciones,
+    mensajeerror: payload.mensaje_error,
+  };
+
+  if (API) {
+    const res = await fetch(
+      `${API}/incidentes/estado/${encodeURIComponent(no_incidente)}`,
+      {
+        method: "PATCH",
+        headers: authHeaders(token),
+        body: JSON.stringify(mappedPayload),
+      }
+    );
+    if (!res.ok) {
+      let msg = await res.text().catch(() => "Error al resolver incidente");
+      throw new Error(msg);
+    }
+    return res.json(); // devuelve el incidente actualizado (estado ya en Favorable)
+  }
+
+  // 🔹 Modo FAKE (LocalStorage)
+  await sleep();
+  const all = readAll();
+  const idx = all.findIndex((x) => x.numero === no_incidente);
+  if (idx === -1) throw new Error("Incidente no encontrado");
+
+  const updated = {
+    ...all[idx],
+    ...mappedPayload,
+    estado: "FAVORABLE",
+  };
+
+  all[idx] = updated;
+  writeAll(all);
+  return updated;
+}

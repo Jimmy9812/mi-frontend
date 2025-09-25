@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getIncidente, createIncidente, updateIncidente } from "../services/incidentesService";
+import { getIncidente, createIncidente, updateIncidente, resolveIncidente } from "../services/incidentesService";
 import { getAllZona } from "../services/zonasService";
 import { getTecnicoIncidentes, getAnalistas } from "../services/usersRolService";
 import { useAuth } from "../context/AuthContext";
@@ -72,30 +72,37 @@ export default function IncidenteEditor({ mode = "view" }) {
     }
   };
 
-  const handleSave = async () => {
-    try {
-      if (mode === "create") {
-        await createIncidente({ token, payload: incidente });
-        alert("Incidente creado");
-        navigate("/incidentes");
-      } else if (resolveMode) {
-        await updateIncidente({ token, id, payload: {
-            mensaje_error: incidente.mensaje_error,
-            fecha_solucion: incidente.fecha_solucion,
-            observaciones: incidente.observaciones,
-          }});
-        alert("Incidente resuelto");
-        setResolveMode(false);
-      } else {
-        await updateIncidente({ token, id, payload: incidente });
-        alert("Incidente actualizado");
-      }
-      setEditMode(false);
-    } catch (err) {
-      console.error(err);
-      alert("Error al guardar");
-    }
-  };
+      const handleSave = async () => {
+        try {
+          if (mode === "create") {
+            await createIncidente({ token, payload: incidente });
+            alert("Incidente creado");
+            navigate("/incidentes");
+          } else if (resolveMode) {
+            // 👇 AQUÍ cambiamos a resolveIncidente
+            await resolveIncidente({
+              token,
+              no_incidente: incidente.numero, // el backend espera no_incidente
+              payload: {
+                mensaje_error: incidente.mensaje_error,
+                fecha_solucion: incidente.fecha_solucion,
+                observaciones: incidente.observaciones,
+              },
+            });
+            alert("Incidente resuelto y marcado como FAVORABLE");
+            setResolveMode(false);
+            navigate("/incidentes"); // volver a la lista
+          } else {
+            await updateIncidente({ token, id, payload: incidente });
+            alert("Incidente actualizado");
+          }
+          setEditMode(false);
+        } catch (err) {
+          console.error(err);
+          alert("Error al guardar");
+        }
+      };
+
 
   if (loading) return <div className="p-6">Cargando...</div>;
   if (!incidente) return <div className="p-6">No encontrado</div>;
