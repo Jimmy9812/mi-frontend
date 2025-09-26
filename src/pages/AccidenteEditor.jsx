@@ -45,7 +45,7 @@ export default function AccidenteEditor({ mode = "view" }) {
           clave_catastral: "",
           parroquia: "",
           estado_tramite: "PENDIENTE",
-          fecha_control: "",
+          fecha_estado: "",
           control_calidad: "",
           codigo_consulta: "",
           observaciones: "",
@@ -227,11 +227,8 @@ export default function AccidenteEditor({ mode = "view" }) {
                 onChange={handleChange}
                 disabled={disabled}
                 options={analistas.map(analista => ({
-                  value: analista.id_rol_usuario,
-                  label: analista.nombre_completo || 
-                         (analista.nombre_usuario && analista.apellidos_usuario ? 
-                          `${analista.nombre_usuario} ${analista.apellidos_usuario}` : 
-                          analista.nombre_usuario || 'Sin nombre')
+                  value: analista.id_usuario,
+                  label: analista.nombre_completo || 'Sin nombre'
                 }))}
                 required={isCreate}
               />
@@ -379,8 +376,8 @@ export default function AccidenteEditor({ mode = "view" }) {
                 <div className="grid grid-cols-1 gap-4">
                   <DateField
                     label="Fecha de control"
-                    name="fecha_control"
-                    value={acc.fecha_control}
+                    name="fecha_estado"
+                    value={acc.fecha_estado}
                     onChange={handleChange}
                     disabled={disabled}
                   />

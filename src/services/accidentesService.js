@@ -62,7 +62,7 @@ function transformBackendToFrontend(item) {
     
     // Fechas adicionales
     fecha: item.fech_ingr_tramite ? new Date(item.fech_ingr_tramite).toISOString().slice(0, 10) : '',
-    fecha_control: item.createdAt ? new Date(item.createdAt).toISOString().slice(0, 10) : '',
+    fecha_estado: item.fecha_estado ? new Date(item.fecha_estado).toISOString().slice(0, 10) : '',
     
     // Campos adicionales para compatibilidad
     lugar: item.zona?.ubi_zona || 'N/A',
@@ -81,6 +81,7 @@ function transformFrontendToBackend(payload) {
     oficio_memorando_mail: payload.oficio || undefined,
     fech_ingr_tramite: toBackendDate(payload.fecha_ingreso_tramite),
     fecha_asignacion: toBackendDate(payload.fecha_asignacion_tramite),
+    fecha_estado: toBackendDate(payload.fecha_estado),
     tipologia: payload.tipologia_tramite ? parseInt(payload.tipologia_tramite) : undefined,
     inspeccion: payload.inspeccion === 'SI' || payload.inspeccion === true,
     predio: payload.predio || payload.numero_predio || undefined,
