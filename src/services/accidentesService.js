@@ -1,307 +1,345 @@
 // src/services/accidentesService.js
-const API = import.meta.env.VITE_API_URL; // si existe, intentamos usar backend
-const LS_KEY = "accidentes@seed";
-const ESTADOS = ["FAVORABLE", "PENDIENTE", "RECHAZADO"];
+const API = import.meta.env.VITE_API_URL; // Backend URL
 
 /* =====================
  * Utilidades compartidas
  * ===================== */
-const sleep = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 const authHeaders = (token) => ({
   "Content-Type": "application/json",
   ...(token ? { Authorization: `Bearer ${token}` } : {}),
 });
 
 /* =====================
- * Modo FAKE (LocalStorage)
+ * Transformaciones de datos
  * ===================== */
-function randomDate() {
-  const start = new Date(2025, 0, 1).getTime();
-  const end = new Date(2025, 8, 30).getTime();
-  return new Date(start + Math.random() * (end - start));
+
+// Convierte fecha frontend (YYYY-MM-DD) a formato backend
+const toBackendDate = (dateStr) => {
+  if (!dateStr) return null;
+  return new Date(dateStr).toISOString();
+};
+
+// Transforma datos del backend al frontend
+function transformBackendToFrontend(item) {
+  if (!item) return null;
+
+  return {
+    id: item.id_accidente,
+    id_accidente: item.id_accidente,
+    tramite: item.tramite_accidente || '',
+    oficio: item.oficio_memorando_mail || '',
+    fecha_ingreso_tramite: item.fech_ingr_tramite ? new Date(item.fech_ingr_tramite).toISOString().slice(0, 10) : '',
+    fecha_asignacion_tramite: item.fecha_asignacion ? new Date(item.fecha_asignacion).toISOString().slice(0, 10) : '',
+    tipologia_tramite: item.tipologia?.toString() || '',
+    inspeccion: item.inspeccion ? 'SI' : 'NO',
+    predio: item.predio || '',
+    numero_predio: item.predio || '', // alias
+    clave_catastral: item.clave_catastral || '',
+    nom_propietario: item.nom_propietario || '',
+    propietario: item.nom_propietario || '', // alias
+    documento: item.documento || '',
+    numero_documento: item.documento || '', // alias
+    cod_consulta: item.cod_consulta || '',
+    codigo_consulta: item.cod_consulta || '', // alias
+    control_calidad: item.control_calidad || '',
+    numero_interno: item.numero_interno || '',
+    observaciones: item.observaciones || '',
+    
+    // Estado
+    estado: item.estadoAccInc?.nombre_estado_acc_inc || 'SIN ESTADO',
+    estado_tramite: item.estadoAccInc?.nombre_estado_acc_inc || 'SIN ESTADO',
+    id_estado_acc_inc: item.estadoAccInc?.id_estado_acc_inc || null,
+    
+    // Zona
+    zona: item.zona?.nombre_zona || null,
+    parroquia: item.zona?.nombre_zona || '', // si zona es parroquia
+    id_zona: item.zona?.id_zona || null,
+    
+    // Usuario responsable
+    tecnico_responsable: item.rolUsuario?.usuario ? 
+      `${item.rolUsuario.usuario.nombre_usuario} ${item.rolUsuario.usuario.apellidos_usuario}`.trim() : '',
+    id_rol_usuario: item.rolUsuario?.id_rol_usuario || null,
+    
+    // Fechas adicionales
+    fecha: item.fech_ingr_tramite ? new Date(item.fech_ingr_tramite).toISOString().slice(0, 10) : '',
+    fecha_control: item.createdAt ? new Date(item.createdAt).toISOString().slice(0, 10) : '',
+    
+    // Campos adicionales para compatibilidad
+    lugar: item.zona?.ubi_zona || 'N/A',
+    descripcion: item.observaciones || '',
+    responsable: item.rolUsuario?.usuario ? 
+      `${item.rolUsuario.usuario.nombre_usuario} ${item.rolUsuario.usuario.apellidos_usuario}`.trim() : '',
+      
+    _raw: item // datos originales del backend
+  };
 }
 
-export function seed() {
-  const exists = localStorage.getItem(LS_KEY);
-  if (exists) {
-    try {
-      const parsed = JSON.parse(exists);
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].tramite) {
-        return parsed; // ya existen datos completos
-      }
-    } catch {
-      // si falla el parseo, seguimos y regeneramos
-    }
-  }
-
-  const list = Array.from({ length: 15 }).map((_, i) => {
-    const idx = (i + 1).toString().padStart(4, "0");
-    return {
-      id: `AC${idx}`,
-      tramite: `TRAM-${idx}`,
-      estado: ESTADOS[Math.floor(Math.random() * ESTADOS.length)],
-      fecha: randomDate().toISOString().slice(0, 10),
-
-      // 👉 Campos completos para AccidenteEditor
-      oficio: `SHOT-DMC-USIGC-2025-${idx}-O`,
-      tecnico_responsable: `Técnico ${i + 1}`,
-      fecha_ingreso_tramite: randomDate().toISOString().slice(0, 10),
-      fecha_asignacion_tramite: randomDate().toISOString().slice(0, 10),
-      tipologia_tramite: "31",
-      inspeccion: Math.random() > 0.5 ? "SI" : "NO",
-      numero_interno: `INT-${idx}`,
-      numero_documento: `DOC-${idx}`,
-      propietario: `Propietario ${i + 1}`,
-      numero_predio: `${5140000 + i}`,
-      clave_catastral: `80463013${100 + i}`,
-      parroquia: "PACTO",
-      estado_tramite: ESTADOS[Math.floor(Math.random() * ESTADOS.length)],
-      fecha_control: randomDate().toISOString().slice(0, 10),
-      control_calidad: "OK/KC",
-      codigo_consulta: `CC-${idx}`,
-      lugar: "Quito",
-      descripcion: "Descripción breve del accidente...",
-      responsable: "Responsable X",
-      observaciones: "Observación generada automáticamente.",
-    };
-  });
-
-  // 👉 Ejemplo fijo siempre presente
-  const extras = [
-    {
-      id: "AC1001",
-      tramite: "TRAM-1001",
-      estado: "FAVORABLE",
-      fecha: "2025-09-19",
-      lugar: "Quito",
-      descripcion: "Accidente favorable registrado como prueba.",
-      responsable: "Ing. Ana Torres",
-      observaciones: "Todo en orden.",
-
-      oficio: "SHOT-DMC-USIGC-2025-1-O",
-      tecnico_responsable: "RAUL LOPEZ",
-      fecha_ingreso_tramite: "2025-08-22",
-      fecha_asignacion_tramite: "2025-09-01",
-      tipologia_tramite: "31",
-      inspeccion: "NO",
-      numero_interno: "INT-001",
-      numero_documento: "DOC-001",
-      propietario: "Juan Pérez",
-      numero_predio: "5140886",
-      clave_catastral: "8046301313",
-      parroquia: "PACTO",
-      estado_tramite: "FAVORABLE",
-      fecha_control: "2025-09-10",
-      control_calidad: "OK/KC",
-      codigo_consulta: "CC-001",
-    },
-  ];
-
-  const finalList = [...extras, ...list];
-  localStorage.setItem(LS_KEY, JSON.stringify(finalList));
-  return finalList;
-}
-
-function readAll() {
-  const data = localStorage.getItem(LS_KEY);
-  return data ? JSON.parse(data) : seed();
-}
-
-function writeAll(list) {
-  localStorage.setItem(LS_KEY, JSON.stringify(list));
+// Transforma datos del frontend al backend para crear/actualizar
+function transformFrontendToBackend(payload) {
+  return {
+    tramite_accidente: payload.tramite || undefined,
+    oficio_memorando_mail: payload.oficio || undefined,
+    fech_ingr_tramite: toBackendDate(payload.fecha_ingreso_tramite),
+    fecha_asignacion: toBackendDate(payload.fecha_asignacion_tramite),
+    tipologia: payload.tipologia_tramite ? parseInt(payload.tipologia_tramite) : undefined,
+    inspeccion: payload.inspeccion === 'SI' || payload.inspeccion === true,
+    predio: payload.predio || payload.numero_predio || undefined,
+    clave_catastral: payload.clave_catastral || undefined,
+    nom_propietario: payload.nom_propietario || payload.propietario || undefined,
+    documento: payload.documento || payload.numero_documento || undefined,
+    cod_consulta: payload.cod_consulta || payload.codigo_consulta || undefined,
+    control_calidad: payload.control_calidad || undefined,
+    numero_interno: payload.numero_interno || undefined,
+    observaciones: payload.observaciones || undefined,
+    id_estado_acc_inc: payload.id_estado_acc_inc ? parseInt(payload.id_estado_acc_inc) : undefined,
+    id_zona: payload.id_zona ? parseInt(payload.id_zona) : undefined,
+    id_rol_usuario: payload.id_rol_usuario ? parseInt(payload.id_rol_usuario) : undefined,
+  };
 }
 
 /* =====================
- * API pública
+ * API Functions
  * ===================== */
 
 export async function listAccidentes({
   token,
   page = 1,
-  pageSize = 5,
+  pageSize = 10,
   search = "",
   status = "ALL",
 } = {}) {
-  if (API) {
-    try {
-      const q = new URLSearchParams({ page, pageSize, search, status });
-      const res = await fetch(`${API}/accidentes?${q.toString()}`, {
-        headers: authHeaders(token),
-      });
-      if (!res.ok) throw new Error("API no respondió");
-      return res.json();
-    } catch (err) {
-      console.warn("⚠️ Backend no disponible, usando datos mock");
-    }
+  if (!API) {
+    throw new Error("Backend URL no configurada");
   }
 
-  // === MOCK ===
-  await sleep();
-  const all = readAll();
-  const filtered = all.filter((x) => {
-    const bySearch =
-      !search ||
-      x.tramite.toLowerCase().includes(search.toLowerCase()) ||
-      x.estado.toLowerCase().includes(search.toLowerCase());
-    const byStatus = status === "ALL" || x.estado === status;
-    return bySearch && byStatus;
-  });
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: pageSize.toString(),
+    });
 
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const start = (page - 1) * pageSize;
-  const items = filtered.slice(start, start + pageSize);
-  return { items, page, total, totalPages };
+    // Agregar búsqueda por trámite si existe
+    if (search && search.trim()) {
+      params.append('tramite', search.trim());
+    }
+
+    const res = await fetch(`${API}/accidente?${params.toString()}`, {
+      headers: authHeaders(token),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Error ${res.status}: ${res.statusText}`);
+    }
+
+    const backendData = await res.json();
+    
+    // Transformar datos del backend
+    const transformedItems = (backendData.data || []).map(transformBackendToFrontend);
+    
+    // Filtrar por estado si es necesario (ya que el backend no maneja este filtro)
+    const filteredItems = status === "ALL" ? transformedItems : 
+      transformedItems.filter(item => item.estado === status);
+
+    return {
+      items: filteredItems,
+      page: backendData.meta?.page || page,
+      total: backendData.meta?.total || filteredItems.length,
+      totalPages: backendData.meta?.totalPages || Math.ceil(filteredItems.length / pageSize),
+    };
+
+  } catch (error) {
+    console.error("Error al obtener accidentes:", error);
+    throw new Error(`No se pudieron cargar los accidentes: ${error.message}`);
+  }
 }
 
 export async function getAccidente({ token, id }) {
-  if (API) {
-    try {
-      const res = await fetch(`${API}/accidentes/${id}`, {
-        headers: authHeaders(token),
-      });
-      if (!res.ok) throw new Error("API no respondió");
-      return res.json();
-    } catch {
-      console.warn("⚠️ Backend no disponible, usando datos mock");
-    }
+  if (!API) {
+    throw new Error("Backend URL no configurada");
   }
 
-  await sleep();
-  const all = readAll();
-  const found = all.find((x) => x.id === id || x.tramite === id);
-  if (!found) throw new Error("Accidente no encontrado");
-  return found;
+  if (!id) {
+    throw new Error("ID de accidente requerido");
+  }
+
+  try {
+    const res = await fetch(`${API}/accidente/id_accidente/${encodeURIComponent(id)}`, {
+      headers: authHeaders(token),
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error("Accidente no encontrado");
+      }
+      throw new Error(`Error ${res.status}: ${res.statusText}`);
+    }
+
+    const backendData = await res.json();
+    return transformBackendToFrontend(backendData);
+
+  } catch (error) {
+    console.error("Error al obtener accidente:", error);
+    throw new Error(`No se pudo cargar el accidente: ${error.message}`);
+  }
 }
 
 export async function createAccidente(arg) {
   const token = arg?.token;
   const payload = arg?.payload ?? arg;
 
-  if (API) {
-    try {
-      const res = await fetch(`${API}/accidentes`, {
-        method: "POST",
-        headers: authHeaders(token),
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("API no respondió");
-      return res.json();
-    } catch {
-      console.warn("⚠️ Backend no disponible, usando datos mock");
-    }
+  if (!API) {
+    throw new Error("Backend URL no configurada");
   }
 
-  await sleep();
-  const all = readAll();
-  const next = (all.length + 1).toString().padStart(5, "0");
-  const nuevo = {
-    id: `AC${next}`,
-    tramite: `TRAM-${next}`,
-    estado: payload?.estado || "PENDIENTE",
-    fecha: payload?.fecha || new Date().toISOString().slice(0, 10),
+  if (!payload) {
+    throw new Error("Datos del accidente requeridos");
+  }
 
-    oficio: payload?.oficio || "",
-    tecnico_responsable: payload?.tecnico_responsable || "",
-    fecha_ingreso_tramite: payload?.fecha_ingreso_tramite || "",
-    fecha_asignacion_tramite: payload?.fecha_asignacion_tramite || "",
-    tipologia_tramite: payload?.tipologia_tramite || "",
-    inspeccion: payload?.inspeccion || "",
-    numero_interno: payload?.numero_interno || "",
-    numero_documento: payload?.numero_documento || "",
-    propietario: payload?.propietario || "",
-    numero_predio: payload?.numero_predio || "",
-    clave_catastral: payload?.clave_catastral || "",
-    parroquia: payload?.parroquia || "",
-    estado_tramite: payload?.estado_tramite || "",
-    fecha_control: payload?.fecha_control || "",
-    control_calidad: payload?.control_calidad || "",
-    codigo_consulta: payload?.codigo_consulta || "",
+  try {
+    const backendPayload = transformFrontendToBackend(payload);
+    
+    console.log("Datos que se envían al backend:", backendPayload);
 
-    lugar: payload?.lugar || "",
-    descripcion: payload?.descripcion || "",
-    responsable: payload?.responsable || "",
-    observaciones: payload?.observaciones || "",
-  };
-  all.unshift(nuevo);
-  writeAll(all);
-  return nuevo;
+    const res = await fetch(`${API}/accidente`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(backendPayload),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || `Error ${res.status}: ${res.statusText}`);
+    }
+
+    const backendData = await res.json();
+    return transformBackendToFrontend(backendData);
+
+  } catch (error) {
+    console.error("Error al crear accidente:", error);
+    throw new Error(`No se pudo crear el accidente: ${error.message}`);
+  }
 }
 
 export async function updateAccidente({ token, id, payload }) {
-  if (API) {
-    try {
-      const res = await fetch(`${API}/accidentes/${id}`, {
-        method: "PUT",
-        headers: authHeaders(token),
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("API no respondió");
-      return res.json();
-    } catch {
-      console.warn("⚠️ Backend no disponible, usando datos mock");
-    }
+  if (!API) {
+    throw new Error("Backend URL no configurada");
   }
 
-  await sleep();
-  const all = readAll();
-  const idx = all.findIndex((x) => x.id === id || x.tramite === id);
-  if (idx === -1) throw new Error("Accidente no encontrado");
-  const updated = { ...all[idx], ...payload };
-  all[idx] = updated;
-  writeAll(all);
-  return updated;
+  if (!id) {
+    throw new Error("ID de accidente requerido");
+  }
+
+  if (!payload) {
+    throw new Error("Datos del accidente requeridos");
+  }
+
+  try {
+    const backendPayload = transformFrontendToBackend(payload);
+    
+    console.log("Datos de actualización que se envían:", backendPayload);
+
+    const res = await fetch(`${API}/accidente/buscar/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify(backendPayload),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || `Error ${res.status}: ${res.statusText}`);
+    }
+
+    const backendData = await res.json();
+    return transformBackendToFrontend(backendData);
+
+  } catch (error) {
+    console.error("Error al actualizar accidente:", error);
+    throw new Error(`No se pudo actualizar el accidente: ${error.message}`);
+  }
 }
 
 export async function exportAccidentesCsv(arg = {}) {
-  if (API && (arg.token || arg.search !== undefined || arg.status !== undefined)) {
+  if (!API) {
+    throw new Error("Backend URL no configurada");
+  }
+
+  try {
+    const { token, search = "", status = "ALL" } = arg;
+    const params = new URLSearchParams({ search, status });
+    
+    const res = await fetch(`${API}/accidente/export?${params.toString()}`, {
+      headers: authHeaders(token),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Error ${res.status}: ${res.statusText}`);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `accidentes_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error("Error al exportar accidentes:", error);
+    throw new Error(`No se pudo exportar: ${error.message}`);
+  }
+}
+
+/* =====================
+ * Catálogos para Accidentes
+ * ===================== */
+
+  export async function getEstadosNoFavorable({ token } = {}) {
+    if (!API) {
+      throw new Error("Backend URL no configurada");
+    }
+
     try {
-      const { token, search = "", status = "ALL" } = arg;
-      const q = new URLSearchParams({ search, status });
-      const res = await fetch(`${API}/accidentes/export?${q.toString()}`, {
+      const res = await fetch(`${API}/accidente/estados-no-favorable`, {
         headers: authHeaders(token),
       });
-      if (!res.ok) throw new Error("API no respondió");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `accidentes_${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      return;
-    } catch {
-      console.warn("⚠️ Backend no disponible, usando datos mock");
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      console.log("📊 Estados no favorables cargados:", data);
+      
+      return data;
+
+    } catch (error) {
+      console.error("Error al obtener estados no favorables:", error);
+      throw new Error(`No se pudieron cargar los estados: ${error.message}`);
     }
   }
 
-  // === CSV MOCK ===
-  const items = Array.isArray(arg) ? arg : arg.items;
-  const headers = [
-    "tramite",
-    "estado",
-    "fecha",
-    "lugar",
-    "responsable",
-    "descripcion",
-    "observaciones",
-  ];
-  const rows = (items || []).map((i) => [
-    i.tramite,
-    i.estado,
-    i.fecha,
-    i.lugar,
-    i.responsable,
-    i.descripcion,
-    i.observaciones,
-  ]);
-  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  export async function getAnalistasAccidentes({ token } = {}) {
+    if (!API) {
+      throw new Error("Backend URL no configurada");
+    }
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `accidentes_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+    try {
+      const res = await fetch(`${API}/accidente/analistas-accidentes`, {
+        headers: authHeaders(token),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      console.log("👥 Analistas de accidentes cargados:", data);
+      
+      return data;
+
+    } catch (error) {
+      console.error("Error al obtener analistas de accidentes:", error);
+      throw new Error(`No se pudieron cargar los analistas: ${error.message}`);
+    }
+
 }

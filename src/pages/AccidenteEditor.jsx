@@ -4,63 +4,140 @@ import {
   getAccidente,
   createAccidente,
   updateAccidente,
+  getEstadosNoFavorable,
+  getAnalistasAccidentes,
 } from "../services/accidentesService";
+import { getAllZona } from "../services/zonasService";
+import { useAuth } from "../context/AuthContext";
 import { ArrowLeft, Save, Edit, Calendar } from "lucide-react";
 import LoadingGif from "../components/LoadingGif";
 
 export default function AccidenteEditor({ mode = "view" }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { token } = useAuth();
 
   const [acc, setAcc] = useState(null);
   const [editMode, setEditMode] = useState(mode === "create");
   const [loading, setLoading] = useState(true);
 
+  // Estados para catálogos
+  const [zonas, setZonas] = useState([]);
+  const [estados, setEstados] = useState([]);
+  const [analistas, setAnalistas] = useState([]);
+
   useEffect(() => {
     async function load() {
       if (mode === "create") {
-        setAcc({});
+        // Valores por defecto para nuevo accidente
+        setAcc({
+          tramite: "",
+          oficio: "",
+          tecnico_responsable: "",
+          fecha_ingreso_tramite: "",
+          fecha_asignacion_tramite: "",
+          tipologia_tramite: "",
+          inspeccion: "NO",
+          numero_interno: "",
+          numero_documento: "",
+          propietario: "",
+          numero_predio: "",
+          clave_catastral: "",
+          parroquia: "",
+          estado_tramite: "PENDIENTE",
+          fecha_control: "",
+          control_calidad: "",
+          codigo_consulta: "",
+          observaciones: "",
+          // Campos para backend
+          id_zona: null,
+          id_estado_acc_inc: null,
+          id_rol_usuario: null,
+        });
         setLoading(false);
         return;
       }
+
       try {
-        const res = await getAccidente({ id });
+        const res = await getAccidente({ token, id });
+        console.log("🟢 Accidente cargado desde backend:", res);
         setAcc(res);
-      } catch {
-        alert("No se pudo cargar el accidente");
+      } catch (error) {
+        console.error("Error cargando accidente:", error);
+        alert("No se pudo cargar el accidente: " + error.message);
         navigate("/accidentes");
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [id, mode, navigate]);
+  }, [id, mode, navigate, token]);
+
+  // Cargar catálogos
+  useEffect(() => {
+    async function loadCatalogs() {
+      try {
+        const [zonasData, estadosData, analistasData] = await Promise.all([
+          getAllZona({ token }),
+          getEstadosNoFavorable({ token }),
+          getAnalistasAccidentes({ token }),
+        ]);
+        
+        console.log("📋 Catálogos cargados:");
+        console.log("- Zonas:", zonasData);
+        console.log("- Estados:", estadosData);
+        console.log("- Analistas:", analistasData);
+        
+        setZonas(zonasData || []);
+        setEstados(estadosData || []);
+        setAnalistas(analistasData || []);
+      } catch (error) {
+        console.error("Error loading catalogs:", error);
+      }
+    }
+    if (token) {
+      loadCatalogs();
+    }
+  }, [token]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setAcc((p) => ({ ...p, [name]: value }));
+    setAcc((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
     try {
+      console.log("💾 Guardando accidente:", acc);
+
       if (mode === "create") {
-        await createAccidente({ payload: acc });
-        alert("Accidente creado");
+        const result = await createAccidente({ token, payload: acc });
+        console.log("✅ Accidente creado:", result);
+        alert("Accidente creado exitosamente");
         navigate("/accidentes");
       } else {
-        await updateAccidente({ id, payload: acc });
-        alert("Accidente actualizado");
+        const result = await updateAccidente({ token, id, payload: acc });
+        console.log("✅ Accidente actualizado:", result);
+        alert("Accidente actualizado exitosamente");
         setEditMode(false);
       }
-    } catch {
-      alert("Error al guardar");
+    } catch (error) {
+      console.error("❌ Error al guardar accidente:", error);
+      if (error.message.includes('409') || error.message.includes('ya existe')) {
+        alert("Este número de trámite u oficio ya existe. Por favor, verifica los datos.");
+      } else if (error.message.includes('404')) {
+        alert("No se encontró el accidente a actualizar.");
+      } else {
+        alert("Error al guardar: " + error.message);
+      }
     }
   };
 
-  if (loading) return <div className="p-6">Cargando…</div>;
-  if (!acc) return <div className="p-6">No encontrado</div>;
+  if (loading) return <div className="p-6 text-center">Cargando…</div>;
+  if (!acc) return <div className="p-6 text-center">Accidente no encontrado</div>;
 
   const disabled = !editMode;
+  const isCreate = mode === "create";
+  const isView = mode === "view";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -73,6 +150,12 @@ export default function AccidenteEditor({ mode = "view" }) {
           <ArrowLeft className="w-5 h-5" />
           <span>Atrás</span>
         </button>
+        
+        {/* Indicador de modo */}
+        <div className="text-sm text-slate-600">
+          {isCreate ? "Nuevo Accidente" : isView ? "Ver Accidente" : "Editando Accidente"}
+          {!isCreate && acc?.id && ` - ID: ${acc.id}`}
+        </div>
       </div>
 
       {/* Línea superior con margen lateral */}
@@ -86,19 +169,19 @@ export default function AccidenteEditor({ mode = "view" }) {
           </span>
 
           <div className="flex gap-2">
-            {!editMode && mode !== "create" && (
+            {!editMode && !isCreate && (
               <button
                 onClick={() => setEditMode(true)}
-                className="p-2 rounded bg-[#3F6592] hover:bg-[#2e4666] text-white"
+                className="p-2 rounded bg-yellow-500 hover:bg-yellow-600 text-white"
                 title="Editar"
               >
                 <Edit className="w-5 h-5" />
               </button>
             )}
-            {(editMode || mode === "create") && (
+            {(editMode || isCreate) && (
               <button
                 onClick={handleSave}
-                className="p-2 rounded bg-[#3F6592] hover:bg-[#2e4666] text-white"
+                className="p-2 rounded bg-green-600 hover:bg-green-700 text-white"
                 title="Guardar"
               >
                 <Save className="w-5 h-5" />
@@ -113,8 +196,9 @@ export default function AccidenteEditor({ mode = "view" }) {
 
       {/* Contenido – bloques con borde azul */}
       <div className="p-6 space-y-6">
-        {/* BLOQUE 1 */}
+        {/* BLOQUE 1 - Información General */}
         <div className="border rounded-xl p-4 space-y-4 border-[#3F6592]">
+          <h3 className="text-lg font-semibold text-[#3F6592] mb-4">Información General</h3>
           <div className="grid grid-cols-3 gap-6">
             {/* Columna izquierda */}
             <div className="space-y-4">
@@ -124,6 +208,7 @@ export default function AccidenteEditor({ mode = "view" }) {
                 value={acc.tramite}
                 onChange={handleChange}
                 disabled={disabled}
+                placeholder="Ej: TRAM-001"
               />
               <Field
                 label="Oficio/Memorando/Mail"
@@ -131,19 +216,31 @@ export default function AccidenteEditor({ mode = "view" }) {
                 value={acc.oficio}
                 onChange={handleChange}
                 disabled={disabled}
+                placeholder="Ej: SHOT-DMC-USIGC-2025-001-O"
               />
-              <Field
+              
+              {/* ComboBox de Analistas (Técnicos responsables) */}
+              <SelectField
                 label="Técnico responsable"
-                name="tecnico_responsable"
-                value={acc.tecnico_responsable}
+                name="id_rol_usuario"
+                value={acc.id_rol_usuario}
                 onChange={handleChange}
                 disabled={disabled}
+                options={analistas.map(analista => ({
+                  value: analista.id_rol_usuario,
+                  label: analista.nombre_completo || 
+                         (analista.nombre_usuario && analista.apellidos_usuario ? 
+                          `${analista.nombre_usuario} ${analista.apellidos_usuario}` : 
+                          analista.nombre_usuario || 'Sin nombre')
+                }))}
+                required={isCreate}
               />
             </div>
 
             {/* Columna central */}
             <div className="space-y-4">
               <div className="border rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-[#3F6592] mb-3">Fechas</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <DateField
                     label="Ingreso del trámite"
@@ -151,6 +248,7 @@ export default function AccidenteEditor({ mode = "view" }) {
                     value={acc.fecha_ingreso_tramite}
                     onChange={handleChange}
                     disabled={disabled}
+                    required={isCreate}
                   />
                   <DateField
                     label="Asignación del trámite"
@@ -158,24 +256,33 @@ export default function AccidenteEditor({ mode = "view" }) {
                     value={acc.fecha_asignacion_tramite}
                     onChange={handleChange}
                     disabled={disabled}
+                    required={isCreate}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Field
+                <SelectField
                   label="Tipología de trámite"
                   name="tipologia_tramite"
                   value={acc.tipologia_tramite}
                   onChange={handleChange}
                   disabled={disabled}
+                  options={[
+                    { value: "31", label: "31" },
+                    { value: "32", label: "32" }
+                  ]}
                 />
-                <Field
+                <SelectField
                   label="Inspección"
                   name="inspeccion"
                   value={acc.inspeccion}
                   onChange={handleChange}
                   disabled={disabled}
+                  options={[
+                    { value: "SI", label: "SI" },
+                    { value: "NO", label: "NO" }
+                  ]}
                 />
               </div>
             </div>
@@ -188,6 +295,7 @@ export default function AccidenteEditor({ mode = "view" }) {
                 value={acc.numero_interno}
                 onChange={handleChange}
                 disabled={disabled}
+                placeholder="INT-001"
               />
               <Field
                 label="Número de documento"
@@ -195,6 +303,7 @@ export default function AccidenteEditor({ mode = "view" }) {
                 value={acc.numero_documento}
                 onChange={handleChange}
                 disabled={disabled}
+                placeholder="DOC-001"
               />
               <Field
                 label="Nombre del propietario"
@@ -202,13 +311,16 @@ export default function AccidenteEditor({ mode = "view" }) {
                 value={acc.propietario}
                 onChange={handleChange}
                 disabled={disabled}
+                placeholder="Nombre completo"
+                required={isCreate}
               />
             </div>
           </div>
         </div>
 
-        {/* BLOQUE 2 */}
+        {/* BLOQUE 2 - Información Catastral y Estado */}
         <div className="border rounded-xl p-4 space-y-4 border-[#3F6592]">
+          <h3 className="text-lg font-semibold text-[#3F6592] mb-4">Información Catastral y Estado</h3>
           <div className="grid grid-cols-3 gap-6">
             {/* Columna izquierda */}
             <div className="space-y-4">
@@ -218,6 +330,8 @@ export default function AccidenteEditor({ mode = "view" }) {
                 value={acc.numero_predio}
                 onChange={handleChange}
                 disabled={disabled}
+                placeholder="5140886"
+                required={isCreate}
               />
               <Field
                 label="Clave catastral"
@@ -225,29 +339,46 @@ export default function AccidenteEditor({ mode = "view" }) {
                 value={acc.clave_catastral}
                 onChange={handleChange}
                 disabled={disabled}
+                placeholder="8046301313"
+                required={isCreate}
               />
-              <Field
-                label="Parroquia"
-                name="parroquia"
-                value={acc.parroquia}
+              
+              {/* ComboBox de Zonas */}
+              <SelectField
+                label="Zona/Parroquia"
+                name="id_zona"
+                value={acc.id_zona}
                 onChange={handleChange}
                 disabled={disabled}
+                options={zonas.map(zona => ({
+                  value: zona.id_zona,
+                  label: zona.nombre_zona
+                }))}
+                required={isCreate}
               />
-              <Field
+              
+              {/* ComboBox de Estados */}
+              <SelectField
                 label="Estado de trámite"
-                name="estado_tramite"
-                value={acc.estado_tramite}
+                name="id_estado_acc_inc"
+                value={acc.id_estado_acc_inc}
                 onChange={handleChange}
                 disabled={disabled}
+                options={estados.map(estado => ({
+                  value: estado.id_estado_acc_inc,
+                  label: estado.nombre_estado_acc_inc
+                }))}
+                required={isCreate}
               />
             </div>
 
             {/* Columna central */}
             <div className="space-y-4">
               <div className="border rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-[#3F6592] mb-3">Control</h4>
                 <div className="grid grid-cols-1 gap-4">
                   <DateField
-                    label="Fecha"
+                    label="Fecha de control"
                     name="fecha_control"
                     value={acc.fecha_control}
                     onChange={handleChange}
@@ -259,6 +390,7 @@ export default function AccidenteEditor({ mode = "view" }) {
                     value={acc.control_calidad}
                     onChange={handleChange}
                     disabled={disabled}
+                    placeholder="OK/KC"
                   />
                   <Field
                     label="Código consulta/Dato seguro"
@@ -266,6 +398,7 @@ export default function AccidenteEditor({ mode = "view" }) {
                     value={acc.codigo_consulta}
                     onChange={handleChange}
                     disabled={disabled}
+                    placeholder="CC-001"
                   />
                 </div>
               </div>
@@ -280,6 +413,7 @@ export default function AccidenteEditor({ mode = "view" }) {
                 onChange={handleChange}
                 disabled={disabled}
                 rows={8}
+                placeholder="Ingrese observaciones adicionales..."
               />
             </div>
           </div>
@@ -298,11 +432,11 @@ export default function AccidenteEditor({ mode = "view" }) {
 }
 
 /* ========= Campos reutilizables ========= */
-function Field({ label, name, value, onChange, disabled, type = "text" }) {
+function Field({ label, name, value, onChange, disabled, type = "text", placeholder = "", required = false }) {
   return (
     <div>
       <label className="block text-sm font-semibold mb-1 text-[#3F6592]">
-        {label}
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
         type={type}
@@ -310,17 +444,44 @@ function Field({ label, name, value, onChange, disabled, type = "text" }) {
         value={value || ""}
         onChange={onChange}
         disabled={disabled}
-        className="w-full px-3 py-2 rounded-md border bg-gray-50 disabled:opacity-70"
+        placeholder={placeholder}
+        required={required}
+        className="w-full px-3 py-2 rounded-md border bg-gray-50 disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-[#3F6592] focus:border-transparent"
       />
     </div>
   );
 }
 
-function TextArea({ label, name, value, onChange, disabled, rows = 4 }) {
+function SelectField({ label, name, value, onChange, disabled, options = [], required = false }) {
   return (
     <div>
       <label className="block text-sm font-semibold mb-1 text-[#3F6592]">
-        {label}
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <select
+        name={name}
+        value={value || ""}
+        onChange={onChange}
+        disabled={disabled}
+        required={required}
+        className="w-full px-3 py-2 rounded-md border bg-gray-50 disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-[#3F6592] focus:border-transparent"
+      >
+        <option value="">Seleccionar...</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function TextArea({ label, name, value, onChange, disabled, rows = 4, placeholder = "", required = false }) {
+  return (
+    <div>
+      <label className="block text-sm font-semibold mb-1 text-[#3F6592]">
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       <textarea
         name={name}
@@ -328,17 +489,19 @@ function TextArea({ label, name, value, onChange, disabled, rows = 4 }) {
         onChange={onChange}
         disabled={disabled}
         rows={rows}
-        className="w-full px-3 py-2 rounded-md border bg-gray-50 disabled:opacity-70"
+        placeholder={placeholder}
+        required={required}
+        className="w-full px-3 py-2 rounded-md border bg-gray-50 disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-[#3F6592] focus:border-transparent"
       />
     </div>
   );
 }
 
-function DateField({ label, name, value, onChange, disabled }) {
+function DateField({ label, name, value, onChange, disabled, required = false }) {
   return (
     <div>
       <label className="block text-sm font-semibold mb-1 text-[#3F6592]">
-        {label}
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       <div className="relative">
         <input
@@ -347,7 +510,8 @@ function DateField({ label, name, value, onChange, disabled }) {
           value={value || ""}
           onChange={onChange}
           disabled={disabled}
-          className="w-full pr-10 px-3 py-2 rounded-md border bg-gray-50 disabled:opacity-70"
+          required={required}
+          className="w-full pr-10 px-3 py-2 rounded-md border bg-gray-50 disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-[#3F6592] focus:border-transparent"
         />
         <Calendar className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
       </div>
