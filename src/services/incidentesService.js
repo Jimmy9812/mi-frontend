@@ -21,6 +21,14 @@ function toBackendDate(dateString) {
   }
 }
 
+// 🔹 Normalizar texto (quita tildes, minúsculas)
+function normalizeText(text) {
+  return text
+    ?.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, ""); // elimina acentos
+}
+
 /* =====================
  * Modo FAKE (LocalStorage)
  * ===================== */
@@ -88,8 +96,7 @@ function transformBackendData(backendItems) {
     descripcion: item.descripcionerror,
     zona: item.zona?.nombre_zona,
     tipologia: item.tipologia,
-    // some backends use 'añosirecq' with ñ, others 'anio_sirecq'
-    anio_sirecq: item['añosirecq'] || item.anio_sirecq || null,
+    anio_sirecq: item["aniosirecq"] || item.anio_sirecq || null,
     mensaje_error: item.mensajeerror,
     fecha_solucion: item.fech_solucion,
     observaciones: item.obs_incidente,
@@ -101,47 +108,77 @@ function bufferToDataUrl(bufObj) {
   if (!bufObj) return null;
   const arr = bufObj.data || bufObj;
   if (!arr || !arr.length) return null;
-  // create Uint8Array
   const uint8 = new Uint8Array(arr);
-  // convert to binary string in chunks to avoid stack limits
   let binary = "";
   const chunkSize = 0x8000;
   for (let i = 0; i < uint8.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(null, Array.prototype.slice.call(uint8.subarray(i, i + chunkSize)));
+    binary += String.fromCharCode.apply(
+      null,
+      Array.prototype.slice.call(uint8.subarray(i, i + chunkSize))
+    );
   }
-  const b64 = typeof btoa === 'function' ? btoa(binary) : Buffer.from(uint8).toString('base64');
-  const isPng = uint8[0] === 137 && uint8[1] === 80 && uint8[2] === 78 && uint8[3] === 71;
-  const mime = isPng ? 'image/png' : 'application/octet-stream';
+  const b64 =
+    typeof btoa === "function"
+      ? btoa(binary)
+      : Buffer.from(uint8).toString("base64");
+  const isPng =
+    uint8[0] === 137 && uint8[1] === 80 && uint8[2] === 78 && uint8[3] === 71;
+  const mime = isPng ? "image/png" : "application/octet-stream";
   return `data:${mime};base64,${b64}`;
 }
 
 function transformBackendSingle(item) {
   if (!item) return null;
+
+  const tecnico = item.usuariosIncidente?.find((u) =>
+    normalizeText(u.rolUsuario?.rol?.nombre_rol)?.includes("tecnico")
+  );
+
+  const analista = item.usuariosIncidente?.find((u) =>
+    normalizeText(u.rolUsuario?.rol?.nombre_rol)?.includes("analista")
+  );
+
   return {
     id_incidente: item.id_incidente,
     id: item.id_incidente,
     numero: item.no_incidente,
-    estado: item.estado_acc_inc?.nombre_estado_acc_inc || 'Sin estado',
-    fecha_ingreso: item.fechaingresoerror ? new Date(item.fechaingresoerror).toISOString().slice(0,10) : null,
+    estado: item.estado_acc_inc?.nombre_estado_acc_inc || "Sin estado",
+    fecha_ingreso: item.fechaingresoerror
+      ? new Date(item.fechaingresoerror).toISOString().slice(0, 10)
+      : null,
     descripcion: item.descripcionerror,
     zona: item.zona?.nombre_zona,
     id_zona: item.zona?.id_zona,
     tipologia_tramite: item.tipologia,
-    anio_sirecq: item['añosirecq'] || item.anio_sirecq || null,
+    aniosirecq: item.aniosirecq || null,
     mensaje_error: item.mensajeerror,
-    fecha_solucion: item.fech_solucion ? new Date(item.fech_solucion).toISOString().slice(0,10) : null,
+    
+    // 🔹 Usar los IDs que vienen directamente del backend (tu método funciona bien)
+    id_tecnico: item.id_tecnico,
+    id_analista: item.id_analista,
+    
+    fecha_solucion: item.fech_solucion
+      ? new Date(item.fech_solucion).toISOString().slice(0, 10)
+      : null,
     observaciones: item.obs_incidente,
-    asignaciones: (item.asignaciones || []).map(a => a.idRolUsuario || a.id || a).join(','),
-    // map tecnico / analista if backend provided them
-    id_tecnico: item.tecnico ? (item.tecnico.id_usuario || item.tecnico.id) : null,
-    tecnico_nombre: item.tecnico ? `${item.tecnico.nombre_usuario || ''} ${item.tecnico.apellidos_usuario || ''}`.trim() : null,
-    id_analista: item.analista ? (item.analista.id_usuario || item.analista.id) : null,
-    analista_nombre: item.analista ? `${item.analista.nombre_usuario || ''} ${item.analista.apellidos_usuario || ''}`.trim() : null,
-    // set estado raw as well for conditional checks
-    estado_raw: item.estado_acc_inc,
-    // convert error image buffer to data URL so the editor can show it
+
+    asignaciones: Array.isArray(item.usuariosIncidente)
+      ? item.usuariosIncidente
+          .map((u) => u.rolUsuario?.id_rol_usuario)
+          .filter(Boolean)
+          .join(",")
+      : "",
+
+    // 🔹 Nombres de técnico y analista
+    tecnico_nombre: tecnico
+      ? `${tecnico.rolUsuario.usuario?.nombre_usuario || ""} ${tecnico.rolUsuario.usuario?.apellidos_usuario || ""}`.trim()
+      : null,
+
+    analista_nombre: analista
+      ? `${analista.rolUsuario.usuario?.nombre_usuario || ""} ${analista.rolUsuario.usuario?.apellidos_usuario || ""}`.trim()
+      : null,
+
     error_reportado: bufferToDataUrl(item.error_img) || null,
-    // keep raw backend payload for debugging if needed
     _raw: item,
   };
 }
@@ -223,7 +260,6 @@ export async function getIncidente(id_incidente, token) {
     );
     if (!res.ok) throw new Error("No se pudo obtener el incidente");
     const data = await res.json();
-    // transform to editor-friendly shape
     return transformBackendSingle(data);
   }
 
@@ -236,13 +272,14 @@ export async function getIncidente(id_incidente, token) {
 
 // Crear incidente
 export async function createIncidente({ token, payload }) {
-  // 👇 CORREGIR: Procesar la imagen para el backend
   let errorImg = "";
   if (payload.error_reportado) {
-    if (typeof payload.error_reportado === 'string' && payload.error_reportado.startsWith('data:')) {
-      // Extraer solo el base64 sin el prefijo data:image/...;base64,
-      errorImg = payload.error_reportado.split(',')[1];
-    } else if (typeof payload.error_reportado === 'string') {
+    if (
+      typeof payload.error_reportado === "string" &&
+      payload.error_reportado.startsWith("data:")
+    ) {
+      errorImg = payload.error_reportado.split(",")[1];
+    } else if (typeof payload.error_reportado === "string") {
       errorImg = payload.error_reportado;
     }
   }
@@ -252,109 +289,42 @@ export async function createIncidente({ token, payload }) {
     fechaingresoerror: toBackendDate(payload.fecha_ingreso),
     tipologia: payload.tipologia_tramite,
     descripcionerror: payload.descripcion,
-    añosirecq: parseInt(payload.anio_sirecq) || 2024, // 👈 CORREGIR: Backend usa 'añosirecq' no 'anio_sirecq'
+    aniosirecq: parseInt(payload.anio_sirecq) || 2024,
     id_zona: parseInt(payload.id_zona) || 1,
-    id_tecnico: payload.id_tecnico ? parseInt(payload.id_tecnico) : undefined,
-    id_analista: payload.id_analista ? parseInt(payload.id_analista) : undefined,
     asignaciones: payload.asignaciones
       ? payload.asignaciones.split(",").map((id) => ({
           idRolUsuario: parseInt(id.trim()),
         }))
       : [],
-    // 👇 CORREGIR: Campo correcto y formato base64 puro
     error_img: errorImg,
-    fecha_solucion: toBackendDate(payload.fecha_solucion),
+    fech_solucion: toBackendDate(payload.fecha_solucion),
+    obs_incidente: payload.observaciones,
+    mensajeerror: payload.mensaje_error,
   };
 
-  console.log('Datos que se van a enviar:', mappedPayload);
+  console.log("Datos que se van a enviar:", mappedPayload);
 
   if (API) {
-    // 👇 CAMBIO: Solo usar FormData para archivos reales (File objects)
-    // Para data URLs (base64), enviar como JSON
-    const isFile = payload.error_reportado instanceof File;
+    const res = await fetch(`${API}/incidentes`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(mappedPayload),
+    });
 
-    if (isFile) {
-      // Solo para archivos File reales (no data URLs)
-      const form = new FormData();
-      Object.entries(mappedPayload).forEach(([k, v]) => {
-        if (v === undefined || v === null) return;
-        if (k === 'asignaciones') {
-          form.append('asignaciones', JSON.stringify(v));
-        } else if (k !== 'error_reportado') {
-          form.append(k, v);
-        }
-      });
-
-      form.append('error_reportado', payload.error_reportado);
-
+    if (!res.ok) {
+      let errorMessage = `Error ${res.status}: ${res.statusText}`;
       try {
-        const res = await fetch(`${API}/incidentes`, {
-          method: 'POST',
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            // No incluir Content-Type para FormData
-          },
-          body: form,
-        });
-
-        if (!res.ok) {
-          let errorMessage = `Error ${res.status}: ${res.statusText}`;
-          try {
-            const errorText = await res.text();
-            console.error('Respuesta del servidor (FormData):', errorText);
-            errorMessage = errorText || errorMessage;
-          } catch (e) {
-            console.error('No se pudo leer la respuesta de error:', e);
-          }
-          throw new Error(errorMessage);
-        }
-
-        const data = await res.json();
-        return {
-          id: data.id_incidente,
-          numero: data.no_incidente,
-          estado: data.estado_acc_inc?.nombre_estado_acc_inc || 'PENDIENTE',
-          fecha: data.fechaingresoerror,
-          descripcion: data.descripcionerror,
-        };
-      } catch (error) {
-        console.error('Error completo en fetch con FormData:', error);
-        throw error;
+        const errorText = await res.text();
+        console.error("Respuesta del servidor (JSON):", errorText);
+        errorMessage = errorText || errorMessage;
+      } catch (e) {
+        console.error("No se pudo leer la respuesta de error:", e);
       }
+      throw new Error(errorMessage);
     }
 
-    // 👇 DEFAULT: Enviar siempre como JSON (incluye data URLs/base64)
-    try {
-      const res = await fetch(`${API}/incidentes`, {
-        method: 'POST',
-        headers: authHeaders(token),
-        body: JSON.stringify(mappedPayload),
-      });
-
-      if (!res.ok) {
-        let errorMessage = `Error ${res.status}: ${res.statusText}`;
-        try {
-          const errorText = await res.text();
-          console.error('Respuesta del servidor (JSON):', errorText);
-          errorMessage = errorText || errorMessage;
-        } catch (e) {
-          console.error('No se pudo leer la respuesta de error:', e);
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = await res.json();
-      return {
-        id: data.id_incidente,
-        numero: data.no_incidente,
-        estado: data.estado_acc_inc?.nombre_estado_acc_inc || 'PENDIENTE',
-        fecha: data.fechaingresoerror,
-        descripcion: data.descripcionerror,
-      };
-    } catch (error) {
-      console.error('Error completo en fetch con JSON:', error);
-      throw error;
-    }
+    const data = await res.json();
+    return transformBackendSingle(data);
   }
 
   // Modo fake...
@@ -378,33 +348,27 @@ export async function updateIncidente({ token, id, payload }) {
   if (!id) throw new Error("Id requerido");
 
   const mappedPayload = {
-    no_incidente: payload.numero,
     fechaingresoerror: toBackendDate(payload.fecha_ingreso),
     tipologia: payload.tipologia_tramite,
     descripcionerror: payload.descripcion,
-    añosirecq: parseInt(payload.añosirecq) || null, // 👈 CORREGIR: usar añosirecq con ñ
+    aniosirecq: parseInt(payload.aniosirecq) || null,
     id_zona: payload.id_zona ? parseInt(payload.id_zona) : undefined,
-    id_tecnico: payload.id_tecnico ? parseInt(payload.id_tecnico) : undefined,
-    id_analista: payload.id_analista ? parseInt(payload.id_analista) : undefined,
     asignaciones: payload.asignaciones
       ? payload.asignaciones.split(",").map((id) => ({
           idRolUsuario: parseInt(id.trim()),
         }))
       : undefined,
-    // Campos de resolución
     mensajeerror: payload.mensaje_error,
     fech_solucion: toBackendDate(payload.fecha_solucion),
     obs_incidente: payload.observaciones,
-    // Imagen
-    error_img: payload.error_reportado 
-      ? (payload.error_reportado.startsWith('data:') 
-         ? payload.error_reportado.split(',')[1]  // Solo el base64
-        : payload.error_reportado)
+    error_img: payload.error_reportado
+      ? payload.error_reportado.startsWith("data:")
+        ? payload.error_reportado.split(",")[1]
+        : payload.error_reportado
       : undefined,
   };
 
-  console.log('Datos de actualización que se envían:', mappedPayload); // 👈 Debug
-
+  console.log("Datos de actualización que se envían:", mappedPayload);
 
   if (API) {
     const res = await fetch(`${API}/incidentes/${encodeURIComponent(id)}`, {
@@ -472,11 +436,11 @@ export async function exportIncidentesCsv(arg = {}) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
 // Resolver incidente (cambiar estado a FAVORABLE)
 export async function resolveIncidente({ token, no_incidente, payload }) {
   if (!no_incidente) throw new Error("Número de incidente requerido");
 
-  // Normalizamos campos para backend
   const mappedPayload = {
     fech_solucion: toBackendDate(payload.fecha_solucion),
     obs_incidente: payload.observaciones,
@@ -496,10 +460,9 @@ export async function resolveIncidente({ token, no_incidente, payload }) {
       let msg = await res.text().catch(() => "Error al resolver incidente");
       throw new Error(msg);
     }
-    return res.json(); // devuelve el incidente actualizado (estado ya en Favorable)
+    return res.json();
   }
 
-  // 🔹 Modo FAKE (LocalStorage)
   await sleep();
   const all = readAll();
   const idx = all.findIndex((x) => x.numero === no_incidente);

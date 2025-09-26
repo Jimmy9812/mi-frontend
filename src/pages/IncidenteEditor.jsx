@@ -22,25 +22,32 @@ export default function IncidenteEditor({ mode = "view" }) {
   const { token } = useAuth();
 
   useEffect(() => {
-    async function load() {
-      if (mode === "create") {
-        setIncidente({});
-        setLoading(false);
-        return;
-      }
-      try {
-        const res = await getIncidente(id, token);
-        setIncidente(res);
-      } catch (err) {
-        console.error(err);
-        alert("No se pudo cargar el incidente");
-        navigate("/incidentes");
-      } finally {
-        setLoading(false);
-      }
+  async function load() {
+    if (mode === "create") {
+      setIncidente({});
+      setLoading(false);
+      return;
     }
-    load();
-  }, [id, mode, navigate, token]);
+    try {
+      const res = await getIncidente(id, token);
+      const resData = JSON.parse(JSON.stringify(res));
+      // 🔹 Log detallado para verificar que llegan los IDs
+      console.log("🟢 Incidente cargado desde backend:", res);
+      console.log("👉 id_tecnico recibido:", res.id_tecnico);
+      console.log("👉 id_analista recibido:", res.id_analista);
+
+      setIncidente(res);
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo cargar el incidente");
+      navigate("/incidentes");
+    } finally {
+      setLoading(false);
+    }
+  }
+  load();
+}, [id, mode, navigate, token]);
+
 
   useEffect(() => {
     async function loadOptions() {
@@ -174,7 +181,7 @@ export default function IncidenteEditor({ mode = "view" }) {
         <div className="grid grid-cols-3 gap-4">
           {/* Columna 1 */}
           <div className="space-y-3 border rounded-lg p-4">
-            <Field label="N° De Incidencia" name="numero" value={incidente.numero} onChange={handleChange} disabled={!editMode && !isCreate} />
+            <Field label="N° De Incidencia" name="numero" value={incidente.numero} onChange={handleChange} disabled={!isCreate} />
             <Field label="Técnico responsable" name="id_tecnico" value={incidente.id_tecnico} onChange={handleChange} type="select" options={tecnicos} disabled={!editMode && !isCreate} />
             <Field label="Analista que reporta" name="id_analista" value={incidente.id_analista} onChange={handleChange} type="select" options={analistas} disabled={!editMode && !isCreate} />
             <Field label="Unidad zonal" name="id_zona" value={incidente.id_zona} onChange={handleChange} type="select" options={zonas} disabled={!editMode && !isCreate} />
@@ -194,8 +201,8 @@ export default function IncidenteEditor({ mode = "view" }) {
             {/* Select dinámico de Año Sirec-Q */}
             <Field
               label="Año Sirec-Q error"
-              name="añosirecq"
-              value={incidente.añosirecq}
+              name="aniosirecq"
+              value={incidente.aniosirecq}
               onChange={handleChange}
               type="select"
               options={Array.from(
@@ -339,17 +346,24 @@ function Field({ label, name, value, onChange, disabled, textarea, type = "text"
         >
           <option value="">Seleccionar...</option>
           {options.map((option) => {
-            const optionKey = option.id_zona ?? option.id_usuario ?? option.id ?? option.id_usuario_role;
-            const optionValue = optionKey;
+            // 🔹 Ajuste para que técnico/analista use id_rol_usuario
+            const optionKey =
+              option.id_zona ??
+              option.id_rol_usuario ??
+              option.id ??
+              option.id_usuario;
+
             const optionLabel =
               option.nombre_zona ??
               option.nombre_completo ??
-              (option.nombre && option.apellidos_usuario ? `${option.nombre} ${option.apellidos_usuario}` : option.nombre) ??
-              option.nombre_usuario ??
+              (option.nombre_usuario && option.apellidos_usuario
+                ? `${option.nombre_usuario} ${option.apellidos_usuario}`
+                : option.nombre_usuario || option.apellidos_usuario || option.nombre) ??
               option.descripcion ??
               String(optionKey);
+
             return (
-              <option key={optionKey} value={optionValue}>
+              <option key={optionKey} value={optionKey}>
                 {optionLabel}
               </option>
             );
@@ -377,3 +391,4 @@ function Field({ label, name, value, onChange, disabled, textarea, type = "text"
     </div>
   );
 }
+
