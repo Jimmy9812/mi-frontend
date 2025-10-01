@@ -74,31 +74,36 @@ export default function AccidenteEditor({ mode = "view" }) {
   }, [id, mode, navigate, token]);
 
   // Cargar catálogos
-  useEffect(() => {
-    async function loadCatalogs() {
-      try {
-        const [zonasData, estadosData, analistasData] = await Promise.all([
-          getAllZona({ token }),
-          getEstadosNoFavorable({ token }),
-          getAnalistasAccidentes({ token }),
-        ]);
-        
-        console.log("📋 Catálogos cargados:");
-        console.log("- Zonas:", zonasData);
-        console.log("- Estados:", estadosData);
-        console.log("- Analistas:", analistasData);
-        
-        setZonas(zonasData || []);
-        setEstados(estadosData || []);
-        setAnalistas(analistasData || []);
-      } catch (error) {
-        console.error("Error loading catalogs:", error);
+useEffect(() => {
+  async function loadCatalogs() {
+    try {
+      const [zonasData, estadosData, analistasData] = await Promise.all([
+        getAllZona({ token }),
+        getEstadosNoFavorable({ token }),
+        getAnalistasAccidentes({ token }),
+      ]);
+      
+      console.log("📋 Catálogos cargados:");
+      console.log("- Zonas:", zonasData);
+      console.log("- Estados (RAW):", estadosData); // 👈 Ver estructura exacta
+      console.log("- Analistas:", analistasData);
+      
+      // 👇 Agregar validación
+      if (Array.isArray(estadosData) && estadosData.length > 0) {
+        console.log("- Primer estado:", estadosData[0]); // Ver estructura del primer elemento
       }
+      
+      setZonas(zonasData || []);
+      setEstados(estadosData || []);
+      setAnalistas(analistasData || []);
+    } catch (error) {
+      console.error("Error loading catalogs:", error);
     }
-    if (token) {
-      loadCatalogs();
-    }
-  }, [token]);
+  }
+  if (token) {
+    loadCatalogs();
+  }
+}, [token]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

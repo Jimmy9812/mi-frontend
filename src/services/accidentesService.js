@@ -1,3 +1,24 @@
+// Aprobar fiscalización (cambiar a favorable o no)
+export async function approveFiscalizacion({ token, id, fiscalizacion }) {
+  if (!API) throw new Error("Backend URL no configurada");
+  if (!id) throw new Error("ID de accidente requerido");
+  try {
+    const res = await fetch(`${API}/accidente/fiscalizacion/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        headers: authHeaders(token),
+        body: JSON.stringify({ fiscalizacion }),
+      }
+    );
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || `Error ${res.status}: ${res.statusText}`);
+    }
+    return await res.json();
+  } catch (error) {
+    throw new Error(`No se pudo aprobar la fiscalización: ${error.message}`);
+  }
+}
 // src/services/accidentesService.js
 const API = import.meta.env.VITE_API_URL; // Backend URL
 
@@ -114,15 +135,15 @@ export async function listAccidentes({
   }
 
   try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: pageSize.toString(),
-    });
-
-    // Agregar búsqueda por trámite si existe
+    // Traer todos los registros (sin paginación real)
+    const params = new URLSearchParams();
     if (search && search.trim()) {
       params.append('tramite', search.trim());
     }
+
+    // Usar un límite alto para traer todos los registros
+    params.append('page', '1');
+    params.append('limit', '10000');
 
     const res = await fetch(`${API}/accidente?${params.toString()}`, {
       headers: authHeaders(token),
@@ -133,19 +154,27 @@ export async function listAccidentes({
     }
 
     const backendData = await res.json();
-    
-    // Transformar datos del backend
     const transformedItems = (backendData.data || []).map(transformBackendToFrontend);
-    
-    // Filtrar por estado si es necesario (ya que el backend no maneja este filtro)
-    const filteredItems = status === "ALL" ? transformedItems : 
-      transformedItems.filter(item => item.estado === status);
+
+    // Normaliza cadenas para comparación insensible a mayúsculas/minúsculas y tildes
+    const normalize = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+    // Filtrar por estado en frontend
+    const filteredItems = status === "ALL" ? transformedItems :
+      transformedItems.filter(item => normalize(item.estado) === normalize(status));
+
+    // Paginar en frontend
+    const total = filteredItems.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const pagedItems = filteredItems.slice(start, end);
 
     return {
-      items: filteredItems,
-      page: backendData.meta?.page || page,
-      total: backendData.meta?.total || filteredItems.length,
-      totalPages: backendData.meta?.totalPages || Math.ceil(filteredItems.length / pageSize),
+      items: pagedItems,
+      page,
+      total,
+      totalPages,
     };
 
   } catch (error) {

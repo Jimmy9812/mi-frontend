@@ -8,11 +8,37 @@ import {
   exportAccidentesCsv,
 } from "../services/accidentesService";
 
+// 👉 Helper para dar estilos a cada estado
+function estadoClass(estado) {
+  switch (estado) {
+    case "FAVORABLE":
+      return "bg-green-100 text-green-800";
+    case "PENDIENTE":
+      return "bg-yellow-100 text-yellow-800";
+    case "CANCELADO":
+      return "bg-gray-200 text-gray-700";
+    case "DEVUELTO":
+      return "bg-purple-100 text-purple-800";
+    case "EN TRÁMITE":
+      return "bg-blue-100 text-blue-800";
+    case "NEGADO":
+      return "bg-red-200 text-red-900";
+    case "REINGRESO":
+      return "bg-pink-100 text-pink-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+}
+
 const ESTADOS = [
   { label: "Todos", value: "ALL" },
   { label: "FAVORABLE", value: "FAVORABLE" },
   { label: "PENDIENTE", value: "PENDIENTE" },
-  { label: "RECHAZADO", value: "RECHAZADO" },
+    { label: "CANCELADO", value: "CANCELADO" },
+  { label: "DEVUELTO", value: "DEVUELTO" },
+  { label: "EN TRÁMITE", value: "EN TRÁMITE" },
+  { label: "NEGADO", value: "NEGADO" },
+  { label: "REINGRESO", value: "REINGRESO" },
 ];
 
 export default function Accidentes() {
@@ -151,7 +177,7 @@ export default function Accidentes() {
             </select>
           </div>
 
-          {/* Tabla actualizada con nuevas columnas */}
+          {/* Tabla */}
           <div className="rounded-xl border overflow-hidden bg-white">
             <div className="grid grid-cols-[1fr_1fr_1fr_1fr_100px] bg-[#3F6592] text-white font-semibold text-sm">
               <div className="px-4 py-3">Trámite</div>
@@ -173,31 +199,23 @@ export default function Accidentes() {
                   key={row.id}
                   className="grid grid-cols-[1fr_1fr_1fr_1fr_100px] border-t items-center text-sm hover:bg-slate-50"
                 >
-                  {/* Columna Trámite - Mostrar trámite o "N/A" si no existe */}
+                  {/* Trámite */}
                   <div className="px-4 py-3">
                     <span className={row.tramite ? "text-slate-900" : "text-slate-400 italic"}>
                       {row.tramite || "N/A"}
                     </span>
                   </div>
                   
-                  {/* Columna Oficio - Mostrar oficio o "N/A" si no existe */}
+                  {/* Oficio */}
                   <div className="px-4 py-3">
                     <span className={row.oficio ? "text-slate-900" : "text-slate-400 italic"}>
                       {row.oficio || "N/A"}
                     </span>
                   </div>
                   
-                  {/* Estado con color según el tipo */}
+                  {/* Estado con colores dinámicos */}
                   <div className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      row.estado === "FAVORABLE" 
-                        ? "bg-green-100 text-green-800"
-                        : row.estado === "PENDIENTE"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : row.estado === "RECHAZADO"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${estadoClass(row.estado)}`}>
                       {row.estado}
                     </span>
                   </div>
