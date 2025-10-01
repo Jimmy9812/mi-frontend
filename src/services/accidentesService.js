@@ -299,23 +299,90 @@ export async function updateAccidente({ token, id, payload }) {
 }
 
 export async function exportAccidentesCsv(arg = {}) {
-  if (!API) {
-    throw new Error("Backend URL no configurada");
-  }
+  const { token, search = "", status = "ALL" } = arg;
 
   try {
-    const { token, search = "", status = "ALL" } = arg;
-    const params = new URLSearchParams({ search, status });
-    
-    const res = await fetch(`${API}/accidente/export?${params.toString()}`, {
-      headers: authHeaders(token),
-    });
+    // Intentar exportar desde el backend primero
+    if (API) {
+      const params = new URLSearchParams({ search, status });
 
-    if (!res.ok) {
-      throw new Error(`Error ${res.status}: ${res.statusText}`);
+      const res = await fetch(`${API}/accidente/export?${params.toString()}`, {
+        headers: authHeaders(token),
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `accidentes_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+      }
     }
 
-    const blob = await res.blob();
+    // Si el backend no tiene el endpoint o falla, generar CSV en el frontend
+    console.log("Generando CSV en el frontend...");
+    const allData = await listAccidentes({
+      token,
+      page: 1,
+      pageSize: 10000, // Traer todos los registros
+      search,
+      status,
+    });
+
+    const items = allData.items;
+
+    // Definir headers del CSV
+    const headers = [
+      "ID",
+      "Trámite",
+      "Oficio",
+      "Fecha Ingreso",
+      "Fecha Asignación",
+      "Tipología",
+      "Inspección",
+      "Número Predio",
+      "Clave Catastral",
+      "Propietario",
+      "Número Documento",
+      "Estado",
+      "Zona",
+      "Técnico Responsable",
+      "Fecha Estado",
+      "Control Calidad",
+      "Código Consulta",
+      "Observaciones"
+    ];
+
+    // Generar filas del CSV
+    const rows = items.map(item => [
+      item.id || "",
+      item.tramite || "",
+      item.oficio || "",
+      item.fecha_ingreso_tramite || "",
+      item.fecha_asignacion_tramite || "",
+      item.tipologia_tramite || "",
+      item.inspeccion ? "SI" : "NO",
+      item.numero_predio || "",
+      item.clave_catastral || "",
+      item.propietario || "",
+      item.numero_documento || "",
+      item.estado || "",
+      item.zona || "",
+      item.tecnico_responsable || "",
+      item.fecha_estado || "",
+      item.control_calidad || "",
+      item.codigo_consulta || "",
+      item.observaciones || ""
+    ]);
+
+    // Crear contenido CSV
+    const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+
+    // Crear blob y descargar
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
