@@ -1,3 +1,21 @@
+// Eliminar accidente
+export async function deleteAccidente({ token, id }) {
+  if (!API) throw new Error("Backend URL no configurada");
+  if (!id) throw new Error("ID de accidente requerido");
+  try {
+    const res = await fetch(`${API}/accidente/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || `Error ${res.status}: ${res.statusText}`);
+    }
+    return await res.json();
+  } catch (error) {
+    throw new Error(`No se pudo eliminar el accidente: ${error.message}`);
+  }
+}
 // Aprobar fiscalización (cambiar a favorable o no)
 export async function approveFiscalizacion({ token, id, fiscalizacion }) {
   if (!API) throw new Error("Backend URL no configurada");

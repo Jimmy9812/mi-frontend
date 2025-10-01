@@ -1,16 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
   getAccidente,
   createAccidente,
   updateAccidente,
+  deleteAccidente,
   getEstadosNoFavorable,
   getAnalistasAccidentes,
 } from "../services/accidentesService";
 import { getAllZona } from "../services/zonasService";
-import { useAuth } from "../context/AuthContext";
 import { approveFiscalizacion } from "../services/accidentesService";
-import { ArrowLeft, Save, Edit, Calendar } from "lucide-react";
+import { ArrowLeft, Save, Edit, Calendar, Trash2 } from "lucide-react";
+
+  
+
+
 import LoadingGif from "../components/LoadingGif";
 
 export default function AccidenteEditor({ mode = "view" }) {
@@ -22,6 +27,19 @@ export default function AccidenteEditor({ mode = "view" }) {
   const [editMode, setEditMode] = useState(mode === "create");
   const [loading, setLoading] = useState(true);
 
+
+  // Eliminar accidente
+  const handleDelete = async () => {
+    if (!window.confirm("¿Está seguro de eliminar este accidente? Esta acción no se puede deshacer.")) return;
+    try {
+      await deleteAccidente({ token, id }); // 👈 ya puedes usar token directamente
+      alert("Accidente eliminado exitosamente");
+      navigate("/accidentes");
+    } catch (error) {
+      alert("Error al eliminar: " + error.message);
+    }
+  };
+
   // Estados para catálogos
   const isCreate = mode === "create";
   const isView = mode === "view";
@@ -30,7 +48,7 @@ export default function AccidenteEditor({ mode = "view" }) {
     activeRole === "Administrador" &&
     !isCreate &&
     !editMode &&
-    acc?.estado !== "FAVORABLE"
+    acc?.estado !== "all"
   );
   // Modal fiscalización
   const [showFiscalModal, setShowFiscalModal] = useState(false);
@@ -210,6 +228,16 @@ useEffect(() => {
                 title="Aprobar fiscalización"
               >
                 Aprobar fiscalización
+              </button>
+            )}
+            {/* Botón eliminar solo para administradores y no en modo crear */}
+            {activeRole === "Administrador" && !isCreate && (
+              <button
+                onClick={handleDelete}
+                className="p-2 rounded bg-red-600 hover:bg-red-700 text-white"
+                title="Eliminar accidente"
+              >
+                <Trash2 className="w-5 h-5" />
               </button>
             )}
             {!editMode && !isCreate && (
