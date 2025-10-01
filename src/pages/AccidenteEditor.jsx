@@ -1,4 +1,40 @@
 import { useEffect, useState } from "react";
+// Modal de alerta interactivo mejorado
+function AlertModal({ open, message, onClose, type = "info" }) {
+  if (!open) return null;
+  // Colores e iconos según tipo
+  let color = "#3F6592", icon = null;
+  if (type === "success") {
+    color = "#22c55e";
+    icon = (
+      <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{color}}><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" /></svg>
+    );
+  } else if (type === "error") {
+    color = "#ef4444";
+    icon = (
+      <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{color}}><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 9l-6 6m0-6l6 6" /></svg>
+    );
+  } else if (type === "warning") {
+    color = "#f59e42";
+    icon = (
+      <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{color}}><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" /></svg>
+    );
+  }
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{backdropFilter: 'blur(4px)', background: 'rgba(63,101,146,0.10)'}}>
+      <div className="bg-white rounded-xl shadow-2xl p-8 min-w-[320px] max-w-[90vw] flex flex-col items-center border" style={{borderColor: color}}>
+        {icon}
+        <div className="mb-4 text-center font-semibold" style={{color}}>{message}</div>
+        <button
+          onClick={onClose}
+          className="mt-2 px-6 py-2 rounded bg-[#3F6592] text-white hover:bg-[#27466a] shadow"
+        >
+          Aceptar
+        </button>
+      </div>
+    </div>
+  );
+}
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -19,6 +55,10 @@ import { ArrowLeft, Save, Edit, Calendar, Trash2 } from "lucide-react";
 import LoadingGif from "../components/LoadingGif";
 
 export default function AccidenteEditor({ mode = "view" }) {
+  // Estado para alertas modales
+  const [alert, setAlert] = useState({ open: false, message: "", type: "info" });
+  const showAlert = (message, type = "info") => setAlert({ open: true, message, type });
+  const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
   const { id } = useParams();
   const navigate = useNavigate();
   const { token, user, activeRole } = useAuth();
@@ -30,14 +70,29 @@ export default function AccidenteEditor({ mode = "view" }) {
 
   // Eliminar accidente
   const handleDelete = async () => {
-    if (!window.confirm("¿Está seguro de eliminar este accidente? Esta acción no se puede deshacer.")) return;
-    try {
-      await deleteAccidente({ token, id }); // 👈 ya puedes usar token directamente
-      alert("Accidente eliminado exitosamente");
-      navigate("/accidentes");
-    } catch (error) {
-      alert("Error al eliminar: " + error.message);
-    }
+    // Confirmación modal interactiva
+    setAlert({
+      open: true,
+      message: "¿Está seguro de eliminar este accidente? Esta acción no se puede deshacer.",
+      type: "warning",
+      confirm: async () => {
+        setAlert({ open: false, message: "", type: "info" });
+        try {
+          await deleteAccidente({ token, id });
+          setAlert({
+            open: true,
+            message: "Accidente eliminado exitosamente",
+            type: "success",
+            confirm: () => {
+              setAlert({ open: false, message: "", type: "info" });
+              navigate("/accidentes");
+            }
+          });
+        } catch (error) {
+          setAlert({ open: true, message: "Error al eliminar: " + error.message, type: "error" });
+        }
+      }
+    });
   };
 
   // Estados para catálogos
@@ -48,7 +103,7 @@ export default function AccidenteEditor({ mode = "view" }) {
     activeRole === "Administrador" &&
     !isCreate &&
     !editMode &&
-    acc?.estado !== "all"
+    acc?.estado !== "FAVORABLE"
   );
   // Modal fiscalización
   const [showFiscalModal, setShowFiscalModal] = useState(false);
@@ -59,12 +114,9 @@ export default function AccidenteEditor({ mode = "view" }) {
     setFiscalLoading(true);
     try {
       await approveFiscalizacion({ token, id, fiscalizacion });
-      alert(fiscalizacion ? "Accidente aprobado como FAVORABLE" : "No se cambió el estado");
-      // Recargar datos
-      const res = await getAccidente({ token, id });
-      setAcc(res);
+      navigate("/accidentes");
     } catch (e) {
-      alert("Error al aprobar: " + e.message);
+      showAlert("Error al aprobar: " + e.message, "error");
     } finally {
       setFiscalLoading(false);
       setShowFiscalModal(false);
@@ -166,22 +218,36 @@ useEffect(() => {
       if (mode === "create") {
         const result = await createAccidente({ token, payload: acc });
         console.log("✅ Accidente creado:", result);
-        alert("Accidente creado exitosamente");
-        navigate("/accidentes");
+        setAlert({
+          open: true,
+          message: "Accidente creado exitosamente",
+          type: "success",
+          confirm: () => {
+            setAlert({ open: false, message: "", type: "info" });
+            navigate("/accidentes");
+          }
+        });
       } else {
         const result = await updateAccidente({ token, id, payload: acc });
         console.log("✅ Accidente actualizado:", result);
-        alert("Accidente actualizado exitosamente");
-        setEditMode(false);
+        setAlert({
+          open: true,
+          message: "Accidente actualizado exitosamente",
+          type: "success",
+          confirm: () => {
+            setAlert({ open: false, message: "", type: "info" });
+            navigate("/accidentes");
+          }
+        });
       }
     } catch (error) {
       console.error("❌ Error al guardar accidente:", error);
       if (error.message.includes('409') || error.message.includes('ya existe')) {
-        alert("Este número de trámite u oficio ya existe. Por favor, verifica los datos.");
+        showAlert("Este número de trámite u oficio ya existe. Por favor, verifica los datos.", "warning");
       } else if (error.message.includes('404')) {
-        alert("No se encontró el accidente a actualizar.");
+        showAlert("No se encontró el accidente a actualizar.", "error");
       } else {
-        alert("Error al guardar: " + error.message);
+        showAlert("Error al guardar: " + error.message, "error");
       }
     }
   };
@@ -193,6 +259,13 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Modal de alerta interactivo mejorado */}
+      <AlertModal
+        open={alert.open}
+        message={alert.message}
+        type={alert.type}
+        onClose={alert.confirm ? alert.confirm : closeAlert}
+      />
       {/* Barra superior con Atrás */}
       <div className="flex items-center justify-between px-6 py-3">
         <button
@@ -311,7 +384,6 @@ useEffect(() => {
                 value={acc.tramite}
                 onChange={handleChange}
                 disabled={disabled}
-                placeholder="Ej: TRAM-001"
               />
               <Field
                 label="Oficio/Memorando/Mail"
@@ -319,7 +391,6 @@ useEffect(() => {
                 value={acc.oficio}
                 onChange={handleChange}
                 disabled={disabled}
-                placeholder="Ej: SHOT-DMC-USIGC-2025-001-O"
               />
               
               {/* ComboBox de Analistas (Técnicos responsables) */}
@@ -395,7 +466,6 @@ useEffect(() => {
                 value={acc.numero_interno}
                 onChange={handleChange}
                 disabled={disabled}
-                placeholder="INT-001"
               />
               <Field
                 label="Número de documento"
@@ -403,7 +473,6 @@ useEffect(() => {
                 value={acc.numero_documento}
                 onChange={handleChange}
                 disabled={disabled}
-                placeholder="DOC-001"
               />
               <Field
                 label="Nombre del propietario"
@@ -411,7 +480,6 @@ useEffect(() => {
                 value={acc.propietario}
                 onChange={handleChange}
                 disabled={disabled}
-                placeholder="Nombre completo"
                 required={isCreate}
               />
             </div>
@@ -430,7 +498,6 @@ useEffect(() => {
                 value={acc.numero_predio}
                 onChange={handleChange}
                 disabled={disabled}
-                placeholder="5140886"
                 required={isCreate}
               />
               <Field
@@ -439,7 +506,6 @@ useEffect(() => {
                 value={acc.clave_catastral}
                 onChange={handleChange}
                 disabled={disabled}
-                placeholder="8046301313"
                 required={isCreate}
               />
               
@@ -490,7 +556,6 @@ useEffect(() => {
                     value={acc.control_calidad}
                     onChange={handleChange}
                     disabled={disabled}
-                    placeholder="OK/KC"
                   />
                   <Field
                     label="Código consulta/Dato seguro"
@@ -498,7 +563,6 @@ useEffect(() => {
                     value={acc.codigo_consulta}
                     onChange={handleChange}
                     disabled={disabled}
-                    placeholder="CC-001"
                   />
                 </div>
               </div>
@@ -532,7 +596,7 @@ useEffect(() => {
 }
 
 /* ========= Campos reutilizables ========= */
-function Field({ label, name, value, onChange, disabled, type = "text", placeholder = "", required = false }) {
+function Field({ label, name, value, onChange, disabled, type = "text", required = false }) {
   return (
     <div>
       <label className="block text-sm font-semibold mb-1 text-[#3F6592]">
@@ -544,7 +608,6 @@ function Field({ label, name, value, onChange, disabled, type = "text", placehol
         value={value || ""}
         onChange={onChange}
         disabled={disabled}
-        placeholder={placeholder}
         required={required}
         className="w-full px-3 py-2 rounded-md border bg-gray-50 disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-[#3F6592] focus:border-transparent"
       />

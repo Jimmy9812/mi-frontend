@@ -272,7 +272,7 @@ export default function Accidentes() {
                 >
                   «
                 </button>
-                {Array.from({ length: Math.min(5, data.totalPages) }, (_, i) => {
+                {Array.from({ length: Math.min(8, data.totalPages) }, (_, i) => {
                   const pageNum = Math.max(1, Math.min(data.totalPages - 4, page - 2)) + i;
                   if (pageNum > data.totalPages) return null;
                   return (
