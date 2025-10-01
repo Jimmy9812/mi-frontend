@@ -9,19 +9,50 @@ import {
 } from "../services/accidentesService";
 import { getAllZona } from "../services/zonasService";
 import { useAuth } from "../context/AuthContext";
+import { approveFiscalizacion } from "../services/accidentesService";
 import { ArrowLeft, Save, Edit, Calendar } from "lucide-react";
 import LoadingGif from "../components/LoadingGif";
 
 export default function AccidenteEditor({ mode = "view" }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user, activeRole } = useAuth();
 
   const [acc, setAcc] = useState(null);
   const [editMode, setEditMode] = useState(mode === "create");
   const [loading, setLoading] = useState(true);
 
   // Estados para catálogos
+  const isCreate = mode === "create";
+  const isView = mode === "view";
+  // Mostrar botón solo si es Administrador y el estado no es FAVORABLE
+  const puedeFiscalizar = (
+    activeRole === "Administrador" &&
+    !isCreate &&
+    !editMode &&
+    acc?.estado !== "FAVORABLE"
+  );
+  // Modal fiscalización
+  const [showFiscalModal, setShowFiscalModal] = useState(false);
+  const [fiscalLoading, setFiscalLoading] = useState(false);
+
+  // Acción fiscalización
+  const handleFiscalizacion = async (fiscalizacion) => {
+    setFiscalLoading(true);
+    try {
+      await approveFiscalizacion({ token, id, fiscalizacion });
+      alert(fiscalizacion ? "Accidente aprobado como FAVORABLE" : "No se cambió el estado");
+      // Recargar datos
+      const res = await getAccidente({ token, id });
+      setAcc(res);
+    } catch (e) {
+      alert("Error al aprobar: " + e.message);
+    } finally {
+      setFiscalLoading(false);
+      setShowFiscalModal(false);
+    }
+  };
+
   const [zonas, setZonas] = useState([]);
   const [estados, setEstados] = useState([]);
   const [analistas, setAnalistas] = useState([]);
@@ -141,8 +172,6 @@ useEffect(() => {
   if (!acc) return <div className="p-6 text-center">Accidente no encontrado</div>;
 
   const disabled = !editMode;
-  const isCreate = mode === "create";
-  const isView = mode === "view";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -174,6 +203,15 @@ useEffect(() => {
           </span>
 
           <div className="flex gap-2">
+            {puedeFiscalizar && (
+              <button
+                onClick={() => setShowFiscalModal(true)}
+                className="p-2 rounded bg-blue-700 hover:bg-blue-800 text-white"
+                title="Aprobar fiscalización"
+              >
+                Aprobar fiscalización
+              </button>
+            )}
             {!editMode && !isCreate && (
               <button
                 onClick={() => setEditMode(true)}
@@ -195,6 +233,38 @@ useEffect(() => {
           </div>
         </div>
       </div>
+      {/* Modal fiscalización */}
+      {showFiscalModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-8 min-w-[320px] max-w-[90vw]">
+            <h2 className="text-lg font-bold mb-4 text-[#3F6592]">Aprobar fiscalización</h2>
+            <p className="mb-6">¿Desea aprobar este accidente como <b>FAVORABLE</b>?</p>
+            <div className="flex gap-4 justify-end">
+              <button
+                onClick={() => handleFiscalizacion(true)}
+                className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 text-white"
+                disabled={fiscalLoading}
+              >
+                Sí, aprobar
+              </button>
+              <button
+                onClick={() => handleFiscalizacion(false)}
+                className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-800"
+                disabled={fiscalLoading}
+              >
+                No, mantener estado
+              </button>
+              <button
+                onClick={() => setShowFiscalModal(false)}
+                className="px-4 py-2 rounded bg-red-500 hover:bg-red-600 text-white"
+                disabled={fiscalLoading}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Línea inferior con margen lateral */}
       <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
