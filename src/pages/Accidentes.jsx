@@ -147,7 +147,7 @@ export default function Accidentes() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Buscar trámite..."
+                placeholder="Buscar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && doSearch()}

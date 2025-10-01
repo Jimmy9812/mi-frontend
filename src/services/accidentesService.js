@@ -138,7 +138,7 @@ export async function listAccidentes({
     // Traer todos los registros (sin paginación real)
     const params = new URLSearchParams();
     if (search && search.trim()) {
-      params.append('tramite', search.trim());
+      params.append('search', search.trim());
     }
 
     // Usar un límite alto para traer todos los registros
@@ -154,7 +154,17 @@ export async function listAccidentes({
     }
 
     const backendData = await res.json();
-    const transformedItems = (backendData.data || []).map(transformBackendToFrontend);
+    let transformedItems = (backendData.data || []).map(transformBackendToFrontend);
+
+    // Si el backend no filtra correctamente, filtrar en frontend por tramite y oficio
+    if (search && search.trim()) {
+      const normalize = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+      const searchNorm = normalize(search);
+      transformedItems = transformedItems.filter(item =>
+        normalize(item.tramite).includes(searchNorm) ||
+        normalize(item.oficio).includes(searchNorm)
+      );
+    }
 
     // Normaliza cadenas para comparación insensible a mayúsculas/minúsculas y tildes
     const normalize = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
