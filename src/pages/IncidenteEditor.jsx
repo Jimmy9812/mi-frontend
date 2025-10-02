@@ -79,36 +79,52 @@ export default function IncidenteEditor({ mode = "view" }) {
     }
   };
 
-      const handleSave = async () => {
-        try {
-          if (mode === "create") {
-            await createIncidente({ token, payload: incidente });
-            alert("Incidente creado");
-            navigate("/incidentes");
-          } else if (resolveMode) {
-            // 👇 AQUÍ cambiamos a resolveIncidente
-            await resolveIncidente({
-              token,
-              no_incidente: incidente.numero, // el backend espera no_incidente
-              payload: {
-                mensaje_error: incidente.mensaje_error,
-                fecha_solucion: incidente.fecha_solucion,
-                observaciones: incidente.observaciones,
-              },
-            });
-            alert("Incidente resuelto y marcado como FAVORABLE");
-            setResolveMode(false);
-            navigate("/incidentes"); // volver a la lista
-          } else {
-            await updateIncidente({ token, id, payload: incidente });
-            alert("Incidente actualizado");
-          }
-          setEditMode(false);
-        } catch (err) {
-          console.error(err);
-          alert("Error al guardar");
-        }
-      };
+
+  // Construye el payload para create/update con id_tecnico, id_analista y asignaciones
+  function buildPayload(incidente) {
+    const id_tecnico = incidente.id_tecnico ? Number(incidente.id_tecnico) : undefined;
+    const id_analista = incidente.id_analista ? Number(incidente.id_analista) : undefined;
+    let asignaciones = [];
+    if (id_tecnico) asignaciones.push({ idRolUsuario: id_tecnico });
+    if (id_analista && id_analista !== id_tecnico) asignaciones.push({ idRolUsuario: id_analista });
+    return {
+      ...incidente,
+      id_tecnico,
+      id_analista,
+      asignaciones,
+    };
+  }
+
+  const handleSave = async () => {
+    try {
+      const payload = buildPayload(incidente);
+      if (mode === "create") {
+        await createIncidente({ token, payload });
+        alert("Incidente creado");
+        navigate("/incidentes");
+      } else if (resolveMode) {
+        await resolveIncidente({
+          token,
+          no_incidente: incidente.numero,
+          payload: {
+            mensaje_error: incidente.mensaje_error,
+            fecha_solucion: incidente.fecha_solucion,
+            observaciones: incidente.observaciones,
+          },
+        });
+        alert("Incidente resuelto y marcado como FAVORABLE");
+        setResolveMode(false);
+        navigate("/incidentes");
+      } else {
+        await updateIncidente({ token, id, payload });
+        alert("Incidente actualizado");
+      }
+      setEditMode(false);
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar");
+    }
+  };
 
 
   if (loading) return <div className="p-6">Cargando...</div>;

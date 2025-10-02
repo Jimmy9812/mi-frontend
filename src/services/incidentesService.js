@@ -11,14 +11,11 @@ const authHeaders = (token) => ({
   ...(token ? { Authorization: `Bearer ${token}` } : {}),
 });
 
-// 🔹 Normalizar fecha al formato ISO
+// 🔹 Normalizar fecha al formato YYYY-MM-DD (sin zona horaria)
 function toBackendDate(dateString) {
   if (!dateString) return null;
-  try {
-    return new Date(dateString).toISOString(); // 👈 "2025-01-13T05:00:00.000Z"
-  } catch {
-    return null;
-  }
+  const d = new Date(dateString);
+  return d.toISOString().split("T")[0]; // "2025-01-26"
 }
 
 // 🔹 Normalizar texto (quita tildes, minúsculas)
@@ -291,11 +288,9 @@ export async function createIncidente({ token, payload }) {
     descripcionerror: payload.descripcion,
     aniosirecq: parseInt(payload.anio_sirecq) || 2024,
     id_zona: parseInt(payload.id_zona) || 1,
-    asignaciones: payload.asignaciones
-      ? payload.asignaciones.split(",").map((id) => ({
-          idRolUsuario: parseInt(id.trim()),
-        }))
-      : [],
+    id_tecnico: payload.id_tecnico ? Number(payload.id_tecnico) : undefined,
+    id_analista: payload.id_analista ? Number(payload.id_analista) : undefined,
+    asignaciones: Array.isArray(payload.asignaciones) ? payload.asignaciones : [],
     error_img: errorImg,
     fech_solucion: toBackendDate(payload.fecha_solucion),
     obs_incidente: payload.observaciones,
@@ -353,11 +348,7 @@ export async function updateIncidente({ token, id, payload }) {
     descripcionerror: payload.descripcion,
     aniosirecq: parseInt(payload.aniosirecq) || null,
     id_zona: payload.id_zona ? parseInt(payload.id_zona) : undefined,
-    asignaciones: payload.asignaciones
-      ? payload.asignaciones.split(",").map((id) => ({
-          idRolUsuario: parseInt(id.trim()),
-        }))
-      : undefined,
+      asignaciones: Array.isArray(payload.asignaciones) ? payload.asignaciones : undefined,
     mensajeerror: payload.mensaje_error,
     fech_solucion: toBackendDate(payload.fecha_solucion),
     obs_incidente: payload.observaciones,
