@@ -14,8 +14,11 @@ const authHeaders = (token) => ({
 // 🔹 Normalizar fecha al formato YYYY-MM-DD (sin zona horaria)
 function toBackendDate(dateString) {
   if (!dateString) return null;
-  const d = new Date(dateString);
-  return d.toISOString().split("T")[0]; // "2025-01-26"
+  const d = new Date(dateString + "T12:00:00"); // fija mediodía local
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 // 🔹 Normalizar texto (quita tildes, minúsculas)
@@ -348,7 +351,9 @@ export async function updateIncidente({ token, id, payload }) {
     descripcionerror: payload.descripcion,
     aniosirecq: parseInt(payload.aniosirecq) || null,
     id_zona: payload.id_zona ? parseInt(payload.id_zona) : undefined,
-      asignaciones: Array.isArray(payload.asignaciones) ? payload.asignaciones : undefined,
+    id_tecnico: payload.id_tecnico ? Number(payload.id_tecnico) : undefined,
+    id_analista: payload.id_analista ? Number(payload.id_analista) : undefined,
+    asignaciones: Array.isArray(payload.asignaciones) ? payload.asignaciones : undefined,
     mensajeerror: payload.mensaje_error,
     fech_solucion: toBackendDate(payload.fecha_solucion),
     obs_incidente: payload.observaciones,
@@ -370,7 +375,6 @@ export async function updateIncidente({ token, id, payload }) {
     if (!res.ok) throw new Error("No se pudo actualizar el incidente");
     return res.json();
   }
-
   await sleep();
   const all = readAll();
   const idx = all.findIndex((x) => x.id === id || x.numero === id);
