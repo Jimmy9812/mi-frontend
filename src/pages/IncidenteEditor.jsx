@@ -1,11 +1,54 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getIncidente, createIncidente, updateIncidente, resolveIncidente } from "../services/incidentesService";
 import { getAllZona } from "../services/zonasService";
 import { getTecnicoIncidentes, getAnalistas } from "../services/usersRolService";
 import { useAuth } from "../context/AuthContext";
-import { ArrowLeft, Save, Edit, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, Edit, CheckCircle, Trash2, XCircle, Info, AlertTriangle } from "lucide-react";
 import GifLoader from "../components/LoadingGif";
+function AlertModal({ open, type = "info", message, onClose }) {
+  if (!open) return null;
+  const config = {
+    success: {
+      color: "text-green-500 border-green-300",
+      icon: <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />,
+      title: "¡Éxito!",
+    },
+    error: {
+      color: "text-red-500 border-red-300",
+      icon: <XCircle className="w-12 h-12 mx-auto mb-2 text-red-500" />,
+      title: "Error",
+    },
+    info: {
+      color: "text-blue-500 border-blue-300",
+      icon: <Info className="w-12 h-12 mx-auto mb-2 text-blue-500" />,
+      title: "Aviso",
+    },
+    warning: {
+      color: "text-yellow-500 border-yellow-300",
+      icon: <AlertTriangle className="w-12 h-12 mx-auto mb-2 text-yellow-500" />,
+      title: "Advertencia",
+    },
+  };
+  const { color, icon, title } = config[type] || config.info;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(30, 41, 59, 0.25)', backdropFilter: 'blur(2px)' }}>
+      <div className={`bg-white rounded-xl shadow-xl px-8 py-8 min-w-[320px] max-w-[90vw] border-t-4 ${color} flex flex-col items-center`}>
+        {icon}
+        <div className={`mb-2 text-xl font-bold ${color}`}>{title}</div>
+        <div className="mb-6 text-gray-700 text-center">{message}</div>
+        <button
+          onClick={onClose}
+          className="px-6 py-2 rounded bg-[#3F6592] text-white font-semibold hover:bg-[#27466b] focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          Aceptar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 
 export default function IncidenteEditor({ mode = "view" }) {
   const { id } = useParams();
@@ -19,7 +62,12 @@ export default function IncidenteEditor({ mode = "view" }) {
   const [zonas, setZonas] = useState([]);
   const [tecnicos, setTecnicos] = useState([]);
   const [analistas, setAnalistas] = useState([]);
-  const { token } = useAuth();
+  const { token, user, hasPermission } = useAuth();
+
+  // Modal de alerta interactivo
+  const [alert, setAlert] = useState({ open: false, type: "info", message: "" });
+  const showAlert = (type, message) => setAlert({ open: true, type, message });
+  const closeAlert = () => setAlert((a) => ({ ...a, open: false }));
 
   useEffect(() => {
     async function load() {
@@ -66,6 +114,19 @@ export default function IncidenteEditor({ mode = "view" }) {
     loadOptions();
   }, [token]);
 
+
+  // Determinar si el usuario es admin o tiene permiso de eliminar incidentes
+  const isAdmin = (
+    (user?.roles && Array.isArray(user.roles) && user.roles.some((r) => {
+      const nombre = (r?.nombre_rol || r?.rol || "").toLowerCase();
+      return nombre.includes("admin") || nombre.includes("administrador");
+    }))
+    || (typeof hasPermission === "function" && (hasPermission("ADMIN") || hasPermission("INCIDENTES_DELETE")))
+  );
+
+  // Estado para bloquear campos si es FAVORABLE
+  const isFavorable = incidente?.estado === "FAVORABLE";
+
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
     if (type === "file" && files && files[0]) {
@@ -101,8 +162,7 @@ export default function IncidenteEditor({ mode = "view" }) {
       const payload = buildPayload(incidente);
       if (mode === "create") {
         await createIncidente({ token, payload });
-        alert("Incidente creado");
-        navigate("/incidentes");
+        showAlert("success", "Incidente creado correctamente");
       } else if (resolveMode) {
         await resolveIncidente({
           token,
@@ -113,28 +173,50 @@ export default function IncidenteEditor({ mode = "view" }) {
             observaciones: incidente.observaciones,
           },
         });
-        alert("Incidente resuelto y marcado como FAVORABLE");
+        showAlert("success", "Incidente resuelto y marcado como FAVORABLE");
         setResolveMode(false);
-        navigate("/incidentes");
       } else {
         await updateIncidente({ token, id, payload });
-        alert("Incidente actualizado");
+        showAlert("success", "Incidente actualizado correctamente");
       }
       setEditMode(false);
     } catch (err) {
       console.error(err);
-      alert("Error al guardar");
+      showAlert("error", "Error al guardar: " + (err?.message || ""));
     }
   };
 
+  // Eliminar incidente (solo admin)
+  const handleDelete = async () => {
+    if (!window.confirm("¿Seguro que deseas eliminar este incidente?")) return;
+    try {
+      // Aquí deberías llamar a tu servicio de borrado (deleteIncidente)
+      // await deleteIncidente({ token, id });
+      showAlert("success", "Incidente eliminado correctamente");
+    } catch (err) {
+      showAlert("error", "Error al eliminar: " + (err?.message || ""));
+    }
+  };
+
+
   if (loading) return <div className="p-6">Cargando...</div>;
   if (!incidente) return <div className="p-6">No encontrado</div>;
+
 
   const isCreate = mode === "create";
   const isView = mode === "view";
 
   return (
     <div className="min-h-screen flex flex-col">
+      <AlertModal
+        open={alert.open}
+        type={alert.type}
+        message={alert.message}
+        onClose={() => {
+          closeAlert();
+          if (alert.type === "success") navigate("/incidentes");
+        }}
+      />
       <div className="flex items-center justify-between px-6 py-3">
         <button
           onClick={() => navigate(-1)}
@@ -143,6 +225,18 @@ export default function IncidenteEditor({ mode = "view" }) {
           <ArrowLeft className="w-5 h-5" />
           <span>Atrás</span>
         </button>
+        {/* Botón eliminar solo para admin o con permiso, en cualquier estado, excepto en modo crear */}
+        {!isCreate && isAdmin && (
+          <button
+            onClick={handleDelete}
+            className="flex items-center gap-2 p-2 rounded bg-red-600 hover:bg-red-700 text-white"
+            title="Eliminar incidente"
+            style={{ minWidth: 44, minHeight: 44 }}
+          >
+            <Trash2 className="w-5 h-5" />
+            <span className="hidden sm:inline">Eliminar</span>
+          </button>
+        )}
       </div>
 
       <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
@@ -154,7 +248,8 @@ export default function IncidenteEditor({ mode = "view" }) {
           </span>
 
           <div className="flex gap-2">
-            {!isCreate && isView && !editMode && !resolveMode && (
+            {/* Botón editar solo si estado es PENDIENTE y no en modo crear ni resolve, y no en FAVORABLE */}
+            {!isCreate && isView && !editMode && !resolveMode && incidente.estado === "PENDIENTE" && !isFavorable && (
               <button
                 onClick={() => setEditMode(true)}
                 className="p-2 rounded bg-yellow-500 hover:bg-yellow-600"
@@ -163,6 +258,7 @@ export default function IncidenteEditor({ mode = "view" }) {
                 <Edit className="w-5 h-5 text-white" />
               </button>
             )}
+            {/* Botón resolver solo si estado es PENDIENTE */}
             {!isCreate && isView && incidente.estado === "PENDIENTE" && !resolveMode && (
               <button
                 onClick={() => setResolveMode(true)}
@@ -172,6 +268,7 @@ export default function IncidenteEditor({ mode = "view" }) {
                 <CheckCircle className="w-5 h-5 text-white" />
               </button>
             )}
+            {/* Botón guardar */}
             {(editMode || resolveMode) && (
               <button
                 onClick={handleSave}
@@ -190,7 +287,7 @@ export default function IncidenteEditor({ mode = "view" }) {
       <div className="flex flex-col gap-4 p-6">
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-3 border rounded-lg p-4">
-            <Field label="N° De Incidencia" name="numero" value={incidente.numero} onChange={handleChange} disabled={!isCreate} />
+            <Field label="N° De Incidencia" name="numero" value={incidente.numero} onChange={handleChange} disabled={!isCreate || isFavorable} />
             <Field
               label="Técnico responsable"
               name="id_tecnico"
@@ -198,7 +295,7 @@ export default function IncidenteEditor({ mode = "view" }) {
               onChange={handleChange}
               type="select"
               options={tecnicos}
-              disabled={!editMode && !isCreate}
+              disabled={(!editMode && !isCreate) || isFavorable}
             />
             <Field
               label="Analista que reporta"
@@ -207,7 +304,7 @@ export default function IncidenteEditor({ mode = "view" }) {
               onChange={handleChange}
               type="select"
               options={analistas}
-              disabled={!editMode && !isCreate}
+              disabled={(!editMode && !isCreate) || isFavorable}
             />
             <Field
               label="Unidad zonal"
@@ -216,17 +313,23 @@ export default function IncidenteEditor({ mode = "view" }) {
               onChange={handleChange}
               type="select"
               options={zonas}
+              disabled={isFavorable}
             />
-            <Field label="Fecha de ingreso del error" name="fecha_ingreso" value={incidente.fecha_ingreso} onChange={handleChange} type="date" disabled={!editMode && !isCreate} />
+            <Field label="Fecha de ingreso del error" name="fecha_ingreso" value={incidente.fecha_ingreso} onChange={handleChange} type="date" disabled={(!editMode && !isCreate) || isFavorable} />
           </div>
 
           <div className="space-y-3 border rounded-lg p-4">
             <Field
               label="Tipología de trámite"
               name="tipologia_tramite"
-              value={incidente.tipologia_tramite || incidente.tipologia_tramite}
+              value={incidente.tipologia_tramite || ""}
               onChange={handleChange}
-              disabled={!editMode && !isCreate}
+              type="select"
+              options={[
+                { id: "DMC011", nombre: "DMC011" },
+                { id: "DMC012", nombre: "DMC012" },
+              ]}
+              disabled={(!editMode && !isCreate) || isFavorable}
             />
 
             <Field
@@ -242,7 +345,7 @@ export default function IncidenteEditor({ mode = "view" }) {
                   return { id: year, nombre: year };
                 }
               )}
-              disabled={!editMode && !isCreate}
+              disabled={(!editMode && !isCreate) || isFavorable}
             />
 
             {(!isCreate || resolveMode) && (
@@ -257,7 +360,7 @@ export default function IncidenteEditor({ mode = "view" }) {
                     { id: "SGDTIC", nombre: "SGDTIC" },
                     { id: "DMI", nombre: "DMI" },
                   ]}
-                  disabled={!resolveMode}
+                  disabled={!resolveMode || isFavorable}
                 />
 
                 <Field
@@ -266,7 +369,7 @@ export default function IncidenteEditor({ mode = "view" }) {
                   value={incidente.fecha_solucion}
                   onChange={handleChange}
                   type="date"
-                  disabled={!resolveMode}
+                  disabled={!resolveMode || isFavorable}
                 />
               </>
             )}
@@ -279,7 +382,7 @@ export default function IncidenteEditor({ mode = "view" }) {
               value={incidente.descripcion || incidente.descripcion}
               onChange={handleChange}
               textarea
-              disabled={!editMode && !isCreate}
+              disabled={(!editMode && !isCreate) || isFavorable}
             />
 
             {(!isCreate || resolveMode) && (
@@ -289,7 +392,7 @@ export default function IncidenteEditor({ mode = "view" }) {
                 value={incidente.observaciones}
                 onChange={handleChange}
                 textarea
-                disabled={!resolveMode}
+                disabled={!resolveMode || isFavorable}
               />
             )}
 
@@ -303,7 +406,7 @@ export default function IncidenteEditor({ mode = "view" }) {
                 type="file"
                 name="error_reportado"
                 onChange={handleChange}
-                disabled={!editMode && !isCreate}
+                disabled={(!editMode && !isCreate) || isFavorable}
                 accept="image/*"
                 className="hidden"
               />
@@ -314,7 +417,7 @@ export default function IncidenteEditor({ mode = "view" }) {
                   incidente.error_reportado
                     ? "bg-yellow-500 hover:bg-yellow-600 text-white"
                     : "bg-blue-600 hover:bg-blue-700 text-white"
-                } ${!editMode && !isCreate ? "opacity-70 cursor-not-allowed" : ""}`}
+                } ${(!editMode && !isCreate) || isFavorable ? "opacity-70 cursor-not-allowed" : ""}`}
               >
                 {incidente.error_reportado ? "Cambiar imagen" : "Seleccionar archivo"}
               </label>

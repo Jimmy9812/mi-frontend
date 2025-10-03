@@ -261,9 +261,9 @@ export default function Incidentes() {
                 >
                   «
                 </button>
-                {Array.from({ length: Math.min(data.totalPages, 10) }, (_, i) => {
+                {Array.from({ length: Math.min(data.totalPages, 8) }, (_, i) => {
                   let pageNum;
-                  if (data.totalPages <= 10) {
+                  if (data.totalPages <= 8) {
                     pageNum = i + 1;
                   } else if (page <= 5) {
                     pageNum = i + 1;
