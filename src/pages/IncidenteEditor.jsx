@@ -1,12 +1,12 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getIncidente, createIncidente, updateIncidente, resolveIncidente } from "../services/incidentesService";
+import { getIncidente, createIncidente, updateIncidente, resolveIncidente, deleteIncidente } from "../services/incidentesService";
 import { getAllZona } from "../services/zonasService";
 import { getTecnicoIncidentes, getAnalistas } from "../services/usersRolService";
 import { useAuth } from "../context/AuthContext";
 import { ArrowLeft, Save, Edit, CheckCircle, Trash2, XCircle, Info, AlertTriangle } from "lucide-react";
 import GifLoader from "../components/LoadingGif";
+
 function AlertModal({ open, type = "info", message, onClose }) {
   if (!open) return null;
   const config = {
@@ -33,8 +33,13 @@ function AlertModal({ open, type = "info", message, onClose }) {
   };
   const { color, icon, title } = config[type] || config.info;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(30, 41, 59, 0.25)', backdropFilter: 'blur(2px)' }}>
-      <div className={`bg-white rounded-xl shadow-xl px-8 py-8 min-w-[320px] max-w-[90vw] border-t-4 ${color} flex flex-col items-center`}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "rgba(30, 41, 59, 0.25)", backdropFilter: "blur(2px)" }}
+    >
+      <div
+        className={`bg-white rounded-xl shadow-xl px-8 py-8 min-w-[320px] max-w-[90vw] border-t-4 ${color} flex flex-col items-center`}
+      >
         {icon}
         <div className={`mb-2 text-xl font-bold ${color}`}>{title}</div>
         <div className="mb-6 text-gray-700 text-center">{message}</div>
@@ -49,7 +54,6 @@ function AlertModal({ open, type = "info", message, onClose }) {
   );
 }
 
-
 export default function IncidenteEditor({ mode = "view" }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -62,7 +66,7 @@ export default function IncidenteEditor({ mode = "view" }) {
   const [zonas, setZonas] = useState([]);
   const [tecnicos, setTecnicos] = useState([]);
   const [analistas, setAnalistas] = useState([]);
-  const { token, user, hasPermission } = useAuth();
+  const { token, user, activeRole } = useAuth();
 
   // Modal de alerta interactivo
   const [alert, setAlert] = useState({ open: false, type: "info", message: "" });
@@ -114,15 +118,9 @@ export default function IncidenteEditor({ mode = "view" }) {
     loadOptions();
   }, [token]);
 
+  // === VERIFICACIÓN ADMIN ===
+  const isAdmin = activeRole?.toLowerCase().includes("admin") || activeRole?.toLowerCase().includes("administración");
 
-  // Determinar si el usuario es admin o tiene permiso de eliminar incidentes
-  const isAdmin = (
-    (user?.roles && Array.isArray(user.roles) && user.roles.some((r) => {
-      const nombre = (r?.nombre_rol || r?.rol || "").toLowerCase();
-      return nombre.includes("admin") || nombre.includes("administrador");
-    }))
-    || (typeof hasPermission === "function" && (hasPermission("ADMIN") || hasPermission("INCIDENTES_DELETE")))
-  );
 
   // Estado para bloquear campos si es FAVORABLE
   const isFavorable = incidente?.estado === "FAVORABLE";
@@ -188,20 +186,20 @@ export default function IncidenteEditor({ mode = "view" }) {
 
   // Eliminar incidente (solo admin)
   const handleDelete = async () => {
-    if (!window.confirm("¿Seguro que deseas eliminar este incidente?")) return;
-    try {
-      // Aquí deberías llamar a tu servicio de borrado (deleteIncidente)
-      // await deleteIncidente({ token, id });
-      showAlert("success", "Incidente eliminado correctamente");
-    } catch (err) {
-      showAlert("error", "Error al eliminar: " + (err?.message || ""));
-    }
-  };
+  if (!window.confirm("¿Seguro que deseas eliminar este incidente?")) return;
+  try {
+    // 👇 Usamos id_incidente, no numero
+    await deleteIncidente({ token, id: incidente.id });
+    showAlert("success", "Incidente eliminado correctamente");
+  } catch (err) {
+    console.error("❌ Error al eliminar:", err);
+    showAlert("error", "Error al eliminar: " + (err?.message || ""));
+  }
+};
 
 
   if (loading) return <div className="p-6">Cargando...</div>;
   if (!incidente) return <div className="p-6">No encontrado</div>;
-
 
   const isCreate = mode === "create";
   const isView = mode === "view";
@@ -225,18 +223,6 @@ export default function IncidenteEditor({ mode = "view" }) {
           <ArrowLeft className="w-5 h-5" />
           <span>Atrás</span>
         </button>
-        {/* Botón eliminar solo para admin o con permiso, en cualquier estado, excepto en modo crear */}
-        {!isCreate && isAdmin && (
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-2 p-2 rounded bg-red-600 hover:bg-red-700 text-white"
-            title="Eliminar incidente"
-            style={{ minWidth: 44, minHeight: 44 }}
-          >
-            <Trash2 className="w-5 h-5" />
-            <span className="hidden sm:inline">Eliminar</span>
-          </button>
-        )}
       </div>
 
       <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
@@ -248,7 +234,19 @@ export default function IncidenteEditor({ mode = "view" }) {
           </span>
 
           <div className="flex gap-2">
-            {/* Botón editar solo si estado es PENDIENTE y no en modo crear ni resolve, y no en FAVORABLE */}
+            {/* Botón eliminar solo ícono, cuadrado, rojo, como en la imagen */}
+            {!isCreate && isAdmin && (
+              <button
+                onClick={handleDelete}
+                className="p-2 rounded bg-red-600 hover:bg-red-700 text-white shadow focus:outline-none focus:ring-2 focus:ring-red-400 flex items-center justify-center"
+                title="Eliminar incidente"
+                style={{ width: 44, height: 44 }}
+              >
+                <Trash2 className="w-6 h-6" />
+              </button>
+            )}
+
+            {/* Botón editar */}
             {!isCreate && isView && !editMode && !resolveMode && incidente.estado === "PENDIENTE" && !isFavorable && (
               <button
                 onClick={() => setEditMode(true)}
@@ -258,7 +256,7 @@ export default function IncidenteEditor({ mode = "view" }) {
                 <Edit className="w-5 h-5 text-white" />
               </button>
             )}
-            {/* Botón resolver solo si estado es PENDIENTE */}
+            {/* Botón resolver */}
             {!isCreate && isView && incidente.estado === "PENDIENTE" && !resolveMode && (
               <button
                 onClick={() => setResolveMode(true)}
@@ -287,7 +285,13 @@ export default function IncidenteEditor({ mode = "view" }) {
       <div className="flex flex-col gap-4 p-6">
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-3 border rounded-lg p-4">
-            <Field label="N° De Incidencia" name="numero" value={incidente.numero} onChange={handleChange} disabled={!isCreate || isFavorable} />
+            <Field
+              label="N° De Incidencia"
+              name="numero"
+              value={incidente.numero}
+              onChange={handleChange}
+              disabled={!isCreate || isFavorable}
+            />
             <Field
               label="Técnico responsable"
               name="id_tecnico"
@@ -315,7 +319,14 @@ export default function IncidenteEditor({ mode = "view" }) {
               options={zonas}
               disabled={isFavorable}
             />
-            <Field label="Fecha de ingreso del error" name="fecha_ingreso" value={incidente.fecha_ingreso} onChange={handleChange} type="date" disabled={(!editMode && !isCreate) || isFavorable} />
+            <Field
+              label="Fecha de ingreso del error"
+              name="fecha_ingreso"
+              value={incidente.fecha_ingreso}
+              onChange={handleChange}
+              type="date"
+              disabled={(!editMode && !isCreate) || isFavorable}
+            />
           </div>
 
           <div className="space-y-3 border rounded-lg p-4">
@@ -471,22 +482,21 @@ function Field({ label, name, value, onChange, disabled, textarea, type = "text"
           className="w-full p-2 border rounded bg-gray-50 text-gray-900 disabled:opacity-70"
         >
           <option value="">Seleccionar...</option>
-        {options.map((option) => {
-  const optionKey = option.id_zona ?? option.id_usuario ?? option.id ?? option.id_rol_usuario;
+          {options.map((option) => {
+            const optionKey = option.id_zona ?? option.id_usuario ?? option.id ?? option.id_rol_usuario;
+            const optionLabel =
+              option.nombre_completo ||
+              option.nombre_zona ||
+              `${option.nombre_usuario || ""} ${option.apellidos_usuario || ""}`.trim() ||
+              option.descripcion ||
+              String(optionKey);
 
-const optionLabel =
-  option.nombre_completo || 
-  option.nombre_zona ||
-  `${option.nombre_usuario || ""} ${option.apellidos_usuario || ""}`.trim() ||
-  option.descripcion ||
-  String(optionKey);
-
-  return (
-    <option key={optionKey} value={optionKey}>
-      {optionLabel || "Sin nombre"}
-    </option>
-  );
-})}
+            return (
+              <option key={optionKey} value={optionKey}>
+                {optionLabel || "Sin nombre"}
+              </option>
+            );
+          })}
         </select>
       ) : textarea ? (
         <textarea

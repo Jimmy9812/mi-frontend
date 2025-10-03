@@ -473,3 +473,25 @@ export async function resolveIncidente({ token, no_incidente, payload }) {
   writeAll(all);
   return updated;
 }
+
+// Eliminar incidente
+export async function deleteIncidente({ token, id }) {
+  if (!id) throw new Error("Id requerido");
+
+  if (API) {
+    const res = await fetch(`${API}/incidentes/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error("No se pudo eliminar el incidente");
+    return res.json();
+  }
+
+  await sleep();
+  const all = readAll();
+  const idx = all.findIndex((x) => x.id === id || x.numero === id);
+  if (idx === -1) throw new Error("Incidente no encontrado");
+  all.splice(idx, 1);
+  writeAll(all);
+  return { success: true };
+}
