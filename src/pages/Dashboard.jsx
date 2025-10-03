@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx"; // 👈 importar contexto
+import { useAuth } from "../context/AuthContext.jsx"; 
 import {
   BarChart2,
   FileText,
@@ -14,13 +14,11 @@ import {
 
 export default function Dashboard() {
   const [open, setOpen] = useState(false);
-  const { user, logout } = useAuth(); // 👈 ahora usamos usuario y logout reales
+  const { user, logout } = useAuth(); 
   const navigate = useNavigate();
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
-
-
       {/* Fondo con overlay oscuro */}
       <div
         className="absolute inset-0 bg-cover bg-center"
@@ -28,47 +26,46 @@ export default function Dashboard() {
       />
       <div className="absolute inset-0 bg-black/70" />
 
- {/* Header - Dashboard + Perfil */}
-<div className="absolute top-10 right-10 z-30 flex items-center gap-8">
-  {/* Botón Dashboard */}
-  <button 
-    onClick={() => navigate("/dashboard-home")}
-    className="flex items-center gap-2 bg-white/20 px-6 py-3 rounded-lg text-white font-semibold hover:bg-white/40 shadow-lg transition"
-  >
-    <span>Dashboard</span>
-    <BarChart2 className="w-6 h-6 text-blue-400" />
-  </button>
-
-  {/* Perfil con dropdown */}
-  <div className="relative flex items-center">
-    <button
-      onClick={() => setOpen(!open)}
-      className="flex flex-col items-center gap-1 text-white focus:outline-none"
-    >
-      <User className="w-8 h-8" />
-      <span className="text-sm font-medium">
-        {user ? `${user.nombre_usuario} ${user.apellidos_usuario}` : "Usuario"}
-      </span>
-    </button>
-
-    {/* Dropdown */}
-    {open && (
-      <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200">
+      {/* Header - Dashboard + Perfil */}
+      <div className="absolute top-10 right-10 z-30 flex items-center gap-8">
+        {/* Botón Dashboard */}
         <button
-          onClick={logout}
-          className="flex items-center justify-center gap-2 px-4 py-2 w-full text-red-600 hover:bg-red-50 rounded-lg"
+          onClick={() => navigate("/dashboard-home")}
+          className="flex items-center gap-2 bg-white/20 px-6 py-3 rounded-lg text-white font-semibold hover:bg-white/40 shadow-lg transition"
         >
-          <LogOut className="w-4 h-4" />
-          <span>Cerrar sesión</span>
+          <span>Dashboard</span>
+          <BarChart2 className="w-6 h-6 text-blue-400" />
         </button>
-      </div>
-    )}
-  </div>
+
+        {/* Perfil con dropdown */}
+        <div className="relative flex items-center">
+          <button
+            onClick={() => setOpen(!open)}
+            className="flex flex-col items-center gap-1 text-white focus:outline-none"
+          >
+            <User className="w-8 h-8" />
+            <span className="text-sm font-medium">
+              {user ? `${user.nombre_usuario} ${user.apellidos_usuario}` : "Usuario"}
+            </span>
+          </button>
+
+          {/* Dropdown */}
+          {open && (
+            <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200">
+              <button
+                onClick={logout}
+                className="flex items-center justify-center gap-2 px-4 py-2 w-full text-red-600 hover:bg-red-50 rounded-lg"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-     {/* Línea blanca */}
-    <div className="absolute top-28 left-1/3 right-10 h-[2px] bg-white z-20"></div>
-
+      {/* Línea blanca */}
+      <div className="absolute top-28 left-1/3 right-10 h-[2px] bg-white z-20"></div>
 
       {/* Panel inclinado */}
       <div
@@ -88,37 +85,40 @@ export default function Dashboard() {
       </div>
 
       {/* Sello */}
-    <img
-      src="/sello.png"
-      alt="Sello"
-      className="absolute z-30 top-3 left-1/3 h-20 w-auto"
-    />
+      <img
+        src="/sello.png"
+        alt="Sello"
+        className="absolute z-30 top-3 left-1/3 h-20 w-auto"
+      />
 
       {/* Botones inclinados */}
-    <div
-      className="absolute inset-y-0 left-340 z-20 flex flex-col justify-center gap-10 pr-20"
-      style={{ transform: "translateY(70px)" }}
-    >
+      <div
+        className="absolute inset-y-0 left-340 z-20 flex flex-col justify-center gap-10 pr-20"
+        style={{ transform: "translateY(70px)" }}
+      >
         {[
-  { label: "SIREC-Q", icon: <FileText className="w-7 h-7" />, offset: -720, to: "/#" },
-  { label: "EXTERNOS", icon: <Users className="w-7 h-7" />, offset: -690, to: "/externos" },
-  { label: "PRUEBA/PRODUCCIÓN", icon: <Database className="w-7 h-7" />, offset: -660, to: "/test-produccion" },
-  { label: "ACCIDENTES", icon: <AlertTriangle className="w-7 h-7" />, offset: -630, to: "/accidentes" },
-  { label: "INCIDENTES", icon: <Activity className="w-7 h-7" />, offset: -600, to: "/incidentes" }, // 👈
-  
-].map((item, idx) => (
-  <Link
-    key={idx}
-    to={item.to}                                 // 👈 usa su ruta
-    className="flex items-center gap-4 text-white font-extrabold tracking-wide hover:scale-[1.05] transition transform -skew-x-6"
-    style={{ transform: `translateX(${item.offset}px) skewX(-6deg)` }}
-  >
-    <span className="inline-grid place-items-center h-20 w-20 rounded-full bg-white text-blue-900 shadow-md text-xl skew-x-6">
-      {item.icon}
-    </span>
-    <span className="text-xl drop-shadow skew-x-6">{item.label}</span>
-  </Link>
-))}
+          { label: "SIREC-Q", icon: <FileText className="w-7 h-7" />, offset: -720, to: "/#" },
+          { label: "EXTERNOS", icon: <Users className="w-7 h-7" />, offset: -690, to: "/externos" },
+          { label: "TES/PRODUCCIÓN", icon: <Database className="w-7 h-7" />, offset: -660, to: "/test-produccion" },
+          { label: "ACCIDENTES", icon: <AlertTriangle className="w-7 h-7" />, offset: -630, to: "/accidentes" },
+          { label: "INCIDENTES", icon: <Activity className="w-7 h-7" />, offset: -600, to: "/incidentes" },
+        ].map((item, idx) => (
+          <Link
+            key={idx}
+            to={item.to}
+            className="flex items-center gap-4 text-white font-extrabold tracking-wide hover:scale-[1.05] transition transform -skew-x-6"
+            style={{ transform: `translateX(${item.offset}px) skewX(-6deg)` }}
+          >
+            {/* 🔹 Círculo fijo */}
+            <span className="flex items-center justify-center w-20 h-20 rounded-full bg-white text-blue-900 shadow-md text-xl skew-x-6">
+              {item.icon}
+            </span>
+            {/* 🔹 Texto corregido para que no se baje */}
+            <span className="text-xl drop-shadow skew-x-6 whitespace-nowrap">
+              {item.label}
+            </span>
+          </Link>
+        ))}
       </div>
     </div>
   );
