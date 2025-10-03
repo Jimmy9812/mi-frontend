@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import Login from "./components/Login";
 import Dashboard from "./pages/Dashboard";
+import DashboardHomePage from "./pages/DashboardHomePage";
 import Incidentes from "./pages/Incidentes";
 import Accidentes from "./pages/Accidentes";
 import Externos from "./pages/Externos";
@@ -136,8 +137,15 @@ export default function App() {
               </PrivateRoute>
             }
           />
-
-          {/* Cualquier otra ruta → login */}
+          {/* DASHBOARD HOME */}
+          <Route
+            path="/dashboard-home"
+            element={
+              <PrivateRoute>
+                <DashboardHomePage />
+              </PrivateRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Layout>

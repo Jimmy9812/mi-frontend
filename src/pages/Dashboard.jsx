@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx"; // 👈 importar contexto
 import {
   BarChart2,
@@ -15,6 +15,7 @@ import {
 export default function Dashboard() {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth(); // 👈 ahora usamos usuario y logout reales
+  const navigate = useNavigate();
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
@@ -27,10 +28,13 @@ export default function Dashboard() {
       />
       <div className="absolute inset-0 bg-black/70" />
 
-  {/* Header - Dashboard + Perfil */}
+ {/* Header - Dashboard + Perfil */}
 <div className="absolute top-10 right-10 z-30 flex items-center gap-8">
   {/* Botón Dashboard */}
-  <button className="flex items-center gap-2 bg-white/20 px-6 py-3 rounded-lg text-white font-semibold hover:bg-white/40 shadow-lg transition">
+  <button 
+    onClick={() => navigate("/dashboard-home")}
+    className="flex items-center gap-2 bg-white/20 px-6 py-3 rounded-lg text-white font-semibold hover:bg-white/40 shadow-lg transition"
+  >
     <span>Dashboard</span>
     <BarChart2 className="w-6 h-6 text-blue-400" />
   </button>
@@ -101,6 +105,7 @@ export default function Dashboard() {
   { label: "PRUEBA/PRODUCCIÓN", icon: <Database className="w-7 h-7" />, offset: -660, to: "/test-produccion" },
   { label: "ACCIDENTES", icon: <AlertTriangle className="w-7 h-7" />, offset: -630, to: "/accidentes" },
   { label: "INCIDENTES", icon: <Activity className="w-7 h-7" />, offset: -600, to: "/incidentes" }, // 👈
+  
 ].map((item, idx) => (
   <Link
     key={idx}
