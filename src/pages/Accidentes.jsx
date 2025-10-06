@@ -74,10 +74,25 @@ export default function Accidentes() {
     }
   }
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, status]);
+          useEffect(() => {
+            load();
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+          }, [page, pageSize, status]);
+
+          // 🔹 Búsqueda automática cuando cambia el texto del buscador
+        useEffect(() => {
+          const delay = setTimeout(() => {
+            if (search.trim() === "") {
+              load(); // Muestra todos los registros si está vacío
+            } else {
+              setPage(1);
+              load(); // Ejecuta búsqueda con filtro
+            }
+          }, 400); // Espera 400 ms antes de llamar a la API
+
+          return () => clearTimeout(delay); // Limpieza del timeout
+        }, [search]); // 👈 se ejecuta cada vez que cambia el texto
+
 
   const showingRange = useMemo(() => {
     const start = (data.page - 1) * pageSize + 1;
@@ -145,21 +160,21 @@ export default function Accidentes() {
             </button>
 
             <div className="relative">
-              <input
-                type="text"
-                placeholder="Buscar..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-                className="pl-3 pr-10 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <button
-                onClick={doSearch}
-                className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-slate-100"
-              >
-                <Search className="w-4 h-4 text-slate-600" />
-              </button>
-            </div>
+                <input
+                  type="text"
+                  placeholder="Buscar"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-3 pr-10 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <button
+                  onClick={doSearch}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-slate-100"
+                >
+                  <Search className="w-4 h-4 text-slate-600" />
+                </button>
+              </div>
+
 
             <select
               value={status}
