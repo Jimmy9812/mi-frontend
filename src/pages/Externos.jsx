@@ -1,4 +1,3 @@
-// src/pages/Externos.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
@@ -6,7 +5,7 @@ import { listExternos, exportExternosCsv } from "../services/externosService";
 import { useAuth } from "../context/AuthContext";
 
 const TIPOS = ["Todos", "RSW", "RST", "RSD"];
-const ESTADOS = ["Todos", "ENVIADO", "DEVUELTO"];
+const ESTADOS = ["Todos", "ENVIADO", "PENDIENTE", "RECHAZADO", "FAVORABLE"];
 
 export default function Externos() {
   const navigate = useNavigate();
@@ -21,10 +20,12 @@ export default function Externos() {
   const [data, setData] = useState({ data: [], count: 0 });
   const [loading, setLoading] = useState(false);
 
+  // =============================
+  // 🔹 FUNCIÓN PRINCIPAL LOAD()
+  // =============================
   async function load() {
     setLoading(true);
     try {
-      // Construir query params para el backend
       const params = new URLSearchParams();
       params.set("page", page);
       params.set("pageSize", pageSize);
@@ -32,13 +33,11 @@ export default function Externos() {
       if (tipo && tipo !== "Todos") params.set("tipo", tipo);
       if (estado && estado !== "Todos") params.set("estado", estado);
 
-      // Llamada real al backend
       const url = `${import.meta.env.VITE_API_URL}/sirecq-externo?${params.toString()}`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const result = await res.json();
 
-      // Ajuste para backend actual
       if (result.success) {
         setData({
           data: result.data || [],
@@ -57,20 +56,36 @@ export default function Externos() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, tipo, estado]);
+  }, [page, pageSize, tipo, estado, search]); // <-- incluye búsqueda
 
   const doSearch = async () => {
     setPage(1);
     await load();
   };
 
-  const showingRange = useMemo(() => {
-    if (data.count === 0) return "0-0 de 0";
-    const start = (page - 1) * pageSize + 1;
-    const end = Math.min(page * pageSize, data.count);
-    return `${start}-${end} de ${data.count}`;
-  }, [data.count, page, pageSize]);
+  // =============================
+  // 🔹 FUNCIÓN DE EXPORTACIÓN CSV
+  // =============================
+  const handleExport = () => {
+    if (!data.data.length) {
+      alert("No hay datos para exportar");
+      return;
+    }
+
+    const formatted = data.data.map((r) => ({
+      "N° Requerimiento": r.requerimiento?.no_requerimiento || "",
+      "Estado":
+        r.requerimiento?.estadoRequerimiento?.nombre_estado ||
+        r.requerimiento?.estado_requerimiento?.nombre_estado ||
+        "",
+      "Fecha Registro": r.requerimiento?.fecha_registro || "",
+      "Dependencia": r.dependencia?.nombre_dependencia || "",
+      "Sistema": r.requerimiento?.sistema?.nombre_sistema || "",
+      "Categoría": r.requerimiento?.categoria?.nombre_categoria || "",
+    }));
+
+    exportExternosCsv(formatted);
+  };
 
   const formatDate = (iso) => {
     if (!iso) return "—";
@@ -85,16 +100,46 @@ export default function Externos() {
     }
   };
 
+  // =============================
+  // 🔹 FILTRADO LOCAL
+  // =============================
+  const filteredData = useMemo(() => {
+    let filtered = data.data;
+
+    if (search) {
+      const s = search.toLowerCase();
+      filtered = filtered.filter((item) =>
+        item.requerimiento?.no_requerimiento?.toLowerCase().includes(s)
+      );
+    }
+
+    if (estado !== "Todos") {
+      filtered = filtered.filter(
+        (item) =>
+          item.requerimiento?.estadoRequerimiento?.nombre_estado === estado ||
+          item.requerimiento?.estado_requerimiento?.nombre_estado === estado
+      );
+    }
+
+    if (tipo !== "Todos") {
+      filtered = filtered.filter((item) =>
+        item.requerimiento?.no_requerimiento?.startsWith(tipo)
+      );
+    }
+
+    return filtered;
+  }, [data.data, search, estado, tipo]);
+
   return (
     <div className="min-h-screen w-full grid grid-cols-[380px_1fr]">
-      {/* Columna izquierda - imagen */}
+      {/* Imagen lateral */}
       <div className="h-screen">
         <img src="/iglesia.jpg" alt="Quito" className="w-full h-full object-cover" />
       </div>
 
-      {/* Columna derecha */}
+      {/* Contenido derecho */}
       <div className="flex flex-col">
-        {/* Header superior (breadcrumb + user) */}
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2 text-slate-600">
             <Home className="w-5 h-5" />
@@ -109,18 +154,18 @@ export default function Externos() {
           </div>
         </div>
 
-        {/* Barra título dorada */}
+        {/* Título */}
         <div className="px-6 pt-4">
           <div className="rounded-lg bg-[#3F6592] text-white px-5 py-3 font-bold tracking-wide shadow">
             EXTERNOS SIREC-Q
           </div>
         </div>
 
-        {/* Acciones */}
+        {/* Barra de acciones */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => exportExternosCsv(data.data)}
+              onClick={handleExport}
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
             >
               <Download className="w-4 h-4" />
@@ -133,44 +178,40 @@ export default function Externos() {
                 placeholder="Buscar"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
+                onKeyDown={(e) => e.key === "Enter" && doSearch()}
                 className="pl-3 pr-10 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <button
                 onClick={doSearch}
                 className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-slate-100"
-                title="Buscar"
               >
                 <Search className="w-4 h-4 text-slate-600" />
               </button>
             </div>
           </div>
 
+          {/* Filtros */}
           <div className="flex gap-2">
-            {/* Filtro por estado */}
             <select
               value={estado}
-              onChange={(e) => {
-                setEstado(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setEstado(e.target.value)}
               className="px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              {ESTADOS.map((est) => (
-                <option key={est} value={est}>{est}</option>
+              {ESTADOS.map((e) => (
+                <option key={e} value={e}>
+                  {e}
+                </option>
               ))}
             </select>
-            {/* Filtro por tipo */}
             <select
               value={tipo}
-              onChange={(e) => {
-                setTipo(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setTipo(e.target.value)}
               className="px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {TIPOS.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
           </div>
@@ -178,7 +219,6 @@ export default function Externos() {
 
         {/* Tabla */}
         <div className="mx-6 my-4 rounded-xl border overflow-hidden bg-white">
-          {/* Cabecera tabla */}
           <div className="grid grid-cols-[1.4fr_1fr_1fr_120px] bg-[#3F6592] text-white font-semibold text-sm">
             <div className="px-4 py-3">N° Requerimiento</div>
             <div className="px-4 py-3">Estado</div>
@@ -186,24 +226,27 @@ export default function Externos() {
             <div className="px-4 py-3 text-center">Acción</div>
           </div>
 
-          {/* Filas */}
           {loading ? (
             <div className="p-6 text-center text-slate-500">Cargando…</div>
-          ) : data.data.length === 0 ? (
+          ) : filteredData.length === 0 ? (
             <div className="p-6 text-center text-slate-500">No hay resultados</div>
           ) : (
-            data.data.map((row) => (
+            filteredData.map((row) => (
               <div
-                key={row.id_sirecq_externo || row.id_requerimiento}
+                key={row.id_sirecq_externo}
                 className="grid grid-cols-[1.4fr_1fr_1fr_120px] border-t items-center text-sm hover:bg-gray-50"
               >
-                <div className="px-4 py-3">{row.requerimiento?.no_requerimiento || "—"}</div>
+                <div className="px-4 py-3">{row.requerimiento?.no_requerimiento}</div>
                 <div className="px-4 py-3">
                   <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium">
-                    {row.requerimiento?.estadoRequerimiento?.nombre_estado || "—"}
+                    {row.requerimiento?.estadoRequerimiento?.nombre_estado ||
+                      row.requerimiento?.estado_requerimiento?.nombre_estado ||
+                      "—"}
                   </span>
                 </div>
-                <div className="px-4 py-3">{formatDate(row.requerimiento?.fecha_registro)}</div>
+                <div className="px-4 py-3">
+                  {formatDate(row.requerimiento?.fecha_registro)}
+                </div>
                 <div className="px-4 py-3 flex items-center justify-center">
                   <button
                     onClick={() => navigate(`/externos/${row.id_sirecq_externo}`)}
@@ -216,72 +259,6 @@ export default function Externos() {
               </div>
             ))
           )}
-        </div>
-
-        {/* Footer inferior */}
-        <div className="mx-6 mt-0 mb-8 flex items-center justify-between">
-          {/* Page size */}
-          <div className="flex items-center gap-2 text-sm">
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="px-2 py-1 border rounded"
-            >
-              {[5, 10, 20, 50].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <span className="text-slate-500">Total: {data.count}</span>
-          </div>
-
-          {/* Paginación */}
-          <div className="flex flex-col items-center gap-1">
-            <p className="uppercase text-sm text-gray-600">PÁGINA</p>
-            <div className="flex items-center gap-1">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                «
-              </button>
-              {[...Array(5)].map((_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    className={`w-8 h-8 rounded ${pageNum === page
-                      ? "bg-[#3F6592] text-white"
-                      : "hover:bg-slate-100"
-                      }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                className="w-8 h-8 rounded hover:bg-slate-100"
-              >
-                »
-              </button>
-            </div>
-          </div>
-
-          {/* Botón agregar */}
-          <button
-            onClick={() => navigate("/externos/nuevo")}
-            className="flex items-center gap-2 bg-[#3F6592] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            ADD NUEVO REQUERIMIENTO
-          </button>
         </div>
       </div>
     </div>
