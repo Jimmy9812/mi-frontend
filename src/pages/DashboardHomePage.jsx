@@ -104,16 +104,25 @@ export default function DashboardHomePage() {
   return (
     <div className="h-screen w-screen bg-gray-200 flex flex-col">
       {/* Header */}
-      <header className="w-full bg-[#3F6592] text-white flex items-center justify-between px-10 py-4 shadow-lg">
-        <div className="flex items-center gap-10">
+      <header className="w-full relative h-[84px] md:h-[88px] flex items-center justify-between px-10 py-4 shadow-lg overflow-hidden">
+        {/* Fondo panorámico */}
+        <img 
+          src="/panoramica2.jpg" 
+          alt="Panorámica Quito" 
+          className="absolute inset-0 w-full h-full object-cover object-center z-0" 
+          style={{ minHeight: 84 }}
+        />
+        {/* Overlay para legibilidad */}
+        <div className="absolute inset-0 bg-black/30 z-0" />
+        <div className="flex items-center gap-10 relative z-10">
           <img src="/escudo.png" alt="Sello" className="h-16 w-auto" />
-          <span className="text-xl md:text-2xl font-bold">
+          <span className="text-xl md:text-2xl font-bold text-white drop-shadow">
             DASHBOARD CATASTRO
           </span>
         </div>
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 bg-white text-[#3F6592] px-4 py-2 rounded-lg shadow hover:bg-gray-100"
+          className="flex items-center gap-2 bg-white text-[#3F6592] px-4 py-2 rounded-lg shadow hover:bg-gray-100 relative z-10"
         >
           <ArrowLeft className="w-4 h-4" />
           Atrás
