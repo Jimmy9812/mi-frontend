@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
-import { exportExternosCsv } from "../services/externosService";
+import { listExternos, exportExternosCsv } from "../services/externosService";
 import { useAuth } from "../context/AuthContext";
 
 const TIPOS = ["Todos", "RSW", "RST", "RSD"];
@@ -51,23 +51,39 @@ export default function Externos() {
   // =============================
   // 🔹 EXPORTACIÓN CSV
   // =============================
-  const handleExport = () => {
-    if (!data.length) {
-      alert("No hay datos para exportar");
-      return;
-    }
+            const handleExport = async () => {
+        try {
+          setLoading(true);
 
-    const formatted = data.map((r) => ({
-      "N° Requerimiento": r.requerimiento?.no_requerimiento || "",
-      "Estado": r.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || "",
-      "Fecha Registro": r.requerimiento?.fecha_registro || "",
-      "Dependencia": r.dependencia?.nombre_dependencia || "",
-      "Sistema": r.requerimiento?.sistema?.nom_sistema || "",
-      "Categoría": r.requerimiento?.categoria?.nom_categoria || "",
-    }));
+          // ✅ Obtener todos los externos (según filtro actual)
+          const allExternos = await listExternos({
+            token,
+            role: user?.activeRole,
+            page: 1,
+            pageSize: 10000,
+            search,
+            tipo,
+          });
 
-    exportExternosCsv(formatted);
-  };
+          // ✅ Manejar si devuelve array o {items: []}
+          const itemsToExport = Array.isArray(allExternos)
+            ? allExternos
+            : allExternos.items || [];
+
+          console.log(`Exportando ${itemsToExport.length} externos`);
+
+          // ✅ Llamar exportador
+          exportExternosCsv({ items: itemsToExport });
+
+        } catch (error) {
+          console.error("Error exportando:", error);
+          alert("Error al exportar los externos");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+
 
   // =============================
   // 🔹 UTILIDADES

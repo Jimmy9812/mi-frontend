@@ -1,10 +1,10 @@
 // src/services/externosService.js
 // -----------------------------------------------
-// Ahora: conexión directa a backend NestJS para CRUD reales
+// Conexión directa a backend NestJS o MOCK local
 // -----------------------------------------------
 
 const API = (import.meta.env.VITE_API_URL || "").trim() || null;
-const USE_API = true; // Forzar uso de API real
+const USE_API = true; // true = usa API NestJS; false = mock local
 
 const LS_KEY = "externos@seed";
 
@@ -15,7 +15,7 @@ const authHeaders = (token) => ({
 
 const sleep = (ms = 200) => new Promise((r) => setTimeout(r, ms));
 
-// --------- MOCK SEED ---------
+// --------- MOCK DATA ---------
 const ESTADOS = ["ENVIADO", "PENDIENTE", "EN PROCESO"];
 const TIPOS = ["RSW", "RST", "RSD"];
 
@@ -40,17 +40,15 @@ function makeItem(i) {
   const numero = `${tipo}_SUIM_${2024 + (i % 2)}_${pad(i + 1, 3)}`;
   return {
     id: `EXT${pad(i + 1, 4)}`,
-    tipo, // RSW / RST / RSD
+    tipo,
     no_requerimiento: numero,
     estado: ESTADOS[i % ESTADOS.length],
     fecha: randomDate(2025),
-
-    // Campos del formulario (editor)
-    prioridad: `${(i % 3) + 1}`,
-    clasificacion: ["A", "B", "C"][i % 3],
+    responsable: ["Pedro Zhinín", "Ana Gómez", "Luis Pérez"][i % 3],
     descripcion:
       "Implementación de controles para validación de campos determinados en el informe.",
-    responsable: ["Pedro Zhinín", "Ana Gómez", "Luis Pérez"][i % 3],
+    prioridad: `${(i % 3) + 1}`,
+    clasificacion: ["A", "B", "C"][i % 3],
     dependencia: ["DMSIST", "DMI", "DMC"][i % 3],
     tramite_pri: "ACTUALIZACIÓN DE PREDIOS",
     seguimiento: "Contraloría General del Estado - Cartera Vencida",
@@ -94,7 +92,7 @@ function paginate(items, page, pageSize, search, tipo) {
       x.no_requerimiento.toLowerCase().includes(s) ||
       x.estado.toLowerCase().includes(s) ||
       x.descripcion.toLowerCase().includes(s);
-    const okTipo = !tipo || x.tipo === tipo;
+    const okTipo = tipo === "Todos" || !tipo || x.tipo === tipo;
     return okSearch && okTipo;
   });
 
@@ -108,21 +106,66 @@ function paginate(items, page, pageSize, search, tipo) {
 
 // --------- API PÚBLICA ---------
 
-// Listar externos (aún no implementado en backend, se deja MOCK)
+// ✅ Listar externos (mock o backend)
 export async function listExternos({
   token,
   page = 1,
   pageSize = 5,
   search = "",
-  tipo = "RSW",
+  tipo = "Todos",
 } = {}) {
-  // MOCK temporal hasta que el backend implemente paginación/listado
+  if (API && USE_API) {
+    try {
+      const params = new URLSearchParams({
+        page,
+        pageSize,
+        search,
+        tipo,
+      });
+      const res = await fetch(`${API}/sirecq-externo?${params}`, {
+        headers: authHeaders(token),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const result = await res.json();
+
+      // 🔹 Normalizamos la respuesta para que siempre devuelva el mismo formato
+      if (Array.isArray(result)) {
+        // Si el backend devuelve un array directo
+        return {
+          items: result,
+          page: 1,
+          total: result.length,
+          totalPages: 1,
+        };
+      }
+
+      // Si devuelve objeto tipo { data: [...], total, totalPages, ... }
+      if (result?.data && Array.isArray(result.data)) {
+        return {
+          items: result.data,
+          page: result.page || 1,
+          total: result.total || result.data.length,
+          totalPages: result.totalPages || 1,
+        };
+      }
+
+      // Si ya está en formato { items: [...], total, totalPages }
+      return result;
+
+    } catch (err) {
+      console.warn("[externosService] Error listExternos API:", err?.message);
+    }
+  }
+
+  // 🔹 Modo MOCK (sin backend)
   await sleep();
   const all = readAll();
   return paginate(all, page, pageSize, search, tipo);
 }
 
-// Obtener un externo por ID (GET /sirecq-externo/:id)
+
+// ✅ Obtener externo por ID
 export async function getExterno(id, token) {
   if (API && USE_API) {
     try {
@@ -131,7 +174,6 @@ export async function getExterno(id, token) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const result = await res.json();
-      // Si backend retorna { data: {...} }, devolver solo data
       return result.data || result;
     } catch (err) {
       console.warn("[externosService] Error getExterno API:", err?.message);
@@ -143,7 +185,7 @@ export async function getExterno(id, token) {
   return all.find((x) => x.id === id || x.no_requerimiento === id) || null;
 }
 
-// Crear un externo (POST /sirecq-externo)
+// ✅ Crear externo
 export async function createExterno({ token, payload }) {
   if (API && USE_API) {
     try {
@@ -173,7 +215,7 @@ export async function createExterno({ token, payload }) {
   return nuevo;
 }
 
-// Actualizar un externo (PATCH /sirecq-externo/:id)
+// ✅ Actualizar externo
 export async function updateExterno({ token, id, payload }) {
   if (!id) throw new Error("id requerido");
   if (API && USE_API) {
@@ -201,49 +243,86 @@ export async function updateExterno({ token, id, payload }) {
   return updated;
 }
 
-export async function exportExternosCsv(arg = {}) {
-  // Si quieres usar API para export, activa flag
-  if (API && USE_API && (arg.token || arg.search !== undefined || arg.tipo)) {
-    const { token, search = "", tipo = "" } = arg;
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    if (tipo) params.set("tipo", tipo);
+export async function exportExternosCsv({
+  token,
+  search = "",
+  tipo = "",
+  status = "ALL",
+} = {}) {
+  try {
+    let allExternos = [];
 
-    try {
-      const res = await fetch(`${API}/externos/export?${params}`, {
+    // 🔹 Si hay backend (NestJS activo)
+    if (API && USE_API) {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (tipo && tipo !== "Todos") params.set("tipo", tipo);
+      if (status && status !== "ALL") params.set("estado", status);
+      params.set("page", "1");
+      params.set("pageSize", "10000"); // obtener todos los registros
+
+      const res = await fetch(`${API}/sirecq-externo?${params}`, {
         headers: authHeaders(token),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `externos_${toISO(new Date())}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      return;
-    } catch (err) {
-      console.warn("[externosService] Fallback export MOCK:", err?.message);
+
+      const json = await res.json();
+
+      // ✅ Tu backend devuelve data: [ ... ], count: N
+      if (Array.isArray(json.data)) {
+        allExternos = json.data;
+      } else if (Array.isArray(json.items)) {
+        allExternos = json.items;
+      } else {
+        throw new Error("Estructura de datos inesperada en la respuesta del backend");
+      }
+
+      console.log(`Exportando ${allExternos.length} externos`);
+    } else {
+      // 🔹 Modo MOCK local
+      const all = readAll();
+      allExternos = all.filter((x) => {
+        const matchSearch =
+          !search ||
+          x.no_requerimiento?.toLowerCase().includes(search.toLowerCase()) ||
+          x.estado?.toLowerCase().includes(search.toLowerCase()) ||
+          x.descripcion?.toLowerCase().includes(search.toLowerCase());
+        const matchTipo = !tipo || tipo === "Todos" || x.tipo === tipo;
+        const matchEstado = !status || status === "ALL" || x.estado === status;
+        return matchSearch && matchTipo && matchEstado;
+      });
     }
+
+    // 🔹 Generamos el CSV correctamente
+    const headers = [
+      "no_requerimiento",
+      "estado",
+      "fecha",
+      "tipo",
+      "responsable",
+    ];
+
+    const rows = allExternos.map((i) => [
+      i.no_requerimiento || i.noRequerimiento || "",
+      i.estado || i.status || "",
+      i.fecha || i.fecha_requerimiento || "",
+      i.tipo || i.tipo_requerimiento || "",
+      i.responsable || i.usuario_responsable || "",
+    ]);
+
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+    // 🔹 Descarga del archivo
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `externos_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Error exportando externos:", err);
+    alert("Error al exportar los datos. Revisa la consola para más detalles.");
   }
-
-  // MOCK export: si me pasan items o quiero exportar lo de la página actual
-  const items = Array.isArray(arg) ? arg : arg.items;
-  const headers = ["no_requerimiento", "estado", "fecha", "tipo", "responsable"];
-  const rows = (items || []).map((i) => [
-    i.no_requerimiento || "",
-    i.estado || "",
-    i.fecha || "",
-    i.tipo || "",
-    i.responsable || "",
-  ]);
-  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `externos_${toISO(new Date())}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
+
