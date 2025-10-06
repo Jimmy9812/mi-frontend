@@ -104,10 +104,10 @@ export default function DashboardHomePage() {
   return (
     <div className="h-screen w-screen bg-gray-200 flex flex-col">
       {/* Header */}
-      <header className="w-full relative h-[84px] md:h-[88px] flex items-center justify-between px-10 py-4 shadow-lg overflow-hidden">
+      <header className="w-full relative h-[84px] md:h-[88px] flex items-center justify-between px-10 py-15 shadow-lg overflow-hidden">
         {/* Fondo panorámico */}
         <img 
-          src="/panoramica2.jpg" 
+          src="/panoramicaquito.jpg" 
           alt="Panorámica Quito" 
           className="absolute inset-0 w-full h-full object-cover object-center z-0" 
           style={{ minHeight: 84 }}
@@ -115,7 +115,7 @@ export default function DashboardHomePage() {
         {/* Overlay para legibilidad */}
         <div className="absolute inset-0 bg-black/30 z-0" />
         <div className="flex items-center gap-10 relative z-10">
-          <img src="/escudo.png" alt="Sello" className="h-16 w-auto" />
+          <img src="/escudo.png" alt="Sello" className="h-20 w-auto" />
           <span className="text-xl md:text-2xl font-bold text-white drop-shadow">
             DASHBOARD CATASTRO
           </span>
