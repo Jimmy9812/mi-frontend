@@ -51,37 +51,22 @@ export default function Externos() {
   // =============================
   // 🔹 EXPORTACIÓN CSV
   // =============================
-            const handleExport = async () => {
-        try {
-          setLoading(true);
-
-          // ✅ Obtener todos los externos (según filtro actual)
-          const allExternos = await listExternos({
-            token,
-            role: user?.activeRole,
-            page: 1,
-            pageSize: 10000,
-            search,
-            tipo,
-          });
-
-          // ✅ Manejar si devuelve array o {items: []}
-          const itemsToExport = Array.isArray(allExternos)
-            ? allExternos
-            : allExternos.items || [];
-
-          console.log(`Exportando ${itemsToExport.length} externos`);
-
-          // ✅ Llamar exportador
-          exportExternosCsv({ items: itemsToExport });
-
-        } catch (error) {
-          console.error("Error exportando:", error);
-          alert("Error al exportar los externos");
-        } finally {
-          setLoading(false);
-        }
-      };
+  const handleExport = async () => {
+    try {
+      setLoading(true);
+      await exportExternosCsv({
+        token,
+        search,
+        tipo,
+        status: estado === "Todos" ? "ALL" : estado,
+      });
+    } catch (error) {
+      console.error("Error exportando:", error);
+      alert("Error al exportar los externos");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 

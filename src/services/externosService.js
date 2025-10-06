@@ -303,11 +303,20 @@ export async function exportExternosCsv({
     ];
 
     const rows = allExternos.map((i) => [
-      i.no_requerimiento || i.noRequerimiento || "",
+      // no_requerimiento
+      i.requerimiento?.no_requerimiento || i.no_requerimiento || i.noRequerimiento || "",
+      // estado
+      i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+      i.requerimiento?.estadoRequerimiento?.nombre_estado ||
       i.estado || i.status || "",
-      i.fecha || i.fecha_requerimiento || "",
-      i.tipo || i.tipo_requerimiento || "",
-      i.responsable || i.usuario_responsable || "",
+      // fecha
+      i.requerimiento?.fecha_registro || i.fecha || i.fecha_requerimiento || "",
+      // tipo
+      i.categoria?.siglas_categoria || i.tipo || i.tipo_requerimiento || "",
+      // responsable
+      (i.rolUsuario?.usuario?.nombre_usuario && i.rolUsuario?.usuario?.apellidos_usuario
+        ? `${i.rolUsuario.usuario.nombre_usuario} ${i.rolUsuario.usuario.apellidos_usuario}`
+        : i.responsable || i.usuario_responsable || "")
     ]);
 
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
