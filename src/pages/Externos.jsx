@@ -49,7 +49,7 @@ export default function Externos() {
   }, [token]);
 
   // =============================
-  // 🔹 FUNCIÓN DE EXPORTACIÓN CSV
+  // 🔹 EXPORTACIÓN CSV
   // =============================
   const handleExport = () => {
     if (!data.length) {
@@ -69,6 +69,9 @@ export default function Externos() {
     exportExternosCsv(formatted);
   };
 
+  // =============================
+  // 🔹 UTILIDADES
+  // =============================
   const formatDate = (iso) => {
     if (!iso) return "—";
     try {
@@ -82,8 +85,26 @@ export default function Externos() {
     }
   };
 
+  // 🔹 Colores para estados (igual que Accidentes e Incidentes)
+  const getEstadoColor = (estado) => {
+    switch (estado?.toUpperCase()) {
+      case "EN REVISIÓN":
+        return "bg-purple-100 text-purple-800";
+      case "ENVIADO":
+        return "bg-yellow-100 text-yellow-800";
+      case "PENDIENTE":
+        return "bg-blue-100 text-blue-800";
+      case "RECHAZADO":
+        return "bg-red-100 text-red-800";
+      case "FAVORABLE":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
   // =============================
-  // 🔹 FILTRADO LOCAL + BUSCADOR
+  // 🔹 FILTROS Y PAGINACIÓN
   // =============================
   const filteredData = useMemo(() => {
     let filtered = [...data];
@@ -111,9 +132,6 @@ export default function Externos() {
     return filtered;
   }, [data, search, estado, tipo]);
 
-  // =============================
-  // 🔹 PAGINACIÓN LOCAL
-  // =============================
   const paginatedData = useMemo(() => {
     const start = (page - 1) * pageSize;
     const end = start + pageSize;
@@ -235,13 +253,6 @@ export default function Externos() {
               const estado =
                 row.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || "—";
 
-              let badgeColor = "bg-gray-200 text-gray-700";
-              if (estado === "ENVIADO") badgeColor = "bg-yellow-100 text-yellow-800";
-              else if (estado === "PENDIENTE") badgeColor = "bg-blue-100 text-blue-800";
-              else if (estado === "RECHAZADO") badgeColor = "bg-red-100 text-red-800";
-              else if (estado === "FAVORABLE") badgeColor = "bg-green-100 text-green-800";
-              else if (estado === "EN REVISIÓN") badgeColor = "bg-purple-100 text-purple-800";
-
               return (
                 <div
                   key={row.id_sirecq_externo}
@@ -250,7 +261,9 @@ export default function Externos() {
                   <div className="px-4 py-3">{row.requerimiento?.no_requerimiento}</div>
                   <div className="px-4 py-3">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${badgeColor}`}
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(
+                        estado
+                      )}`}
                     >
                       {estado}
                     </span>
