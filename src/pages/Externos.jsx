@@ -5,28 +5,51 @@ import { Home, Search, Eye, Plus, Download } from "lucide-react";
 import { listExternos, exportExternosCsv } from "../services/externosService";
 import { useAuth } from "../context/AuthContext";
 
-const TIPOS = ["RSW", "RST", "RSD"];
+const TIPOS = ["Todos", "RSW", "RST", "RSD"];
+const ESTADOS = ["Todos", "ENVIADO", "DEVUELTO"];
 
 export default function Externos() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
 
   const [search, setSearch] = useState("");
-  const [tipo, setTipo] = useState("RSW");
+  const [tipo, setTipo] = useState("Todos");
+  const [estado, setEstado] = useState("Todos");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  const [data, setData] = useState({ items: [], page: 1, total: 0, totalPages: 1 });
+  const [data, setData] = useState({ data: [], count: 0 });
   const [loading, setLoading] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const res = await listExternos({ token, page, pageSize, search, tipo });
-      setData(res);
+      // Construir query params para el backend
+      const params = new URLSearchParams();
+      params.set("page", page);
+      params.set("pageSize", pageSize);
+      if (search) params.set("search", search);
+      if (tipo && tipo !== "Todos") params.set("tipo", tipo);
+      if (estado && estado !== "Todos") params.set("estado", estado);
+
+      // Llamada real al backend
+      const url = `${import.meta.env.VITE_API_URL}/sirecq-externo?${params.toString()}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+
+      // Ajuste para backend actual
+      if (result.success) {
+        setData({
+          data: result.data || [],
+          count: result.count || 0,
+        });
+      } else {
+        setData({ data: [], count: 0 });
+      }
     } catch (err) {
       console.error("Error cargando externos:", err);
-      setData({ items: [], page: 1, total: 0, totalPages: 1 });
+      setData({ data: [], count: 0 });
     } finally {
       setLoading(false);
     }
@@ -35,7 +58,7 @@ export default function Externos() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, tipo]);
+  }, [page, pageSize, tipo, estado]);
 
   const doSearch = async () => {
     setPage(1);
@@ -43,11 +66,11 @@ export default function Externos() {
   };
 
   const showingRange = useMemo(() => {
-    if (data.total === 0) return "0-0 de 0";
+    if (data.count === 0) return "0-0 de 0";
     const start = (page - 1) * pageSize + 1;
-    const end = Math.min(page * pageSize, data.total);
-    return `${start}-${end} de ${data.total}`;
-  }, [data.total, page, pageSize]);
+    const end = Math.min(page * pageSize, data.count);
+    return `${start}-${end} de ${data.count}`;
+  }, [data.count, page, pageSize]);
 
   const formatDate = (iso) => {
     if (!iso) return "—";
@@ -97,7 +120,7 @@ export default function Externos() {
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => exportExternosCsv(data.items)}
+              onClick={() => exportExternosCsv(data.data)}
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
             >
               <Download className="w-4 h-4" />
@@ -110,6 +133,7 @@ export default function Externos() {
                 placeholder="Buscar"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
                 className="pl-3 pr-10 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <button
@@ -122,7 +146,21 @@ export default function Externos() {
             </div>
           </div>
 
-          <div>
+          <div className="flex gap-2">
+            {/* Filtro por estado */}
+            <select
+              value={estado}
+              onChange={(e) => {
+                setEstado(e.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {ESTADOS.map((est) => (
+                <option key={est} value={est}>{est}</option>
+              ))}
+            </select>
+            {/* Filtro por tipo */}
             <select
               value={tipo}
               onChange={(e) => {
@@ -132,9 +170,7 @@ export default function Externos() {
               className="px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {TIPOS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
+                <option key={t} value={t}>{t}</option>
               ))}
             </select>
           </div>
@@ -153,24 +189,24 @@ export default function Externos() {
           {/* Filas */}
           {loading ? (
             <div className="p-6 text-center text-slate-500">Cargando…</div>
-          ) : data.items.length === 0 ? (
+          ) : data.data.length === 0 ? (
             <div className="p-6 text-center text-slate-500">No hay resultados</div>
           ) : (
-            data.items.map((row) => (
+            data.data.map((row) => (
               <div
-                key={row.id || row.no_requerimiento}
+                key={row.id_sirecq_externo || row.id_requerimiento}
                 className="grid grid-cols-[1.4fr_1fr_1fr_120px] border-t items-center text-sm hover:bg-gray-50"
               >
-                <div className="px-4 py-3">{row.no_requerimiento}</div>
+                <div className="px-4 py-3">{row.requerimiento?.no_requerimiento || "—"}</div>
                 <div className="px-4 py-3">
                   <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium">
-                    {row.estado}
+                    {row.requerimiento?.estadoRequerimiento?.nombre_estado || "—"}
                   </span>
                 </div>
-                <div className="px-4 py-3">{formatDate(row.fecha)}</div>
+                <div className="px-4 py-3">{formatDate(row.requerimiento?.fecha_registro)}</div>
                 <div className="px-4 py-3 flex items-center justify-center">
                   <button
-                    onClick={() => navigate(`/externos/${row.id}`)}
+                    onClick={() => navigate(`/externos/${row.id_sirecq_externo}`)}
                     className="px-3 py-1 bg-[#3F6592] text-white rounded-md hover:opacity-90 transition-opacity"
                     title="Ver/Editar"
                   >
@@ -182,7 +218,7 @@ export default function Externos() {
           )}
         </div>
 
-        {/* Footer inferior: tamaño + paginación + botón agregar */}
+        {/* Footer inferior */}
         <div className="mx-6 mt-0 mb-8 flex items-center justify-between">
           {/* Page size */}
           <div className="flex items-center gap-2 text-sm">
@@ -200,10 +236,10 @@ export default function Externos() {
                 </option>
               ))}
             </select>
-            <span className="text-slate-500">{showingRange}</span>
+            <span className="text-slate-500">Total: {data.count}</span>
           </div>
 
-          {/* Paginación centrada */}
+          {/* Paginación */}
           <div className="flex flex-col items-center gap-1">
             <p className="uppercase text-sm text-gray-600">PÁGINA</p>
             <div className="flex items-center gap-1">
@@ -214,38 +250,31 @@ export default function Externos() {
               >
                 «
               </button>
-              {Array.from({ length: Math.min(data.totalPages, 10) }, (_, i) => {
-                let pageNum;
-                if (data.totalPages <= 10) pageNum = i + 1;
-                else if (page <= 5) pageNum = i + 1;
-                else if (page > data.totalPages - 5) pageNum = data.totalPages - 9 + i;
-                else pageNum = page - 4 + i;
-
+              {[...Array(5)].map((_, i) => {
+                const pageNum = i + 1;
                 return (
                   <button
                     key={pageNum}
                     onClick={() => setPage(pageNum)}
-                    className={`w-8 h-8 rounded ${
-                      pageNum === page
-                        ? "bg-[#3F6592] text-white"
-                        : "hover:bg-slate-100"
-                    }`}
+                    className={`w-8 h-8 rounded ${pageNum === page
+                      ? "bg-[#3F6592] text-white"
+                      : "hover:bg-slate-100"
+                      }`}
                   >
                     {pageNum}
                   </button>
                 );
               })}
               <button
-                disabled={page === data.totalPages}
-                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
-                className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => setPage((p) => p + 1)}
+                className="w-8 h-8 rounded hover:bg-slate-100"
               >
                 »
               </button>
             </div>
           </div>
 
-          {/* Botón agregar (abajo derecha) */}
+          {/* Botón agregar */}
           <button
             onClick={() => navigate("/externos/nuevo")}
             className="flex items-center gap-2 bg-[#3F6592] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-opacity"

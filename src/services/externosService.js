@@ -1,13 +1,10 @@
 // src/services/externosService.js
 // -----------------------------------------------
-// Modo API: SOLO si VITE_USE_API_EXTERNOS === "true"
-// Por defecto: MOCK en LocalStorage (semilla)
-// Si falla el fetch, hace fallback automático a MOCK.
+// Ahora: conexión directa a backend NestJS para CRUD reales
 // -----------------------------------------------
 
 const API = (import.meta.env.VITE_API_URL || "").trim() || null;
-const USE_API =
-  (import.meta.env.VITE_USE_API_EXTERNOS || "false").toLowerCase() === "true";
+const USE_API = true; // Forzar uso de API real
 
 const LS_KEY = "externos@seed";
 
@@ -110,6 +107,8 @@ function paginate(items, page, pageSize, search, tipo) {
 }
 
 // --------- API PÚBLICA ---------
+
+// Listar externos (aún no implementado en backend, se deja MOCK)
 export async function listExternos({
   token,
   page = 1,
@@ -117,40 +116,26 @@ export async function listExternos({
   search = "",
   tipo = "RSW",
 } = {}) {
-  // API real (solo si flag activo)
-  if (API && USE_API) {
-    try {
-      const url = `${API}/externos?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(
-        search
-      )}&tipo=${encodeURIComponent(tipo)}`;
-      const res = await fetch(url, { headers: authHeaders(token) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (err) {
-      console.warn(
-        "[externosService] Fallback a MOCK por error de API:",
-        err?.message
-      );
-      // continúa en MOCK...
-    }
-  }
-
-  // MOCK
+  // MOCK temporal hasta que el backend implemente paginación/listado
   await sleep();
   const all = readAll();
   return paginate(all, page, pageSize, search, tipo);
 }
 
+// Obtener un externo por ID (GET /sirecq-externo/:id)
 export async function getExterno(id, token) {
   if (API && USE_API) {
     try {
-      const res = await fetch(`${API}/externos/${encodeURIComponent(id)}`, {
+      const res = await fetch(`${API}/sirecq-externo/${encodeURIComponent(id)}`, {
         headers: authHeaders(token),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
+      const result = await res.json();
+      // Si backend retorna { data: {...} }, devolver solo data
+      return result.data || result;
     } catch (err) {
-      console.warn("[externosService] Fallback a MOCK getExterno:", err?.message);
+      console.warn("[externosService] Error getExterno API:", err?.message);
+      throw err;
     }
   }
   await sleep();
@@ -158,18 +143,21 @@ export async function getExterno(id, token) {
   return all.find((x) => x.id === id || x.no_requerimiento === id) || null;
 }
 
+// Crear un externo (POST /sirecq-externo)
 export async function createExterno({ token, payload }) {
   if (API && USE_API) {
     try {
-      const res = await fetch(`${API}/externos`, {
+      const res = await fetch(`${API}/sirecq-externo`, {
         method: "POST",
         headers: authHeaders(token),
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
+      const result = await res.json();
+      return result.data || result;
     } catch (err) {
-      console.warn("[externosService] Fallback a MOCK create:", err?.message);
+      console.warn("[externosService] Error createExterno API:", err?.message);
+      throw err;
     }
   }
   await sleep();
@@ -185,19 +173,22 @@ export async function createExterno({ token, payload }) {
   return nuevo;
 }
 
+// Actualizar un externo (PATCH /sirecq-externo/:id)
 export async function updateExterno({ token, id, payload }) {
   if (!id) throw new Error("id requerido");
   if (API && USE_API) {
     try {
-      const res = await fetch(`${API}/externos/${encodeURIComponent(id)}`, {
-        method: "PUT",
+      const res = await fetch(`${API}/sirecq-externo/${encodeURIComponent(id)}`, {
+        method: "PATCH",
         headers: authHeaders(token),
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
+      const result = await res.json();
+      return result.data || result;
     } catch (err) {
-      console.warn("[externosService] Fallback a MOCK update:", err?.message);
+      console.warn("[externosService] Error updateExterno API:", err?.message);
+      throw err;
     }
   }
   await sleep();

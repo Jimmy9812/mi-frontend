@@ -46,14 +46,35 @@ export default function ExternosEditor({ mode = "view" }) {
     setExterno((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Construir payload compatible con CreateSirecqExternoDto
+  function buildPayload(externo) {
+    // Mapear campos planos y anidados
+    return {
+      requerimiento: {
+        no_requerimiento: externo.numero,
+        descripcion: externo.descripcion,
+        // Agrega aquí los campos requeridos por CreateRequerimientoDto
+        // Ejemplo:
+        // documento, tema, fase, id_estado_requerimiento, id_categoria, id_sistema, id_rol_usuario, versiones
+        // Puedes mapearlos desde el formulario si los tienes
+      },
+      tramitepr: externo.tramite_pr,
+      seguimientoinst: externo.seguimiento,
+      tramitecat: externo.tramite_cat,
+      observacionesgen: externo.observaciones,
+      id_dependencia: externo.dependencia ? Number(externo.dependencia) : undefined,
+    };
+  }
+
   const handleSave = async () => {
     try {
+      const payload = buildPayload(externo);
       if (mode === "create") {
-        await createExterno(externo);
+        await createExterno({ token: user?.token, payload });
         alert("Requerimiento externo creado");
         navigate("/externos");
       } else {
-        await updateExterno(id, externo);
+        await updateExterno({ token: user?.token, id, payload });
         alert("Requerimiento externo actualizado");
         setEditMode(false);
       }
