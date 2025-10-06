@@ -5,7 +5,7 @@ import { listExternos, exportExternosCsv } from "../services/externosService";
 import { useAuth } from "../context/AuthContext";
 
 const TIPOS = ["Todos", "RSW", "RST", "RSD"];
-const ESTADOS = ["Todos", "EN REVISIÓN", "ENVIADO", "PENDIENTE", "RECHAZADO", "FAVORABLE"];
+const ESTADOS = ["Todos", "EN REVISIÓN", "ENVIADO", "PENDIENTE", "DEVUELTO", "FAVORABLE"];
 
 export default function Externos() {
   const navigate = useNavigate();
@@ -95,7 +95,7 @@ export default function Externos() {
         return "bg-yellow-100 text-yellow-800";
       case "PENDIENTE":
         return "bg-blue-100 text-blue-800";
-      case "RECHAZADO":
+      case "DEVUELTO":
         return "bg-red-100 text-red-800";
       case "FAVORABLE":
         return "bg-green-100 text-green-800";
@@ -107,31 +107,39 @@ export default function Externos() {
   // =============================
   // 🔹 FILTROS Y PAGINACIÓN
   // =============================
-  const filteredData = useMemo(() => {
-    let filtered = [...data];
+const filteredData = useMemo(() => {
+  // 🧩 Función auxiliar para normalizar texto
+  const normalize = (v) => (v ? v.trim().toUpperCase() : "");
 
-    if (search) {
-      const s = search.toLowerCase();
-      filtered = filtered.filter((item) =>
-        item.requerimiento?.no_requerimiento?.toLowerCase().includes(s)
-      );
-    }
+  let filtered = [...data];
 
-    if (estado !== "Todos") {
-      filtered = filtered.filter(
-        (item) =>
-          item.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento === estado
-      );
-    }
+  // 🔍 Filtro por búsqueda (N° de requerimiento)
+  if (search) {
+    const s = normalize(search);
+    filtered = filtered.filter((item) =>
+      normalize(item.requerimiento?.no_requerimiento).includes(s)
+    );
+  }
 
-    if (tipo !== "Todos") {
-      filtered = filtered.filter(
-        (item) => item.requerimiento?.categoria?.siglas_categoria === tipo
-      );
-    }
+  // 🟢 Filtro por estado (nombre_estado_requerimiento)
+  if (estado !== "Todos") {
+    filtered = filtered.filter((item) => {
+      const est = normalize(item.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento);
+      return est === normalize(estado);
+    });
+  }
 
-    return filtered;
-  }, [data, search, estado, tipo]);
+  // 🔵 Filtro por tipo (siglas_categoria)
+  if (tipo !== "Todos") {
+    filtered = filtered.filter((item) => {
+      const tipoCat = normalize(item.requerimiento?.categoria?.siglas_categoria);
+      return tipoCat === normalize(tipo);
+    });
+  }
+
+  return filtered;
+}, [data, search, estado, tipo]);
+
 
   const paginatedData = useMemo(() => {
     const start = (page - 1) * pageSize;
