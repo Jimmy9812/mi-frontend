@@ -4,7 +4,7 @@ import { Home, Search, Eye, Plus, Download } from "lucide-react";
 import { listExternos, exportExternosCsv } from "../services/externosService";
 import { useAuth } from "../context/AuthContext";
 
-const TIPOS = ["Todos", "RSW", "RST", "RSD"];
+const TIPOS = ["Todos", "RSW", "RD", "RPM"];
 const ESTADOS = ["Todos", "EN REVISIÓN", "ENVIADO", "PENDIENTE", "DEVUELTO", "FAVORABLE"];
 
 export default function Externos() {

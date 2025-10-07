@@ -70,16 +70,9 @@ export default function ExternosEditor({ mode = "view" }) {
                           .toISOString()
                           .split("T")[0]
                       : "",
-
-                  fecha_envio_dmc:
-                    res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento
-                      ?.fechaenviodmi
-                      ? new Date(
-                          res.requerimiento.requerimientoVersiones[0].versionamiento.fechaenviodmi
-                        )
-                          .toISOString()
-                          .split("T")[0]
-                      : "",
+                  fecha_envio_dmc: res.requerimiento?.fecha_registro
+                    ? new Date(res.requerimiento.fecha_registro).toISOString().split("T")[0]
+                    : "",
 
                 observaciones: res.observacionesgen || "-",
                 estado:
@@ -209,15 +202,13 @@ export default function ExternosEditor({ mode = "view" }) {
             editMode={editMode || isCreate}
           />
 
-          <PaintedPicker
-            label="Prioridad"
-            editMode={editMode || isCreate}
-            kind="number"
-            name="prioridad"
-            value={externo.prioridad}
-            onChange={handleChange}
-            inputWidth="w-[64px]"
-          />
+            <DateField
+              label="Fecha de registro"
+              name="fecha_envio_dmc"
+              value={externo.fecha_envio_dmc}
+              onChange={() => {}} // 🔒 no editable
+              editMode={false}    // 🔒 bloqueado visualmente
+            />
 
           <PaintedPicker
             label="Clasificación catastral"
@@ -312,18 +303,19 @@ export default function ExternosEditor({ mode = "view" }) {
             editMode={editMode || isCreate}
           />
 
-          <EditableField
-            label="Oficios de envío a DMI"
-            name="oficio_dmi"
-            value={externo.oficio_dmi}
-            onChange={handleChange}
-            editMode={editMode || isCreate}
-          />
-
           <DateField
             label="Fecha despacho propuesta técnica"
             name="fecha_despacho"
             value={externo.fecha_despacho}
+            onChange={handleChange}
+            editMode={editMode || isCreate}
+          />
+
+
+          <EditableField
+            label="Estado del requerimiento"
+            name="estado"
+            value={externo.estado}
             onChange={handleChange}
             editMode={editMode || isCreate}
           />
@@ -349,10 +341,10 @@ export default function ExternosEditor({ mode = "view" }) {
           </div>
 
 
-          <DateField
-            label="Fecha de envío por la DMC"
-            name="fecha_envio_dmc"
-            value={externo.fecha_envio_dmc}
+          <EditableField
+            label="Oficios de envío a DMI"
+            name="oficio_dmi"
+            value={externo.oficio_dmi}
             onChange={handleChange}
             editMode={editMode || isCreate}
           />
@@ -365,13 +357,6 @@ export default function ExternosEditor({ mode = "view" }) {
             editMode={editMode || isCreate}
           />
 
-          <EditableField
-            label="Estado del requerimiento"
-            name="estado"
-            value={externo.estado}
-            onChange={handleChange}
-            editMode={editMode || isCreate}
-          />
         </div>
       </div>
 
