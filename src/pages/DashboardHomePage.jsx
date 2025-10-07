@@ -91,7 +91,8 @@ export default function DashboardHomePage() {
       });
 
   // Paginación
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const totalPages = Math.min(5, Math.max(1, Math.ceil(filteredItems.length / pageSize)));
+
   const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
 
   // Calcular estadísticas
@@ -293,7 +294,7 @@ export default function DashboardHomePage() {
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
-                  animation: { duration: 400 },
+                  animation: { duration: 1000 },
                   plugins: { legend: { position: "top" } },
                   scales: {
                     x: { grid: { color: "#e5e7eb" }, ticks: { color: colores[moduloActivo] } },
@@ -307,7 +308,7 @@ export default function DashboardHomePage() {
                 data={doughnutData}
                 options={{
                   maintainAspectRatio: false,
-                  animation: { duration: 400 },
+                  animation: { duration: 1000 },
                   plugins: { legend: { display: true, position: "right" } },
                 }}
               />
