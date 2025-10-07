@@ -77,19 +77,36 @@ export default function DashboardHomePage() {
     fetchData();
   }, [moduloActivo, token]);
 
+  // Filtro de estado y paginación
+  const [estadoFiltro, setEstadoFiltro] = useState("Todos");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  // Filtrar por estado
+  const filteredItems = estadoFiltro === "Todos"
+    ? items
+    : items.filter((i) => {
+        const estado = i.estado || i.estado_tramite || i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || i.requerimiento?.estadoRequerimiento?.nombre_estado || "SIN ESTADO";
+        return estado === estadoFiltro;
+      });
+
+  // Paginación
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
+
   // Calcular estadísticas
   useEffect(() => {
     // Total
-    const total = items.length;
+    const total = filteredItems.length;
     // Por estado
     const porEstado = {};
-    items.forEach((i) => {
+    filteredItems.forEach((i) => {
       let estado = i.estado || i.estado_tramite || i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || i.requerimiento?.estadoRequerimiento?.nombre_estado || "SIN ESTADO";
       porEstado[estado] = (porEstado[estado] || 0) + 1;
     });
     // Por mes
     const porMes = {};
-    items.forEach((i) => {
+    filteredItems.forEach((i) => {
       let fecha = i.fecha || i.fecha_registro || i.requerimiento?.fecha_registro;
       if (fecha) {
         const mes = (new Date(fecha)).toLocaleString("es-EC", { month: "long", year: "numeric" });
@@ -97,7 +114,7 @@ export default function DashboardHomePage() {
       }
     });
     setStats({ total, porEstado, porMes });
-  }, [items]);
+  }, [filteredItems]);
 
   // Datos para gráficos
   const barData = {
@@ -137,7 +154,7 @@ export default function DashboardHomePage() {
   };
 
   return (
-    <div className="h-screen w-screen bg-gray-200 flex flex-col">
+  <div className="min-h-screen w-full bg-gray-200 flex flex-col">
       {/* Header */}
       <header className="w-full relative h-[84px] md:h-[88px] flex items-center justify-between px-10 py-15 shadow-lg overflow-hidden">
         {/* Fondo panorámico */}
@@ -193,22 +210,32 @@ export default function DashboardHomePage() {
 
         {/* Grid fijo */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100%-150px)]">
-          {/* Tabla de registros */}
+          {/* Tabla de registros con paginación y filtro de estado */}
           <div className="bg-white rounded-xl shadow flex flex-col">
-            <div
-              className={`flex items-center ${colores[moduloActivo]} rounded-t-xl px-4 py-2 text-white font-bold`}
-            >
+            <div className={`flex items-center ${colores[moduloActivo]} rounded-t-xl px-4 py-2 text-white font-bold`}>
               <span className="flex-1">ID</span>
-              <span className="flex-1">Estado</span>
+              <span className="flex-1 flex items-center">Estado
+                <select
+                  value={estadoFiltro}
+                  onChange={e => { setEstadoFiltro(e.target.value); setPage(1); }}
+                  className="ml-2 px-2 py-1 border rounded text-xs text-black bg-white"
+                  style={{ minWidth: 90 }}
+                >
+                  <option value="Todos">Todos</option>
+                  {Object.keys(stats.porEstado).map((estado) => (
+                    <option key={estado} value={estado}>{estado}</option>
+                  ))}
+                </select>
+              </span>
               <span className="flex-1">Fecha</span>
             </div>
             <div className="flex-1 divide-y divide-gray-300 overflow-y-auto">
               {loading ? (
                 <div className="p-6 text-center text-slate-500">Cargando…</div>
-              ) : items.length === 0 ? (
+              ) : paginatedItems.length === 0 ? (
                 <div className="p-6 text-center text-slate-500">No hay resultados</div>
               ) : (
-                items.slice(0, 20).map((r, i) => (
+                paginatedItems.map((r, i) => (
                   <div key={i} className="flex items-center px-4 py-3 text-sm">
                     <span className="flex-1">{r.id || r.numero || r.no_requerimiento || r.requerimiento?.no_requerimiento}</span>
                     <span className="flex-1">{r.estado || r.estado_tramite || r.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || r.requerimiento?.estadoRequerimiento?.nombre_estado}</span>
@@ -217,39 +244,73 @@ export default function DashboardHomePage() {
                 ))
               )}
             </div>
+            {/* Paginación compacta */}
+            <div className="flex items-center justify-center gap-1 py-2">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+                className="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-xs"
+              >«</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`px-2 py-1 rounded text-xs ${p === page ? colores[moduloActivo] + " text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+                >{p}</button>
+              ))}
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage(page + 1)}
+                className="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-xs"
+              >»</button>
+            </div>
           </div>
 
-          {/* Gráficos grandes */}
-          <div className="flex flex-col gap-6">
-            <div className="bg-white rounded-xl shadow p-4 h-[250px]">
+          {/* Gráficos y tarjetas de estadísticas compactas */}
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+              <div className="rounded-lg shadow p-3 flex flex-col items-center justify-center text-white font-bold bg-gradient-to-r from-blue-400 to-blue-600">
+                <div className="text-2xl">{stats.total}</div>
+                <div className="text-xs font-semibold">Total registros</div>
+              </div>
+              {Object.entries(stats.porEstado).map(([estado, cantidad], idx) => (
+                <div key={estado} className={`rounded-lg shadow p-3 flex flex-col items-center justify-center text-white font-bold`} style={{background: `linear-gradient(90deg, hsl(${idx*60},80%,60%), hsl(${(idx+1)*60},80%,40%))`}}>
+                  <div className="text-xl">{cantidad}</div>
+                  <div className="text-xs font-semibold">{estado}</div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-white rounded-xl shadow p-4 h-[220px]">
               <Bar
-                data={barData}
+                data={{
+                  ...barData,
+                  datasets: [{
+                    ...barData.datasets[0],
+                    backgroundColor: ["#60a5fa", "#fbbf24", "#f472b6", "#34d399", "#f87171", "#a78bfa", "#fb7185"],
+                    borderColor: ["#60a5fa", "#fbbf24", "#f472b6", "#34d399", "#f87171", "#a78bfa", "#fb7185"],
+                  }],
+                }}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
+                  animation: { duration: 400 },
                   plugins: { legend: { position: "top" } },
+                  scales: {
+                    x: { grid: { color: "#e5e7eb" }, ticks: { color: colores[moduloActivo] } },
+                    y: { grid: { color: "#e5e7eb" }, ticks: { color: colores[moduloActivo] } },
+                  },
                 }}
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-[250px]">
-              <div className="bg-white rounded-xl shadow p-4">
-                <Doughnut
-                  data={doughnutData}
-                  options={{
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                  }}
-                />
-              </div>
-              <div className="bg-white rounded-xl shadow p-4">
-                <Radar
-                  data={radarData}
-                  options={{
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                  }}
-                />
-              </div>
+            <div className="bg-white rounded-xl shadow p-4 h-[220px]">
+              <Doughnut
+                data={doughnutData}
+                options={{
+                  maintainAspectRatio: false,
+                  animation: { duration: 400 },
+                  plugins: { legend: { display: true, position: "right" } },
+                }}
+              />
             </div>
           </div>
         </div>
