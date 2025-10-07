@@ -7,8 +7,8 @@ import { getExterno, createExterno, updateExterno } from "../services/externosSe
 import GifLoader from "../components/LoadingGif";
 
 // Opciones mock (se reemplazarán por catálogo backend)
-const OPT_SISTEMAS = ["SIREC-Q", "SIGMUNIC", "RSW"];
-const OPT_CLASIF = ["A", "B", "C", "D"];
+const OPT_SISTEMAS = ["SIREC-Q", "SIGMUNIC", "RSW", "SUIM","STL", "CERTIFICADOS"];
+const OPT_CLASIF = ["Seleccione","A", "B", "C", "D"];
 const OPT_DEP = ["DMSIST", "DMI", "DMC"];
 
 export default function ExternosEditor({ mode = "view" }) {
@@ -27,16 +27,74 @@ export default function ExternosEditor({ mode = "view" }) {
         setLoading(false);
         return;
       }
-      try {
-        const res = await getExterno(id);
-        setExterno(res);
-      } catch (err) {
-        console.error("❌ Error en getExterno:", err);
-        alert("No se pudo cargar el requerimiento externo");
-        navigate("/externos");
-      } finally {
-        setLoading(false);
-      }
+            try {
+              const res = await getExterno(id);
+
+              // 🔹 Mapeo de los datos anidados del backend
+              const mapped = {
+                id_sirecq_externo: res.id_sirecq_externo,
+                numero: res.requerimiento?.no_requerimiento || "-",
+                descripcion: res.requerimiento?.descripcion || "-",
+                prioridad: res.requerimiento?.prioridad || "",
+                clasificacion: res.requerimiento?.categoria?.siglas_categoria || "",
+                sistema: res.requerimiento?.sistema?.nom_sistema || "",
+                seguimiento: res.seguimientoinst || "-",
+                responsable: res.requerimiento?.rolUsuario?.usuario
+                  ? `${res.requerimiento.rolUsuario.usuario.nombre_usuario} ${res.requerimiento.rolUsuario.usuario.apellidos_usuario}`
+                  : "-",
+                tramite_pr: res.tramitepr || "-",
+                tramite_cat: res.tramitecat || "-",
+                dependencia: res.dependencia?.sigla_dependencia || "",
+                oficio_despacho:
+                  res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento
+                    ?.oficiodmiodmi || "-",
+                oficio_dmi:
+                  res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento
+                    ?.ofi_dmi || "-",
+                  fecha_despacho:
+                    res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento
+                      ?.fech_desp_pt
+                      ? new Date(
+                          res.requerimiento.requerimientoVersiones[0].versionamiento.fech_desp_pt
+                        )
+                          .toISOString()
+                          .split("T")[0] // formato yyyy-mm-dd compatible con <input type="date">
+                      : "",
+
+                  fecha_envio_requerimiento:
+                    res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento
+                      ?.fechaenvioreq
+                      ? new Date(
+                          res.requerimiento.requerimientoVersiones[0].versionamiento.fechaenvioreq
+                        )
+                          .toISOString()
+                          .split("T")[0]
+                      : "",
+
+                  fecha_envio_dmc:
+                    res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento
+                      ?.fechaenviodmi
+                      ? new Date(
+                          res.requerimiento.requerimientoVersiones[0].versionamiento.fechaenviodmi
+                        )
+                          .toISOString()
+                          .split("T")[0]
+                      : "",
+
+                observaciones: res.observacionesgen || "-",
+                estado:
+                  res.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+                  "Sin estado",
+              };
+
+              setExterno(mapped);
+            } catch (err) {
+              console.error("❌ Error en getExterno:", err);
+              alert("No se pudo cargar el requerimiento externo");
+              navigate("/externos");
+            } finally {
+              setLoading(false);
+            }
     }
     load();
   }, [id, mode, navigate]);
@@ -277,15 +335,19 @@ export default function ExternosEditor({ mode = "view" }) {
                 name="observaciones"
                 value={externo.observaciones || ""}
                 onChange={handleChange}
-                className="w-full p-3 border rounded bg-gray-50"
-                rows={6}
+                className="w-full p-3 border rounded bg-gray-50 h-48 resize-none overflow-y-auto"
+                placeholder="Escribe tus observaciones aquí..."
               />
             ) : (
-              <div className="w-full min-h-[160px] p-3 rounded bg-[#f1f5f9] text-gray-800">
+              <div
+                className="w-full h-48 p-3 rounded bg-[#f1f5f9] text-gray-800 overflow-y-auto border"
+                style={{ whiteSpace: "pre-wrap" }}
+              >
                 {externo.observaciones || "-"}
               </div>
             )}
           </div>
+
 
           <DateField
             label="Fecha de envío por la DMC"
