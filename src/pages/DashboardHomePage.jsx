@@ -53,6 +53,8 @@ export default function DashboardHomePage() {
   // Estado para datos
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
+
 
   // Estadísticas
   const [stats, setStats] = useState({ total: 0, porEstado: {}, porMes: {} });
@@ -218,7 +220,13 @@ export default function DashboardHomePage() {
               <span className="flex-1 flex items-center">Estado
                 <select
                   value={estadoFiltro}
-                  onChange={e => { setEstadoFiltro(e.target.value); setPage(1); }}
+                  onChange={(e) => {
+                        setIsFiltering(true);
+                        setEstadoFiltro(e.target.value);
+                        setPage(1);
+                        setTimeout(() => setIsFiltering(false), 600); // medio segundo después, vuelve al estado normal
+                      }}
+
                   className="ml-2 px-2 py-1 border rounded text-xs text-black bg-white"
                   style={{ minWidth: 90 }}
                 >
@@ -236,13 +244,23 @@ export default function DashboardHomePage() {
               ) : paginatedItems.length === 0 ? (
                 <div className="p-6 text-center text-slate-500">No hay resultados</div>
               ) : (
-                paginatedItems.map((r, i) => (
-                  <div key={i} className="flex items-center px-4 py-3 text-sm">
-                    <span className="flex-1">{r.id || r.numero || r.no_requerimiento || r.requerimiento?.no_requerimiento}</span>
-                    <span className="flex-1">{r.estado || r.estado_tramite || r.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || r.requerimiento?.estadoRequerimiento?.nombre_estado}</span>
-                    <span className="flex-1">{r.fecha || r.fecha_registro || r.requerimiento?.fecha_registro}</span>
-                  </div>
-                ))
+paginatedItems.map((r, i) => (
+  <div key={i} className="flex items-center px-4 py-3 text-sm">
+    <span className="flex-1">
+      {/* 👇 Orden de prioridad para mostrar el identificador correcto según el módulo */}
+      {r.no_incidente || r.id_incidente || r.no_requerimiento || r.requerimiento?.no_requerimiento || r.id || r.numero}
+    </span>
+    <span className="flex-1">
+      {r.estado ||
+        r.estado_tramite ||
+        r.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+        r.requerimiento?.estadoRequerimiento?.nombre_estado}
+    </span>
+    <span className="flex-1">
+      {r.fecha || r.fecha_registro || r.requerimiento?.fecha_registro || r.fechaingresoerror}
+    </span>
+  </div>
+))
               )}
             </div>
             {/* Paginación compacta */}
@@ -292,26 +310,26 @@ export default function DashboardHomePage() {
                   }],
                 }}
                 options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  animation: { duration: 1000 },
-                  plugins: { legend: { position: "top" } },
-                  scales: {
-                    x: { grid: { color: "#e5e7eb" }, ticks: { color: colores[moduloActivo] } },
-                    y: { grid: { color: "#e5e7eb" }, ticks: { color: colores[moduloActivo] } },
-                  },
-                }}
-              />
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: isFiltering ? 800 : 800, easing: "easeOutCubic" },
+    plugins: { legend: { position: "top" } },
+    scales: {
+      x: { grid: { color: "#e5e7eb" }, ticks: { color: colores[moduloActivo] } },
+      y: { grid: { color: "#e5e7eb" }, ticks: { color: colores[moduloActivo] } },
+    },
+  }}
+/>
             </div>
             <div className="bg-white rounded-xl shadow p-4 h-[220px]">
               <Doughnut
                 data={doughnutData}
                 options={{
-                  maintainAspectRatio: false,
-                  animation: { duration: 1000 },
-                  plugins: { legend: { display: true, position: "right" } },
-                }}
-              />
+    maintainAspectRatio: false,
+    animation: { duration: isFiltering ? 800 : 800, easing: "easeOutCubic" },
+    plugins: { legend: { display: true, position: "right" } },
+  }}
+/>
             </div>
           </div>
         </div>

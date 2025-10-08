@@ -34,7 +34,7 @@ const ESTADOS = [
   { label: "Todos", value: "ALL" },
   { label: "FAVORABLE", value: "FAVORABLE" },
   { label: "PENDIENTE", value: "PENDIENTE" },
-    { label: "CANCELADO", value: "CANCELADO" },
+  { label: "CANCELADO", value: "CANCELADO" },
   { label: "DEVUELTO", value: "DEVUELTO" },
   { label: "EN TRÁMITE", value: "EN TRÁMITE" },
   { label: "NEGADO", value: "NEGADO" },
