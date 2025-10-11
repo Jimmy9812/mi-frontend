@@ -1,4 +1,19 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import {
+  getAccidente,
+  createAccidente,
+  updateAccidente,
+  deleteAccidente,
+  getEstadosNoFavorable,
+  getAnalistasAccidentes,
+} from "../services/accidentesService";
+import { getAllZona } from "../services/zonasService";
+import { approveFiscalizacion } from "../services/accidentesService";
+import { ArrowLeft, Save, Edit, Calendar, Trash2 } from "lucide-react";
+import LoadingGif from "../components/LoadingGif";
+
 // Modal de alerta interactivo mejorado
 function AlertModal({ open, message, onClose, type = "info" }) {
   if (!open) return null;
@@ -35,24 +50,6 @@ function AlertModal({ open, message, onClose, type = "info" }) {
     </div>
   );
 }
-import { useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import {
-  getAccidente,
-  createAccidente,
-  updateAccidente,
-  deleteAccidente,
-  getEstadosNoFavorable,
-  getAnalistasAccidentes,
-} from "../services/accidentesService";
-import { getAllZona } from "../services/zonasService";
-import { approveFiscalizacion } from "../services/accidentesService";
-import { ArrowLeft, Save, Edit, Calendar, Trash2 } from "lucide-react";
-
-  
-
-
-import LoadingGif from "../components/LoadingGif";
 
 export default function AccidenteEditor({ mode = "view" }) {
   // Estado para alertas modales
