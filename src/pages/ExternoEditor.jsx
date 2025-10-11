@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Edit } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { getExterno, createExterno, updateExterno } from "../services/externosService";
+import { getExterno, createExterno, updateExterno, addVersionToRequerimiento } from "../services/externosService";
 import GifLoader from "../components/LoadingGif";
 
 // Mapeos de opciones basados en IDs
@@ -40,6 +40,7 @@ export default function ExternosEditor({ mode = "view" }) {
   const { user, token } = useAuth();
 
   const [externo, setExterno] = useState(null);
+  const [versiones, setVersiones] = useState([]);
   const [editMode, setEditMode] = useState(mode === "create");
   const [loading, setLoading] = useState(true);
 
@@ -48,6 +49,7 @@ export default function ExternosEditor({ mode = "view" }) {
     async function load() {
       if (mode === "create") {
         setExterno({});
+        setVersiones([{ num_version: 1, ofi_desp_pt: '', fech_desp_pt: '', oficioenviodmi: '', fechaenvioreq: '', obs_version: '', isLoaded: false }]);
         setLoading(false);
         return;
       }
@@ -57,6 +59,7 @@ export default function ExternosEditor({ mode = "view" }) {
 
         const mapped = {
           id_sirecq_externo: res.id_sirecq_externo,
+          requerimientoId: res.requerimiento?.id_requerimiento || null,
           numero: res.requerimiento?.no_requerimiento ?? "",
           descripcion: res.requerimiento?.descripcion ?? "",
           clasificacion:
@@ -76,38 +79,27 @@ export default function ExternosEditor({ mode = "view" }) {
             : "",
           tramite_pr: res.tramitepr ?? "",
           tramite_cat: res.tramitecat ?? "",
-          dependencia: res.dependencia?.nombre_dependencia || "",
+          dependencia: res.dependencia?.sigla_dependencia || "",
           id_dependencia: res.dependencia?.id_dependencia || null,
-          oficio_despacho:
-            res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento?.ofi_desp_pt ||
-            "",
-          oficio_dmi:
-            res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento?.oficioenviodmi || "",
-          fecha_despacho:
-            res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento?.fech_desp_pt
-              ? new Date(
-                  res.requerimiento.requerimientoVersiones[0].versionamiento.fech_desp_pt
-                )
-                  .toISOString()
-                  .split("T")[0]
-              : "",
-          fecha_envio_requerimiento:
-            res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento
-              ?.fechaenvioreq
-              ? new Date(
-                  res.requerimiento.requerimientoVersiones[0].versionamiento.fechaenvioreq
-                )
-                  .toISOString()
-                  .split("T")[0]
-              : "",
           fecha_envio_dmc: res.requerimiento?.fecha_registro
             ? new Date(res.requerimiento.fecha_registro).toISOString().split("T")[0]
             : "",
-          obs_version: res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento?.obs_version || "",
           observaciones: res.observacionesgen ?? "",
         };
 
+        const loaded = res.requerimiento?.requerimientoVersiones?.map(v => ({
+          ...v.versionamiento,
+          isLoaded: true,
+          fech_desp_pt: v.versionamiento.fech_desp_pt ? new Date(v.versionamiento.fech_desp_pt).toISOString().split('T')[0] : '',
+          fechaenvioreq: v.versionamiento.fechaenvioreq ? new Date(v.versionamiento.fechaenvioreq).toISOString().split('T')[0] : ''
+        })) || [];
+
+        if (loaded.length === 0) {
+          loaded.push({ num_version: 1, ofi_desp_pt: '', fech_desp_pt: '', oficioenviodmi: '', fechaenvioreq: '', obs_version: '', isLoaded: false });
+        }
+
         setExterno(mapped);
+        setVersiones(loaded);
       } catch (err) {
         console.error("❌ Error en getExterno:", err);
         alert("No se pudo cargar el requerimiento externo");
@@ -120,23 +112,33 @@ export default function ExternosEditor({ mode = "view" }) {
   }, [id, mode, navigate]);
 
   // ======================= HANDLERS =========================
-const handleChange = (e) => {
-  const { name, value } = e.target;
-  setExterno((prev) => {
-    if (name === "sistema") {
-      return { ...prev, sistema: value, id_sistema: sistemaMap[value] || 1 };
-    }
-    if (name === "dependencia") {
-      return { ...prev, dependencia: value, id_dependencia: dependenciaMap[value] || 1 };
-    }
-    if (name === "estado") {
-      return { ...prev, estado: value, id_estado_requerimiento: estadoMap[value] || 1 };
-    }
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setExterno((prev) => {
+      if (name === "sistema") {
+        return { ...prev, sistema: value, id_sistema: sistemaMap[value] || 1 };
+      }
+      if (name === "dependencia") {
+        return { ...prev, dependencia: value, id_dependencia: dependenciaMap[value] || 1 };
+      }
+      if (name === "estado") {
+        return { ...prev, estado: value, id_estado_requerimiento: estadoMap[value] || 1 };
+      }
 
-    return { ...prev, [name]: value };
-  });
-};
+      return { ...prev, [name]: value };
+    });
+  };
 
+  const handleVersionChange = (index, field, value) => {
+    setVersiones(prev => prev.map((v, i) => i === index ? { ...v, [field]: value } : v));
+  };
+
+  const handleAddVersion = () => {
+    const loadedVersions = versiones.filter(v => v.isLoaded);
+    const maxVersion = loadedVersions.length > 0 ? Math.max(...loadedVersions.map(v => v.num_version || 0)) : 0;
+    const nextVersion = maxVersion + 1;
+    setVersiones(prev => [...prev, { num_version: nextVersion, ofi_desp_pt: '', fech_desp_pt: '', oficioenviodmi: '', fechaenvioreq: '', obs_version: '', isLoaded: false }]);
+  };
 
   // Construir payload compatible con Create y Update
   function buildPayload(externo, user, isUpdate = false) {
@@ -149,16 +151,7 @@ const handleChange = (e) => {
       id_estado_requerimiento: externo.id_estado_requerimiento || 1,
       id_categoria: externo.id_categoria || 1,
       id_sistema: externo.id_sistema || 1,
-      id_rol_usuario: user?.id_rol_usuario || null,
-    };
-
-    const baseVersionamiento = {
-      num_version: 1,
-      ofi_desp_pt: externo.oficio_despacho || null,
-      oficioenviodmi: externo.oficio_dmi || null,
-      fech_desp_pt: externo.fecha_despacho || null,
-      fechaenvioreq: externo.fecha_envio_requerimiento || null,
-      obs_version: externo.obs_version || null,
+      id_rol_usuario: user?.id_rol_usuario || 1,
     };
 
     const baseSirecq = {
@@ -170,23 +163,61 @@ const handleChange = (e) => {
     };
 
     if (isUpdate) {
+      const firstVersion = versiones[0] || {};
       return {
         sirecqExterno: baseSirecq,
         requerimiento: baseRequerimiento,
-        versionamiento: baseVersionamiento,
+        versionamiento: {
+          num_version: 1,
+          ofi_desp_pt: firstVersion.ofi_desp_pt || null,
+          fech_desp_pt: firstVersion.fech_desp_pt ? firstVersion.fech_desp_pt : null,
+          oficioenviodmi: firstVersion.oficioenviodmi || null,
+          fechaenvioreq: firstVersion.fechaenvioreq ? firstVersion.fechaenvioreq : null,
+          obs_version: firstVersion.obs_version || null,
+        },
       };
     }
 
+    const v1 = versiones[0] || {};
     return {
       ...baseSirecq,
       requerimiento: {
         ...baseRequerimiento,
-        versiones: [baseVersionamiento],
+        versiones: [{
+          num_version: 1,
+          ofi_desp_pt: v1.ofi_desp_pt || null,
+          fech_desp_pt: v1.fech_desp_pt ? v1.fech_desp_pt : null,
+          oficioenviodmi: v1.oficioenviodmi || null,
+          fechaenvioreq: v1.fechaenvioreq ? v1.fechaenvioreq : null,
+          obs_version: v1.obs_version || null
+        }]
       },
     };
   }
 
   const handleSave = async () => {
+    // Validación de campos requeridos
+    if (!externo.numero?.trim()) {
+      alert("❌ El número de requerimiento es requerido.");
+      return;
+    }
+    if (!externo.descripcion?.trim()) {
+      alert("❌ La descripción es requerida.");
+      return;
+    }
+    if (!externo.sistema) {
+      alert("❌ Debe seleccionar un sistema.");
+      return;
+    }
+    if (!externo.dependencia) {
+      alert("❌ Debe seleccionar una dependencia.");
+      return;
+    }
+    if (!externo.estado) {
+      alert("❌ Debe seleccionar un estado.");
+      return;
+    }
+
     try {
       const payload = buildPayload(externo, user, mode !== "create");
       console.log("🧾 Payload final:", payload);
@@ -197,6 +228,22 @@ const handleChange = (e) => {
         navigate("/externos");
       } else {
         await updateExterno({ token, id, payload });
+        const newVersions = versiones.filter((v, index) => !v.isLoaded && index > 0);
+        for (const v of newVersions) {
+          await addVersionToRequerimiento({
+            token,
+            id_requerimiento: externo.requerimientoId,
+            payload: {
+              num_version: parseInt(v.num_version, 10),
+              ofi_desp_pt: v.ofi_desp_pt || null,
+              fech_desp_pt: v.fech_desp_pt ? v.fech_desp_pt : null,
+              oficioenviodmi: v.oficioenviodmi || null,
+              fechaenvioreq: v.fechaenvioreq ? v.fechaenvioreq : null,
+              obs_version: v.obs_version || null
+            }
+          });
+          alert(`✅ Versión ${v.num_version} agregada correctamente`);
+        }
         alert("✅ Requerimiento externo actualizado correctamente");
         setEditMode(false);
       }
@@ -279,8 +326,7 @@ const handleChange = (e) => {
             editMode={false}
           />
 
-
-            <PaintedPicker
+          <PaintedPicker
             label="Estado del requerimiento"
             editMode={editMode || isCreate}
             kind="select"
@@ -361,77 +407,47 @@ const handleChange = (e) => {
         </div>
       </div>
 
-      {/* ================= SECCIÓN 2 ================= */}
-      <div className="px-6">
-        <div className="border rounded-lg p-4 grid grid-cols-4 gap-6">
-          <EditableField
-            label="Oficio despacho propuesta técnica"
-            name="oficio_despacho"
-            value={externo.oficio_despacho || ""}
-            onChange={handleChange}
+      {/* ================= VERSIONES ================= */}
+      <div className="px-6 mb-6">
+        {versiones.map((version, index) => (
+          <VersionBlock
+            key={index}
+            version={version}
+            index={index}
+            onChange={handleVersionChange}
             editMode={editMode || isCreate}
           />
+        ))}
+        {editMode && !isCreate && (
+          <button
+            onClick={handleAddVersion}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            + Añadir versión
+          </button>
+        )}
+      </div>
 
-          <DateField
-            label="Fecha despacho propuesta técnica"
-            name="fecha_despacho"
-            value={externo.fecha_despacho}
-            onChange={handleChange}
-            editMode={editMode || isCreate}
-          />
-
-          <div className="row-span-3">
-            <label className="block text-sm font-semibold mb-1">Observaciones del Versionamiento</label>
-            {editMode || isCreate ? (
-              <textarea
-                name="obs_version"
-                value={externo.obs_version || ""}
-                onChange={handleChange}
-                className="w-full p-3 border rounded bg-gray-50"
-                rows={6}
-              />
-            ) : (
-              <div className="w-full min-h-[160px] p-3 rounded bg-[#f1f5f9] text-gray-800">
-                {externo.obs_version || ""}
-              </div>
-            )}
-          </div>
-
-          <div className="row-span-2">
-            <label className="block text-sm font-semibold mb-1">Observaciones Generales</label>
-            {editMode || isCreate ? (
-              <textarea
-                name="observaciones"
-                value={externo.observaciones || ""}
-                onChange={handleChange}
-                className="w-full p-3 border rounded bg-gray-50 h-48 resize-none overflow-y-auto"
-                placeholder="Escribe tus observaciones aquí..."
-              />
-            ) : (
-              <div
-                className="w-full h-48 p-3 rounded bg-[#f1f5f9] text-gray-800 overflow-y-auto border"
-                style={{ whiteSpace: "pre-wrap" }}
-              >
-                {externo.observaciones || ""}
-              </div>
-            )}
-          </div>
-
-          <EditableField
-            label="Oficios de envío a DMI"
-            name="oficio_dmi"
-            value={externo.oficio_dmi || ""}
-            onChange={handleChange}
-            editMode={editMode || isCreate}
-          />
-
-          <DateField
-            label="Fecha de envío requerimiento"
-            name="fecha_envio_requerimiento"
-            value={externo.fecha_envio_requerimiento}
-            onChange={handleChange}
-            editMode={editMode || isCreate}
-          />
+      {/* ================= OBSERVACIONES GENERALES ================= */}
+      <div className="px-6 mb-6">
+        <div className="border rounded-lg p-4">
+          <label className="block text-sm font-semibold mb-1">Observaciones Generales</label>
+          {editMode || isCreate ? (
+            <textarea
+              name="observaciones"
+              value={externo.observaciones || ""}
+              onChange={handleChange}
+              className="w-full p-3 border rounded bg-gray-50 h-48 resize-none overflow-y-auto"
+              placeholder="Escribe tus observaciones aquí..."
+            />
+          ) : (
+            <div
+              className="w-full h-48 p-3 rounded bg-[#f1f5f9] text-gray-800 overflow-y-auto border"
+              style={{ whiteSpace: "pre-wrap" }}
+            >
+              {externo.observaciones || ""}
+            </div>
+          )}
         </div>
       </div>
 
@@ -514,6 +530,64 @@ function DateField({ label, name, value, onChange, editMode }) {
       ) : (
         <div className="w-full p-2 rounded bg-[#f1f5f9] text-gray-800">{value || ""}</div>
       )}
+    </div>
+  );
+}
+
+function VersionBlock({ version, index, onChange, editMode }) {
+  return (
+    <div className="border rounded-lg p-4 mb-4">
+      <h3 className="font-bold mb-2">Versión {version.num_version}</h3>
+      <div className="grid grid-cols-4 gap-6">
+        <EditableField
+          label="Oficio despacho propuesta técnica"
+          name="ofi_desp_pt"
+          value={version.ofi_desp_pt || ""}
+          onChange={(e) => onChange(index, e.target.name, e.target.value)}
+          editMode={editMode}
+        />
+
+        <DateField
+          label="Fecha despacho propuesta técnica"
+          name="fech_desp_pt"
+          value={version.fech_desp_pt || ""}
+          onChange={(e) => onChange(index, e.target.name, e.target.value)}
+          editMode={editMode}
+        />
+
+        <EditableField
+          label="Oficios de envío a DMI"
+          name="oficioenviodmi"
+          value={version.oficioenviodmi || ""}
+          onChange={(e) => onChange(index, e.target.name, e.target.value)}
+          editMode={editMode}
+        />
+
+        <DateField
+          label="Fecha de envío requerimiento"
+          name="fechaenvioreq"
+          value={version.fechaenvioreq || ""}
+          onChange={(e) => onChange(index, e.target.name, e.target.value)}
+          editMode={editMode}
+        />
+
+        <div className="col-span-4">
+          <label className="block text-sm font-semibold mb-1">Observaciones del Versionamiento</label>
+          {editMode ? (
+            <textarea
+              name="obs_version"
+              value={version.obs_version || ""}
+              onChange={(e) => onChange(index, 'obs_version', e.target.value)}
+              className="w-full p-3 border rounded bg-gray-50"
+              rows={4}
+            />
+          ) : (
+            <div className="w-full p-3 rounded bg-[#f1f5f9] text-gray-800">
+              {version.obs_version || ""}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

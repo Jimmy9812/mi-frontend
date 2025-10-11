@@ -335,3 +335,42 @@ export async function exportExternosCsv({
   }
 }
 
+// ✅ Agregar versión a requerimiento
+export async function addVersionToRequerimiento({ token, id_requerimiento, payload }) {
+  if (API && USE_API) {
+    try {
+      const res = await fetch(`${API}/requerimiento/${id_requerimiento}/versiones`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      return result.data || result;
+    } catch (err) {
+      console.warn("[externosService] Error addVersionToRequerimiento API:", err?.message);
+      throw err;
+    }
+  }
+  // Mock no implementado
+  throw new Error("Mock no implementado para addVersionToRequerimiento");
+}
+
+// ✅ Obtener versiones por requerimiento
+export async function getVersionesByRequerimiento(id_requerimiento, token) {
+  if (API && USE_API) {
+    try {
+      const res = await fetch(`${API}/requerimiento/${id_requerimiento}/versiones`, {
+        headers: authHeaders(token)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      return result.data || result;
+    } catch (err) {
+      console.warn("[externosService] Error getVersionesByRequerimiento API:", err?.message);
+      throw err;
+    }
+  }
+  // Mock no implementado
+  throw new Error("Mock no implementado para getVersionesByRequerimiento");
+}
