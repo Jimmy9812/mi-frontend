@@ -103,6 +103,7 @@ export default function ExternosEditor({ mode = "view" }) {
           fecha_envio_dmc: res.requerimiento?.fecha_registro
             ? new Date(res.requerimiento.fecha_registro).toISOString().split("T")[0]
             : "",
+          obs_version: res.requerimiento?.requerimientoVersiones?.[0]?.versionamiento?.obs_version || "",
           observaciones: res.observacionesgen ?? "",
         };
 
@@ -157,6 +158,7 @@ const handleChange = (e) => {
       oficioenviodmi: externo.oficio_dmi || null,
       fech_desp_pt: externo.fecha_despacho || null,
       fechaenvioreq: externo.fecha_envio_requerimiento || null,
+      obs_version: externo.obs_version || null,
     };
 
     const baseSirecq = {
@@ -277,6 +279,17 @@ const handleChange = (e) => {
             editMode={false}
           />
 
+
+            <PaintedPicker
+            label="Estado del requerimiento"
+            editMode={editMode || isCreate}
+            kind="select"
+            name="estado"
+            value={externo.estado || ""}
+            onChange={handleChange}
+            options={estados.map(e => e.name)}
+          />
+
           <div className="row-span-3">
             <label className="block text-sm font-semibold mb-1">Descripción</label>
             {editMode || isCreate ? (
@@ -367,15 +380,22 @@ const handleChange = (e) => {
             editMode={editMode || isCreate}
           />
 
-          <PaintedPicker
-            label="Estado del requerimiento"
-            editMode={editMode || isCreate}
-            kind="select"
-            name="estado"
-            value={externo.estado || ""}
-            onChange={handleChange}
-            options={estados.map(e => e.name)}
-          />
+          <div className="row-span-3">
+            <label className="block text-sm font-semibold mb-1">Observaciones del Versionamiento</label>
+            {editMode || isCreate ? (
+              <textarea
+                name="obs_version"
+                value={externo.obs_version || ""}
+                onChange={handleChange}
+                className="w-full p-3 border rounded bg-gray-50"
+                rows={6}
+              />
+            ) : (
+              <div className="w-full min-h-[160px] p-3 rounded bg-[#f1f5f9] text-gray-800">
+                {externo.obs_version || ""}
+              </div>
+            )}
+          </div>
 
           <div className="row-span-2">
             <label className="block text-sm font-semibold mb-1">Observaciones Generales</label>
