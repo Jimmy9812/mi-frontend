@@ -97,7 +97,7 @@ export default function Dashboard() {
         style={{ transform: "translateY(70px)" }}
       >
         {[
-          { label: "SIREC-Q", icon: <FileText className="w-7 h-7" />, offset: -720, to: "/#" },
+          { label: "SIREC-Q", icon: <FileText className="w-7 h-7" />, offset: -720, to: "/sirecq" },
           { label: "EXTERNOS", icon: <Users className="w-7 h-7" />, offset: -690, to: "/externos" },
           { label: "TEST/PRODUCCIÓN", icon: <Database className="w-7 h-7" />, offset: -660, to: "/test-produccion" },
           { label: "ACCIDENTES", icon: <AlertTriangle className="w-7 h-7" />, offset: -630, to: "/accidentes" },

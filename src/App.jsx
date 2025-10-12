@@ -13,6 +13,9 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import IncidenteEditor from "./pages/IncidenteEditor";
 import AccidenteEditor from "./pages/AccidenteEditor";
 import TestProduccionEditor from "./pages/TestProduccionEditor";
+import Sirecq from "./pages/Sirecq";
+import SirecqEditor from "./pages/SirecqEditor"; // lo agregaremos después
+
 
 export default function App() {
   return (
@@ -146,6 +149,33 @@ export default function App() {
               </PrivateRoute>
             }
           />
+
+          {/* SIREC-Q */}
+          <Route
+            path="/sirecq"
+            element={
+              <PrivateRoute>
+                <Sirecq />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/sirecq/nuevo"
+            element={
+              <PrivateRoute>
+                <SirecqEditor mode="create" />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/sirecq/:id"
+            element={
+              <PrivateRoute>
+                <SirecqEditor mode="view" />
+              </PrivateRoute>
+            }
+          />
+
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Layout>
