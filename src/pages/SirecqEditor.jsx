@@ -1,9 +1,15 @@
+// src/pages/SirecqEditor.jsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Edit, Home } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import {
+  getSirecq,
+  createSirecq,
+  updateSirecq,
+} from "../services/sirecqService";
 
-// Datos de ejemplo (reemplazar con tus servicios reales)
+// Catálogos fijos (sin tocar)
 const sistemas = ["SIREC-Q", "STL", "SUIM", "CERTIFICADOS", "DBB"];
 const dependencias = ["DMSIST", "DMC", "DMF"];
 const estados = ["Enviado", "Devuelto", "Test", "Producción", "En revisión", "Atendido"];
@@ -12,55 +18,138 @@ const clasificaciones = ["A", "B", "C"];
 export default function SirecqEditor({ mode = "view" }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { token, user } = useAuth();
 
-  const [editMode, setEditMode] = useState(mode === "create");
+  const isCreate = mode === "create";
+
+  const [editMode, setEditMode] = useState(isCreate);
   const [loading, setLoading] = useState(false);
 
+  // Estado inicial vacío
   const [requerimiento, setRequerimiento] = useState({
-    numero: "RSW_SIREC-Q_2024_005",
-    tramite_priorizado: "ACTUALIZACIÓN DE PREDIOS",
-    tramite_cat: "CAT-42, CAT-43",
-    prioridad: "1",
-    dependencia: "DMSIST",
-    seguimiento: "Contraloría General del Estado - Cartera Vencida",
-    clasificacion: "A",
-    sistema: "SIREC-Q",
-    responsable: "José Campoverde",
-    oficio_despacho: "GADDMQ-SHOT-DMC-2025-0387-M",
-    fecha_envio_dmc: "2025-04-21",
-    fecha_envio_req: "2024-10-13",
-    estado: "Enviado",
-    oficios_envio_dmi: "GADDMQ-SHOT-DMC-2024-2114-O",
-    fecha_despacho: "2024-05-07",
-    tecnico_desarrollo: "Leonardo Tuguminago",
-    descripcion:
-      "Implementación de controles para validación de campos determinados en el informe presentado por la Contraloría General del Estado específicamente en la recomendación 9 y 10.",
-    observaciones:
-      "Mediante Memorando Nro. GADDMQ-SGDTIC-DMSIST-2025-00202-M, de 13 de mayo de 2025, la DMSIST informa que el desarrollo inicia el 14 de mayo de 2025 y tentativamente estaría implementado hasta el 30 de mayo de 2025.",
-    observacion_tics:
-      "LA DMSIST INFORMA QUE SE ENCUENTRA TERMINADO EL DESARROLLO, EN ESTE SENTIDO SE ENCUENTRA A LA ESPERA DE LA APROBACIÓN DEL RSW_SIREC-Q_2024_019.",
+    numero: "",
+    tramite_priorizado: "",
+    tramite_cat: "",
+    prioridad: "",
+    dependencia: "",
+    seguimiento: "",
+    clasificacion: "",
+    sistema: "",
+    responsable: "",
+    oficio_despacho: "",
+    fecha_envio_dmc: "",
+    fecha_envio_req: "",
+    estado: "",
+    oficios_envio_dmi: "",
+    fecha_despacho: "",
+    tecnico_desarrollo: "",
+    descripcion: "",
+    observaciones: "",
+    observacion_tics: "",
   });
 
+  // Cargar datos si es modo edición
+  // Cargar datos si es modo edición
+  useEffect(() => {
+    const fetchData = async () => {
+      if (isCreate) return;
+      try {
+        setLoading(true);
+        const data = await getSirecq(id, { token });
+
+        // 🔍 Mapeo según la estructura real del backend
+        const req = data?.sirecqExterno?.requerimiento;
+        const version = req?.requerimientoVersiones?.[0]?.versionamiento || {};
+        const tecnico = data?.usuariosSirecq?.[0]?.rolUsuario?.usuario;
+        const analista = req?.rolUsuario?.usuario;
+
+        setRequerimiento({
+          numero: req?.no_requerimiento || "",
+          tramite_priorizado: req?.tema || "",
+          tramite_cat: data?.sirecqExterno?.tramitecat || "",
+          prioridad: req?.id_categoria || "",
+          dependencia: data?.sirecqExterno?.dependencia?.sigla_dependencia || data?.sirecqExterno?.dependencia?.nombre_dependencia || "DMSIST",
+          seguimiento: data?.sirecqExterno?.seguimientoinst || "",
+          clasificacion: data?.clasifCatastral?.nombre || "",
+          sistema: req?.sistema?.nom_sistema || "SIREC-Q",
+          responsable: analista ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim() : "",
+          oficio_despacho: version?.ofi_desp_pt || "",
+          fecha_envio_dmc: data?.fecha_env_dmc || req?.fecha_registro?.slice(0, 10) || "",
+          fecha_envio_req: version?.fechaenvioreq || "",
+          estado: req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
+          oficios_envio_dmi: version?.oficioenviodmi || "",
+          fecha_despacho: version?.fech_desp_pt || "",
+          tecnico_desarrollo: tecnico ? `${tecnico.nombre_usuario} ${tecnico.apellidos_usuario}`.trim() : "",
+          descripcion: req?.descripcion || "",
+          observaciones: data?.obsv_tecnica || data?.sirecqExterno?.observacionesgen || "",
+          observacion_tics: "",
+        });
+      } catch (err) {
+        console.error("❌ Error al cargar el SIRECQ Interno:", err);
+        alert("Error al cargar los datos del registro.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id, isCreate, token]);
+
+
+  // Manejo de cambios
   const handleChange = (e) => {
     const { name, value } = e.target;
     setRequerimiento((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Guardar (crear o actualizar)
   const handleSave = async () => {
     try {
-      console.log("💾 Guardando requerimiento:", requerimiento);
-      alert("✅ Requerimiento guardado correctamente");
-      setEditMode(false);
+      setLoading(true);
+
+      const payload = {
+        // Campos base de la entidad sirecq_interno
+        fecha_env_dmc: requerimiento.fecha_envio_dmc,
+        obsv_tecnica: requerimiento.observaciones || "",
+        id_sirecq_externo: null,
+
+        // Campos adicionales del formulario
+        numero: requerimiento.numero,
+        tramite_priorizado: requerimiento.tramite_priorizado,
+        tramite_cat: requerimiento.tramite_cat,
+        prioridad: requerimiento.prioridad,
+        dependencia: requerimiento.dependencia,
+        seguimiento: requerimiento.seguimiento,
+        clasificacion: requerimiento.clasificacion,
+        sistema: requerimiento.sistema,
+        responsable: requerimiento.responsable,
+        oficio_despacho: requerimiento.oficio_despacho,
+        fecha_envio_req: requerimiento.fecha_envio_req,
+        estado: requerimiento.estado,
+        oficios_envio_dmi: requerimiento.oficios_envio_dmi,
+        fecha_despacho: requerimiento.fecha_despacho,
+        tecnico_desarrollo: requerimiento.tecnico_desarrollo,
+        descripcion: requerimiento.descripcion,
+        observacion_tics: requerimiento.observacion_tics,
+      };
+
+      if (isCreate) {
+        await createSirecq({ token, payload });
+        alert("✅ SIRECQ Interno creado correctamente");
+        navigate(-1);
+      } else {
+        await updateSirecq({ token, id, payload });
+        alert("✅ SIRECQ Interno actualizado correctamente");
+        setEditMode(false);
+      }
     } catch (err) {
       console.error("❌ Error al guardar:", err);
-      alert("Error al guardar el requerimiento");
+      alert("Error al guardar el registro.");
+    } finally {
+      setLoading(false);
     }
   };
 
   if (loading) return <div className="p-6">Cargando...</div>;
-
-  const isCreate = mode === "create";
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -83,9 +172,9 @@ export default function SirecqEditor({ mode = "view" }) {
         </button>
 
         <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          José Campoverde
+          {user?.nombre || "José Campoverde"}
           <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-xs">
-            J
+            {(user?.nombre || "J")[0]}
           </div>
         </span>
       </div>
@@ -108,6 +197,8 @@ export default function SirecqEditor({ mode = "view" }) {
       </div>
 
       <div className="h-1 bg-[#0891B2] mb-6"></div>
+      {/* -------------- PEGAR TU CÓDIGO VISUAL ORIGINAL AQUÍ -------------- */}
+
 
       {/* Contenido Principal */}
       <div className="px-8 flex flex-col xl:flex-row gap-6">
@@ -404,6 +495,7 @@ export default function SirecqEditor({ mode = "view" }) {
     </div>
   );
 }
+
 
 /* ================= Componentes ================= */
 function SimpleField({ label, name, value, onChange, editMode, type = "text" }) {

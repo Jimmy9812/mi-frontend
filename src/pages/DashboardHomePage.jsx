@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { listIncidentes } from "../services/incidentesService";
 import { listAccidentes } from "../services/accidentesService";
 import { listExternos } from "../services/externosService";
@@ -53,8 +53,6 @@ export default function DashboardHomePage() {
   // Estado para datos
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isFiltering, setIsFiltering] = useState(false);
-
 
   // Estadísticas
   const [stats, setStats] = useState({ total: 0, porEstado: {}, porMes: {} });
@@ -84,20 +82,27 @@ export default function DashboardHomePage() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  // Filtrar por estado
-  const filteredItems = estadoFiltro === "Todos"
-    ? items
-    : items.filter((i) => {
-        const estado = i.estado || i.estado_tramite || i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || i.requerimiento?.estadoRequerimiento?.nombre_estado || "SIN ESTADO";
-        return estado === estadoFiltro;
-      });
+  // ✅ Filtrar por estado (usando useMemo para evitar renders infinitos)
+  const filteredItems = useMemo(() => {
+    return estadoFiltro === "Todos"
+      ? items
+      : items.filter((i) => {
+          const estado =
+            i.estado ||
+            i.estado_tramite ||
+            i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+            i.requerimiento?.estadoRequerimiento?.nombre_estado ||
+            "SIN ESTADO";
+          return estado === estadoFiltro;
+        });
+  }, [estadoFiltro, items]);
 
   // Paginación
   const totalPages = Math.min(5, Math.max(1, Math.ceil(filteredItems.length / pageSize)));
 
   const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
 
-  // Calcular estadísticas
+  // ✅ Calcular estadísticas
   useEffect(() => {
     // Total
     const total = filteredItems.length;
@@ -125,8 +130,8 @@ export default function DashboardHomePage() {
     datasets: [
       {
         label: "Registros por mes",
-        backgroundColor: colores[moduloActivo],
-        borderColor: colores[moduloActivo],
+        backgroundColor: ["#60a5fa", "#fbbf24", "#f472b6", "#34d399", "#f87171", "#a78bfa", "#fb7185"],
+        borderColor: ["#60a5fa", "#fbbf24", "#f472b6", "#34d399", "#f87171", "#a78bfa", "#fb7185"],
         data: Object.values(stats.porMes),
       },
     ],
@@ -221,12 +226,9 @@ export default function DashboardHomePage() {
                 <select
                   value={estadoFiltro}
                   onChange={(e) => {
-                        setIsFiltering(true);
-                        setEstadoFiltro(e.target.value);
-                        setPage(1);
-                        setTimeout(() => setIsFiltering(false), 600); // medio segundo después, vuelve al estado normal
-                      }}
-
+                    setEstadoFiltro(e.target.value);
+                    setPage(1);
+                  }}
                   className="ml-2 px-2 py-1 border rounded text-xs text-black bg-white"
                   style={{ minWidth: 90 }}
                 >
@@ -247,7 +249,6 @@ export default function DashboardHomePage() {
 paginatedItems.map((r, i) => (
   <div key={i} className="flex items-center px-4 py-3 text-sm">
     <span className="flex-1">
-      {/* 👇 Orden de prioridad para mostrar el identificador correcto según el módulo */}
       {r.no_incidente || r.id_incidente || r.no_requerimiento || r.requerimiento?.no_requerimiento || r.id || r.numero}
     </span>
     <span className="flex-1">
@@ -301,35 +302,28 @@ paginatedItems.map((r, i) => (
             </div>
             <div className="bg-white rounded-xl shadow p-4 h-[220px]">
               <Bar
-                data={{
-                  ...barData,
-                  datasets: [{
-                    ...barData.datasets[0],
-                    backgroundColor: ["#60a5fa", "#fbbf24", "#f472b6", "#34d399", "#f87171", "#a78bfa", "#fb7185"],
-                    borderColor: ["#60a5fa", "#fbbf24", "#f472b6", "#34d399", "#f87171", "#a78bfa", "#fb7185"],
-                  }],
-                }}
+                data={barData}
                 options={{
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: isFiltering ? 800 : 800, easing: "easeOutCubic" },
-    plugins: { legend: { position: "top" } },
-    scales: {
-      x: { grid: { color: "#e5e7eb" }, ticks: { color: colores[moduloActivo] } },
-      y: { grid: { color: "#e5e7eb" }, ticks: { color: colores[moduloActivo] } },
-    },
-  }}
-/>
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  animation: { duration: 800, easing: "easeOutCubic" },
+                  plugins: { legend: { position: "top" } },
+                  scales: {
+                    x: { grid: { color: "#e5e7eb" }, ticks: { color: "#666" } },
+                    y: { grid: { color: "#e5e7eb" }, ticks: { color: "#666" } },
+                  },
+                }}
+              />
             </div>
             <div className="bg-white rounded-xl shadow p-4 h-[220px]">
               <Doughnut
                 data={doughnutData}
                 options={{
-    maintainAspectRatio: false,
-    animation: { duration: isFiltering ? 800 : 800, easing: "easeOutCubic" },
-    plugins: { legend: { display: true, position: "right" } },
-  }}
-/>
+                  maintainAspectRatio: false,
+                  animation: { duration: 800, easing: "easeOutCubic" },
+                  plugins: { legend: { display: true, position: "right" } },
+                }}
+              />
             </div>
           </div>
         </div>
