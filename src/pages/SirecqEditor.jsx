@@ -102,52 +102,108 @@ export default function SirecqEditor({ mode = "view" }) {
   };
 
   // Guardar (crear o actualizar)
-  const handleSave = async () => {
-    try {
-      setLoading(true);
+// Guardar (crear o actualizar)
+const handleSave = async () => {
+  try {
+    setLoading(true);
 
-      const payload = {
-        // Campos base de la entidad sirecq_interno
-        fecha_env_dmc: requerimiento.fecha_envio_dmc,
-        obsv_tecnica: requerimiento.observaciones || "",
-        id_sirecq_externo: null,
-
-        // Campos adicionales del formulario
-        numero: requerimiento.numero,
-        tramite_priorizado: requerimiento.tramite_priorizado,
-        tramite_cat: requerimiento.tramite_cat,
-        prioridad: requerimiento.prioridad,
-        dependencia: requerimiento.dependencia,
-        seguimiento: requerimiento.seguimiento,
-        clasificacion: requerimiento.clasificacion,
-        sistema: requerimiento.sistema,
-        responsable: requerimiento.responsable,
-        oficio_despacho: requerimiento.oficio_despacho,
-        fecha_envio_req: requerimiento.fecha_envio_req,
-        estado: requerimiento.estado,
-        oficios_envio_dmi: requerimiento.oficios_envio_dmi,
-        fecha_despacho: requerimiento.fecha_despacho,
-        tecnico_desarrollo: requerimiento.tecnico_desarrollo,
+    const payload = {
+      fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
+      obsv_tecnica: requerimiento.observaciones || "",
+      id_clasif_catastral:
+        requerimiento.clasificacion === "A"
+          ? 1
+          : requerimiento.clasificacion === "B"
+          ? 2
+          : 3,
+      id_analista: 1,
+      id_tecnico: 2,
+      requerimiento: {
+        no_requerimiento: requerimiento.numero,
+        tema: requerimiento.tramite_priorizado,
         descripcion: requerimiento.descripcion,
-        observacion_tics: requerimiento.observacion_tics,
-      };
+        fase: "Requisito",
+        fecha_registro: new Date().toISOString().split("T")[0],
+        id_estado_requerimiento: 5,
+        id_categoria: Number(requerimiento.prioridad) || 1,
+        id_sistema:
+          sistemas.findIndex((s) => s === requerimiento.sistema) + 1 || 1,
+        id_rol_usuario: 3,
+      },
+      sirecqExterno: {
+        tramitepr: requerimiento.tramite_priorizado,
+        seguimientoinst: requerimiento.seguimiento,
+        tramitecat: requerimiento.tramite_cat,
+        observacionesgen: requerimiento.observaciones || "",
+        id_dependencia:
+          dependencias.findIndex((d) => d === requerimiento.dependencia) + 1 || 1,
+      },
+    };
 
-      if (isCreate) {
-        await createSirecq({ token, payload });
-        alert("✅ SIRECQ Interno creado correctamente");
-        navigate(-1);
-      } else {
-        await updateSirecq({ token, id, payload });
-        alert("✅ SIRECQ Interno actualizado correctamente");
-        setEditMode(false);
-      }
-    } catch (err) {
-      console.error("❌ Error al guardar:", err);
-      alert("Error al guardar el registro.");
-    } finally {
-      setLoading(false);
+    if (isCreate) {
+      const response = await createSirecq({ token, payload });
+      const newRecord = response?.data; // ✅ tu backend devuelve dentro de 'data'
+
+      console.log("🟢 Nuevo registro creado:", newRecord);
+
+      setRequerimiento({
+        numero: newRecord?.sirecqExterno?.requerimiento?.no_requerimiento || "",
+        tramite_priorizado: newRecord?.sirecqExterno?.requerimiento?.tema || "",
+        tramite_cat: newRecord?.sirecqExterno?.tramitecat || "",
+        prioridad:
+          newRecord?.sirecqExterno?.requerimiento?.categoria?.id_categoria || "",
+        dependencia:
+          newRecord?.sirecqExterno?.dependencia?.sigla_dependencia ||
+          newRecord?.sirecqExterno?.dependencia?.nombre_dependencia ||
+          "",
+        seguimiento: newRecord?.sirecqExterno?.seguimientoinst || "",
+        clasificacion:
+          newRecord?.clasifCatastral?.nombre_clasif_catastral || "",
+        sistema:
+          newRecord?.sirecqExterno?.requerimiento?.sistema?.nom_sistema || "",
+        responsable:
+          newRecord?.sirecqExterno?.requerimiento?.rolUsuario?.usuario
+            ? `${newRecord.sirecqExterno.requerimiento.rolUsuario.usuario.nombre_usuario} ${newRecord.sirecqExterno.requerimiento.rolUsuario.usuario.apellidos_usuario}`
+            : "",
+        oficio_despacho: "",
+        fecha_envio_dmc: newRecord?.fecha_env_dmc || "",
+        fecha_envio_req:
+          newRecord?.sirecqExterno?.requerimiento?.fecha_registro || "",
+        estado:
+          newRecord?.sirecqExterno?.requerimiento?.estadoRequerimiento
+            ?.nombre_estado_requerimiento || "En revisión",
+        oficios_envio_dmi: "",
+        fecha_despacho: "",
+        tecnico_desarrollo:
+          newRecord?.usuariosSirecq?.[1]?.rolUsuario?.usuario
+            ? `${newRecord.usuariosSirecq[1].rolUsuario.usuario.nombre_usuario} ${newRecord.usuariosSirecq[1].rolUsuario.usuario.apellidos_usuario}`
+            : "",
+        descripcion: newRecord?.sirecqExterno?.requerimiento?.descripcion || "",
+        observaciones:
+          newRecord?.obsv_tecnica ||
+          newRecord?.sirecqExterno?.observacionesgen ||
+          "",
+        observacion_tics: "",
+      });
+
+      alert("✅ SIRECQ Interno creado correctamente");
+      setEditMode(false);
+    } else {
+      const response = await updateSirecq({ token, id, payload });
+      const updatedRecord = response?.data;
+
+      console.log("🟢 Registro actualizado:", updatedRecord);
+      alert("✅ SIRECQ Interno actualizado correctamente");
+      setEditMode(false);
     }
-  };
+  } catch (err) {
+    console.error("❌ Error al guardar:", err);
+    alert("Error al guardar el registro.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (loading) return <div className="p-6">Cargando...</div>;
 

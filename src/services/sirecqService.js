@@ -234,7 +234,7 @@ export async function createSirecq({ token, payload }) {
       }
       
       const data = await res.json();
-      return normalizarItem(data.data);
+      return { success: true, data: normalizarItem(data.data) };
       
     } catch (error) {
       console.error("Error en createSirecq:", error);
