@@ -13,6 +13,8 @@ const sleep = (ms = 300) => new Promise((r) => setTimeout(r, ms));
 // 🔹 Normalizar fecha al formato YYYY-MM-DD (sin zona horaria)
 function toBackendDate(dateString) {
   if (!dateString) return null;
+  // Si ya es YYYY-MM-DD, devolver tal cual
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
   const d = new Date(dateString + "T12:00:00");
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");

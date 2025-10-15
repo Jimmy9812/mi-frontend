@@ -60,7 +60,7 @@ export default function SirecqEditor({ mode = "view" }) {
         // 🔍 Mapeo según la estructura real del backend
         const req = data?.sirecqExterno?.requerimiento;
         const version = req?.requerimientoVersiones?.[0]?.versionamiento || {};
-        const tecnico = data?.usuariosSirecq?.[0]?.rolUsuario?.usuario;
+        const tecnico = data?.usuariosSirecq?.[1]?.rolUsuario?.usuario; // Cambiado a [1] para técnico
         const analista = req?.rolUsuario?.usuario;
 
         setRequerimiento({
@@ -70,11 +70,14 @@ export default function SirecqEditor({ mode = "view" }) {
           prioridad: req?.id_categoria || "",
           dependencia: data?.sirecqExterno?.dependencia?.sigla_dependencia || data?.sirecqExterno?.dependencia?.nombre_dependencia || "DMSIST",
           seguimiento: data?.sirecqExterno?.seguimientoinst || "",
-          clasificacion: data?.clasifCatastral?.nombre || "",
+          clasificacion: (() => {
+            const id = data?.clasifCatastral?.id_clasif_catastral;
+            return id === 1 ? "A" : id === 2 ? "B" : id === 3 ? "C" : "";
+          })(),
           sistema: req?.sistema?.nom_sistema || "SIREC-Q",
           responsable: analista ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim() : "",
           oficio_despacho: version?.ofi_desp_pt || "",
-          fecha_envio_dmc: data?.fecha_env_dmc || req?.fecha_registro?.slice(0, 10) || "",
+          fecha_envio_dmc: data?.fecha_env_dmc ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] : req?.fecha_registro?.slice(0, 10) || "",
           fecha_envio_req: version?.fechaenvioreq || "",
           estado: req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
           oficios_envio_dmi: version?.oficioenviodmi || "",
@@ -146,43 +149,34 @@ const handleSave = async () => {
 
       console.log("🟢 Nuevo registro creado:", newRecord);
 
+      // 🔍 Mapeo después de crear, usando la misma lógica que en fetchData
+      const req = newRecord?.sirecqExterno?.requerimiento;
+      const version = req?.requerimientoVersiones?.[0]?.versionamiento || {};
+      const tecnico = newRecord?.usuariosSirecq?.[1]?.rolUsuario?.usuario;
+      const analista = req?.rolUsuario?.usuario;
+
       setRequerimiento({
-        numero: newRecord?.sirecqExterno?.requerimiento?.no_requerimiento || "",
-        tramite_priorizado: newRecord?.sirecqExterno?.requerimiento?.tema || "",
+        numero: req?.no_requerimiento || "",
+        tramite_priorizado: req?.tema || "",
         tramite_cat: newRecord?.sirecqExterno?.tramitecat || "",
-        prioridad:
-          newRecord?.sirecqExterno?.requerimiento?.categoria?.id_categoria || "",
-        dependencia:
-          newRecord?.sirecqExterno?.dependencia?.sigla_dependencia ||
-          newRecord?.sirecqExterno?.dependencia?.nombre_dependencia ||
-          "",
+        prioridad: req?.id_categoria || "",
+        dependencia: newRecord?.sirecqExterno?.dependencia?.sigla_dependencia || newRecord?.sirecqExterno?.dependencia?.nombre_dependencia || "DMSIST",
         seguimiento: newRecord?.sirecqExterno?.seguimientoinst || "",
-        clasificacion:
-          newRecord?.clasifCatastral?.nombre_clasif_catastral || "",
-        sistema:
-          newRecord?.sirecqExterno?.requerimiento?.sistema?.nom_sistema || "",
-        responsable:
-          newRecord?.sirecqExterno?.requerimiento?.rolUsuario?.usuario
-            ? `${newRecord.sirecqExterno.requerimiento.rolUsuario.usuario.nombre_usuario} ${newRecord.sirecqExterno.requerimiento.rolUsuario.usuario.apellidos_usuario}`
-            : "",
-        oficio_despacho: "",
-        fecha_envio_dmc: newRecord?.fecha_env_dmc || "",
-        fecha_envio_req:
-          newRecord?.sirecqExterno?.requerimiento?.fecha_registro || "",
-        estado:
-          newRecord?.sirecqExterno?.requerimiento?.estadoRequerimiento
-            ?.nombre_estado_requerimiento || "En revisión",
-        oficios_envio_dmi: "",
-        fecha_despacho: "",
-        tecnico_desarrollo:
-          newRecord?.usuariosSirecq?.[1]?.rolUsuario?.usuario
-            ? `${newRecord.usuariosSirecq[1].rolUsuario.usuario.nombre_usuario} ${newRecord.usuariosSirecq[1].rolUsuario.usuario.apellidos_usuario}`
-            : "",
-        descripcion: newRecord?.sirecqExterno?.requerimiento?.descripcion || "",
-        observaciones:
-          newRecord?.obsv_tecnica ||
-          newRecord?.sirecqExterno?.observacionesgen ||
-          "",
+        clasificacion: (() => {
+          const id = newRecord?.clasifCatastral?.id_clasif_catastral;
+          return id === 1 ? "A" : id === 2 ? "B" : id === 3 ? "C" : "";
+        })(),
+        sistema: req?.sistema?.nom_sistema || "SIREC-Q",
+        responsable: analista ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim() : "",
+        oficio_despacho: version?.ofi_desp_pt || "",
+        fecha_envio_dmc: newRecord?.fecha_env_dmc ? new Date(newRecord.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] : req?.fecha_registro?.slice(0, 10) || "",
+        fecha_envio_req: version?.fechaenvioreq || "",
+        estado: req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
+        oficios_envio_dmi: version?.oficioenviodmi || "",
+        fecha_despacho: version?.fech_desp_pt || "",
+        tecnico_desarrollo: tecnico ? `${tecnico.nombre_usuario} ${tecnico.apellidos_usuario}`.trim() : "",
+        descripcion: req?.descripcion || "",
+        observaciones: newRecord?.obsv_tecnica || newRecord?.sirecqExterno?.observacionesgen || "",
         observacion_tics: "",
       });
 
