@@ -216,6 +216,19 @@ export async function createSirecq({ token, payload }) {
     fecha_env_dmc: toBackendDate(payload.fecha_env_dmc),
   };
 
+  // 🔹 Normalizar fechas de versiones (para el backend)
+if (mappedPayload.requerimiento?.requerimientoVersiones) {
+  mappedPayload.requerimiento.requerimientoVersiones =
+    mappedPayload.requerimiento.requerimientoVersiones.map((v) => ({
+      versionamiento: {
+        ...v.versionamiento,
+        fech_desp_pt: toBackendDate(v.versionamiento.fech_desp_pt),
+        fechaenvioreq: toBackendDate(v.versionamiento.fechaenvioreq),
+      },
+    }));
+}
+
+
   if (API) {
     try {
       const res = await fetch(`${API}/sirecq-interno`, {

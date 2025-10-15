@@ -7,9 +7,10 @@ import {
   getSirecq,
   createSirecq,
   updateSirecq,
+  addVersionToSirecq,
 } from "../services/sirecqService";
 
-// Catálogos fijos (sin tocar)
+// Catálogos fijos
 const sistemas = ["SIREC-Q", "STL", "SUIM", "CERTIFICADOS", "DBB"];
 const dependencias = ["DMSIST", "DMC", "DMF"];
 const estados = ["Enviado", "Devuelto", "Test", "Producción", "En revisión", "Atendido"];
@@ -24,6 +25,7 @@ export default function SirecqEditor({ mode = "view" }) {
 
   const [editMode, setEditMode] = useState(isCreate);
   const [loading, setLoading] = useState(false);
+  const [versiones, setVersiones] = useState([]);
 
   // Estado inicial vacío
   const [requerimiento, setRequerimiento] = useState({
@@ -36,39 +38,50 @@ export default function SirecqEditor({ mode = "view" }) {
     clasificacion: "",
     sistema: "",
     responsable: "",
-    oficio_despacho: "",
     fecha_envio_dmc: "",
-    fecha_envio_req: "",
     estado: "",
-    oficios_envio_dmi: "",
-    fecha_despacho: "",
     tecnico_desarrollo: "",
     descripcion: "",
     observaciones: "",
     observacion_tics: "",
+    requerimientoId: null,
   });
 
   // Cargar datos si es modo edición
-  // Cargar datos si es modo edición
   useEffect(() => {
     const fetchData = async () => {
-      if (isCreate) return;
+      if (isCreate) {
+        // Inicializar con versión 1 vacía
+        setVersiones([{
+          num_version: 1,
+          ofi_desp_pt: "",
+          fech_desp_pt: "",
+          oficioenviodmi: "",
+          fechaenvioreq: "",
+          obs_version: "",
+          isLoaded: false
+        }]);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         const data = await getSirecq(id, { token });
 
-        // 🔍 Mapeo según la estructura real del backend
+        // Mapeo según la estructura real del backend
         const req = data?.sirecqExterno?.requerimiento;
-        const version = req?.requerimientoVersiones?.[0]?.versionamiento || {};
-        const tecnico = data?.usuariosSirecq?.[1]?.rolUsuario?.usuario; // Cambiado a [1] para técnico
+        const tecnico = data?.usuariosSirecq?.[1]?.rolUsuario?.usuario;
         const analista = req?.rolUsuario?.usuario;
 
         setRequerimiento({
+          requerimientoId: req?.id_requerimiento || null,
           numero: req?.no_requerimiento || "",
           tramite_priorizado: req?.tema || "",
           tramite_cat: data?.sirecqExterno?.tramitecat || "",
           prioridad: req?.id_categoria || "",
-          dependencia: data?.sirecqExterno?.dependencia?.sigla_dependencia || data?.sirecqExterno?.dependencia?.nombre_dependencia || "DMSIST",
+          dependencia: data?.sirecqExterno?.dependencia?.sigla_dependencia || 
+                      data?.sirecqExterno?.dependencia?.nombre_dependencia || "DMSIST",
           seguimiento: data?.sirecqExterno?.seguimientoinst || "",
           clasificacion: (() => {
             const id = data?.clasifCatastral?.id_clasif_catastral;
@@ -76,17 +89,41 @@ export default function SirecqEditor({ mode = "view" }) {
           })(),
           sistema: req?.sistema?.nom_sistema || "SIREC-Q",
           responsable: analista ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim() : "",
-          oficio_despacho: version?.ofi_desp_pt || "",
-          fecha_envio_dmc: data?.fecha_env_dmc ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] : req?.fecha_registro?.slice(0, 10) || "",
-          fecha_envio_req: version?.fechaenvioreq || "",
+          fecha_envio_dmc: data?.fecha_env_dmc 
+            ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] 
+            : req?.fecha_registro?.slice(0, 10) || "",
           estado: req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
-          oficios_envio_dmi: version?.oficioenviodmi || "",
-          fecha_despacho: version?.fech_desp_pt || "",
           tecnico_desarrollo: tecnico ? `${tecnico.nombre_usuario} ${tecnico.apellidos_usuario}`.trim() : "",
           descripcion: req?.descripcion || "",
           observaciones: data?.obsv_tecnica || data?.sirecqExterno?.observacionesgen || "",
           observacion_tics: "",
         });
+
+        // Cargar versiones existentes
+        const loaded = req?.requerimientoVersiones?.map(v => ({
+          ...v.versionamiento,
+          isLoaded: true,
+          fech_desp_pt: v.versionamiento?.fech_desp_pt 
+            ? new Date(v.versionamiento.fech_desp_pt).toISOString().split('T')[0] 
+            : '',
+          fechaenvioreq: v.versionamiento?.fechaenvioreq 
+            ? new Date(v.versionamiento.fechaenvioreq).toISOString().split('T')[0] 
+            : ''
+        })) || [];
+
+        if (loaded.length === 0) {
+          loaded.push({
+            num_version: 1,
+            ofi_desp_pt: "",
+            fech_desp_pt: "",
+            oficioenviodmi: "",
+            fechaenvioreq: "",
+            obs_version: "",
+            isLoaded: false
+          });
+        }
+
+        setVersiones(loaded);
       } catch (err) {
         console.error("❌ Error al cargar el SIRECQ Interno:", err);
         alert("Error al cargar los datos del registro.");
@@ -97,107 +134,213 @@ export default function SirecqEditor({ mode = "view" }) {
     fetchData();
   }, [id, isCreate, token]);
 
-
   // Manejo de cambios
   const handleChange = (e) => {
     const { name, value } = e.target;
     setRequerimiento((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleVersionChange = (index, field, value) => {
+    setVersiones((prev) =>
+      prev.map((v, i) =>
+        i === index ? { ...v, [field]: value, _edited: true } : v
+      )
+    );
+  };
+
+
+  const handleAddVersion = () => {
+    const loadedVersions = versiones.filter(v => v.isLoaded);
+    const maxVersion = loadedVersions.length > 0 
+      ? Math.max(...loadedVersions.map(v => v.num_version || 0)) 
+      : 0;
+    const nextVersion = maxVersion + 1;
+    
+    setVersiones(prev => [...prev, {
+      num_version: nextVersion,
+      ofi_desp_pt: "",
+      fech_desp_pt: "",
+      oficioenviodmi: "",
+      fechaenvioreq: "",
+      obs_version: "",
+      isLoaded: false
+    }]);
+  };
+
   // Guardar (crear o actualizar)
-// Guardar (crear o actualizar)
-const handleSave = async () => {
-  try {
-    setLoading(true);
-
-    const payload = {
-      fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
-      obsv_tecnica: requerimiento.observaciones || "",
-      id_clasif_catastral:
-        requerimiento.clasificacion === "A"
-          ? 1
-          : requerimiento.clasificacion === "B"
-          ? 2
-          : 3,
-      id_analista: 1,
-      id_tecnico: 2,
-      requerimiento: {
-        no_requerimiento: requerimiento.numero,
-        tema: requerimiento.tramite_priorizado,
-        descripcion: requerimiento.descripcion,
-        fase: "Requisito",
-        fecha_registro: new Date().toISOString().split("T")[0],
-        id_estado_requerimiento: 5,
-        id_categoria: Number(requerimiento.prioridad) || 1,
-        id_sistema:
-          sistemas.findIndex((s) => s === requerimiento.sistema) + 1 || 1,
-        id_rol_usuario: 3,
-      },
-      sirecqExterno: {
-        tramitepr: requerimiento.tramite_priorizado,
-        seguimientoinst: requerimiento.seguimiento,
-        tramitecat: requerimiento.tramite_cat,
-        observacionesgen: requerimiento.observaciones || "",
-        id_dependencia:
-          dependencias.findIndex((d) => d === requerimiento.dependencia) + 1 || 1,
-      },
-    };
-
-    if (isCreate) {
-      const response = await createSirecq({ token, payload });
-      const newRecord = response?.data; // ✅ tu backend devuelve dentro de 'data'
-
-      console.log("🟢 Nuevo registro creado:", newRecord);
-
-      // 🔍 Mapeo después de crear, usando la misma lógica que en fetchData
-      const req = newRecord?.sirecqExterno?.requerimiento;
-      const version = req?.requerimientoVersiones?.[0]?.versionamiento || {};
-      const tecnico = newRecord?.usuariosSirecq?.[1]?.rolUsuario?.usuario;
-      const analista = req?.rolUsuario?.usuario;
-
-      setRequerimiento({
-        numero: req?.no_requerimiento || "",
-        tramite_priorizado: req?.tema || "",
-        tramite_cat: newRecord?.sirecqExterno?.tramitecat || "",
-        prioridad: req?.id_categoria || "",
-        dependencia: newRecord?.sirecqExterno?.dependencia?.sigla_dependencia || newRecord?.sirecqExterno?.dependencia?.nombre_dependencia || "DMSIST",
-        seguimiento: newRecord?.sirecqExterno?.seguimientoinst || "",
-        clasificacion: (() => {
-          const id = newRecord?.clasifCatastral?.id_clasif_catastral;
-          return id === 1 ? "A" : id === 2 ? "B" : id === 3 ? "C" : "";
-        })(),
-        sistema: req?.sistema?.nom_sistema || "SIREC-Q",
-        responsable: analista ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim() : "",
-        oficio_despacho: version?.ofi_desp_pt || "",
-        fecha_envio_dmc: newRecord?.fecha_env_dmc ? new Date(newRecord.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] : req?.fecha_registro?.slice(0, 10) || "",
-        fecha_envio_req: version?.fechaenvioreq || "",
-        estado: req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
-        oficios_envio_dmi: version?.oficioenviodmi || "",
-        fecha_despacho: version?.fech_desp_pt || "",
-        tecnico_desarrollo: tecnico ? `${tecnico.nombre_usuario} ${tecnico.apellidos_usuario}`.trim() : "",
-        descripcion: req?.descripcion || "",
-        observaciones: newRecord?.obsv_tecnica || newRecord?.sirecqExterno?.observacionesgen || "",
-        observacion_tics: "",
-      });
-
-      alert("✅ SIRECQ Interno creado correctamente");
-      setEditMode(false);
-    } else {
-      const response = await updateSirecq({ token, id, payload });
-      const updatedRecord = response?.data;
-
-      console.log("🟢 Registro actualizado:", updatedRecord);
-      alert("✅ SIRECQ Interno actualizado correctamente");
-      setEditMode(false);
+  const handleSave = async () => {
+    // Validaciones
+    if (!requerimiento.numero?.trim()) {
+      alert("❌ El número de requerimiento es requerido.");
+      return;
     }
-  } catch (err) {
-    console.error("❌ Error al guardar:", err);
-    alert("Error al guardar el registro.");
-  } finally {
-    setLoading(false);
-  }
+    if (!requerimiento.descripcion?.trim()) {
+      alert("❌ La descripción es requerida.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const v1 = versiones[0] || {};
+
+      const payload = {
+  fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
+  obsv_tecnica: requerimiento.observaciones || "",
+  id_clasif_catastral:
+    requerimiento.clasificacion === "A"
+      ? 1
+      : requerimiento.clasificacion === "B"
+      ? 2
+      : 3,
+  id_analista: 1,
+  id_tecnico: 2,
+
+  requerimiento: {
+    no_requerimiento: requerimiento.numero,
+    tema: requerimiento.tramite_priorizado,
+    descripcion: requerimiento.descripcion,
+    fase: "Requisito",
+    fecha_registro: new Date().toISOString().split("T")[0],
+    id_estado_requerimiento: 5,
+    id_categoria: Number(requerimiento.prioridad) || 1,
+    id_sistema:
+      sistemas.findIndex((s) => s === requerimiento.sistema) + 1 || 1,
+    id_rol_usuario: 3,
+
+    // 🔹 AQUI AÑADIMOS EL BLOQUE DE VERSIONES CORRECTO
+    versiones: [
+  {
+    num_version: 1,
+    ofi_desp_pt: requerimiento.oficio_despacho || null,
+    fech_desp_pt: requerimiento.fecha_despacho || null,
+    oficioenviodmi: requerimiento.oficios_envio_dmi || null,
+    fechaenvioreq: requerimiento.fecha_envio_req || null,
+    obs_version: requerimiento.observacion_tics || null,
+  },
+],
+
+  },
+
+  sirecqExterno: {
+    tramitepr: requerimiento.tramite_priorizado,
+    seguimientoinst: requerimiento.seguimiento,
+    tramitecat: requerimiento.tramite_cat,
+    observacionesgen: requerimiento.observaciones || "",
+    id_dependencia:
+      dependencias.findIndex((d) => d === requerimiento.dependencia) + 1 || 1,
+  },
 };
 
+      if (isCreate) {
+        const response = await createSirecq({ token, payload });
+        alert("✅ SIRECQ Interno creado correctamente");
+        navigate("/sirecq-interno");
+      } else {
+  // ⚙️ Construir payload base
+  const payload = {
+    fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
+    obsv_tecnica: requerimiento.observaciones || "",
+    id_clasif_catastral:
+      requerimiento.clasificacion === "A"
+        ? 1
+        : requerimiento.clasificacion === "B"
+        ? 2
+        : 3,
+    id_analista: 1,
+    id_tecnico: 2,
+    requerimiento: {
+      no_requerimiento: requerimiento.numero,
+      tema: requerimiento.tramite_priorizado,
+      descripcion: requerimiento.descripcion,
+      fase: "Requisito",
+      id_estado_requerimiento: 5,
+      id_categoria: Number(requerimiento.prioridad) || 1,
+      id_sistema:
+        sistemas.findIndex((s) => s === requerimiento.sistema) + 1 || 1,
+      id_rol_usuario: 3,
+    },
+    sirecqExterno: {
+      tramitepr: requerimiento.tramite_priorizado,
+      seguimientoinst: requerimiento.seguimiento,
+      tramitecat: requerimiento.tramite_cat,
+      observacionesgen: requerimiento.observaciones || "",
+      id_dependencia:
+        dependencias.findIndex((d) => d === requerimiento.dependencia) + 1 || 1,
+    },
+  };
+
+  // 🆕 Detectar versiones modificadas y nuevas
+  const modificadas = versiones.filter((v) => v.isLoaded && v._edited);
+  const nuevas = versiones.filter((v) => !v.isLoaded);
+
+  // 🆕 Caso: nueva versión
+  if (nuevas.length > 0) {
+    const ultima = nuevas[nuevas.length - 1];
+    payload.versionamiento = {
+      num_version: ultima.num_version || 1,
+      ofi_desp_pt: ultima.ofi_desp_pt || "",
+      fech_desp_pt: ultima.fech_desp_pt || null,
+      oficioenviodmi: ultima.oficioenviodmi || "",
+      fechaenvioreq: ultima.fechaenvioreq || null,
+      obs_version: ultima.obs_version || "",
+    };
+  }
+
+  // 🧩 Caso: versiones modificadas → se actualizan directamente
+  for (const v of modificadas) {
+    await fetch(`${import.meta.env.VITE_API_URL}/versionamiento/${v.id_version}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        ofi_desp_pt: v.ofi_desp_pt,
+        fech_desp_pt: v.fech_desp_pt,
+        oficioenviodmi: v.oficioenviodmi,
+        fechaenvioreq: v.fechaenvioreq,
+        obs_version: v.obs_version,
+      }),
+    });
+  }
+
+  // ✅ Actualizar Sirecq con posible nueva versión
+  await updateSirecq({ token, id, payload });
+  alert("✅ SIRECQ Interno actualizado correctamente");
+
+  // 🔄 Recargar datos actualizados del backend
+  const refreshed = await getSirecq(id, { token });
+  const req = refreshed?.sirecqExterno?.requerimiento;
+  setRequerimiento((prev) => ({
+    ...prev,
+    descripcion: req?.descripcion || prev.descripcion,
+  }));
+  setVersiones(
+    req?.requerimientoVersiones?.map(v => ({
+      ...v.versionamiento,
+      isLoaded: true,
+      fech_desp_pt: v.versionamiento?.fech_desp_pt
+        ? new Date(v.versionamiento.fech_desp_pt).toISOString().split('T')[0]
+        : '',
+      fechaenvioreq: v.versionamiento?.fechaenvioreq
+        ? new Date(v.versionamiento.fechaenvioreq).toISOString().split('T')[0]
+        : ''
+    })) || []
+  );
+
+  setEditMode(false);
+
+}
+
+
+    } catch (err) {
+      console.error("❌ Error al guardar:", err);
+      alert("Error al guardar el registro.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) return <div className="p-6">Cargando...</div>;
 
@@ -247,8 +390,6 @@ const handleSave = async () => {
       </div>
 
       <div className="h-1 bg-[#0891B2] mb-6"></div>
-      {/* -------------- PEGAR TU CÓDIGO VISUAL ORIGINAL AQUÍ -------------- */}
-
 
       {/* Contenido Principal */}
       <div className="px-8 flex flex-col xl:flex-row gap-6">
@@ -394,7 +535,7 @@ const handleSave = async () => {
             </div>
           </div>
 
-          {/* Sección 2 - Detalles */}
+          {/* Sección 2 - Detalles adicionales */}
           <div className="border-2 border-[#0891B2] rounded-xl p-5">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <SimpleField
@@ -404,28 +545,10 @@ const handleSave = async () => {
                 onChange={handleChange}
                 editMode={editMode || isCreate}
               />
-              <SimpleField
-                label="Oficio despacho propuesta técnica"
-                value={requerimiento.oficio_despacho}
-                name="oficio_despacho"
-                onChange={handleChange}
-                editMode={editMode || isCreate}
-              />
-              <div></div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <DateFieldComp
                 label="Fecha de envío por la DMC"
                 value={requerimiento.fecha_envio_dmc}
                 name="fecha_envio_dmc"
-                onChange={handleChange}
-                editMode={editMode || isCreate}
-              />
-              <DateFieldComp
-                label="Fecha de envío requerimiento"
-                value={requerimiento.fecha_envio_req}
-                name="fecha_envio_req"
                 onChange={handleChange}
                 editMode={editMode || isCreate}
               />
@@ -440,20 +563,6 @@ const handleSave = async () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <SimpleField
-                label="Oficios de envío a DMI"
-                value={requerimiento.oficios_envio_dmi}
-                name="oficios_envio_dmi"
-                onChange={handleChange}
-                editMode={editMode || isCreate}
-              />
-              <DateFieldComp
-                label="Fecha despacho propuesta técnica"
-                value={requerimiento.fecha_despacho}
-                name="fecha_despacho"
-                onChange={handleChange}
-                editMode={editMode || isCreate}
-              />
-              <SimpleField
                 label="Técnico DMSIST para desarrollo"
                 value={requerimiento.tecnico_desarrollo}
                 name="tecnico_desarrollo"
@@ -461,6 +570,27 @@ const handleSave = async () => {
                 editMode={editMode || isCreate}
               />
             </div>
+          </div>
+
+          {/* Sección 3 - Versiones */}
+          <div className="space-y-4">
+            {versiones.map((version, index) => (
+              <VersionBlock
+                key={index}
+                version={version}
+                index={index}
+                onChange={handleVersionChange}
+                editMode={editMode || isCreate}
+              />
+            ))}
+            {editMode && !isCreate && (
+              <button
+                onClick={handleAddVersion}
+                className="px-4 py-2 bg-[#0891B2] text-white rounded hover:bg-[#0E7490] transition"
+              >
+                + Añadir versión
+              </button>
+            )}
           </div>
         </div>
 
@@ -546,7 +676,6 @@ const handleSave = async () => {
   );
 }
 
-
 /* ================= Componentes ================= */
 function SimpleField({ label, name, value, onChange, editMode, type = "text" }) {
   return (
@@ -586,6 +715,66 @@ function DateFieldComp({ label, name, value, onChange, editMode }) {
           {value || ""}
         </div>
       )}
+    </div>
+  );
+}
+
+function VersionBlock({ version, index, onChange, editMode }) {
+  return (
+    <div className="border-2 border-[#0891B2] rounded-xl p-5">
+      <h3 className="font-bold mb-3 text-[#0891B2]">Versión {version.num_version}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SimpleField
+          label="Oficio despacho propuesta técnica"
+          name="ofi_desp_pt"
+          value={version.ofi_desp_pt || ""}
+          onChange={(e) => onChange(index, e.target.name, e.target.value)}
+          editMode={editMode}
+        />
+
+        <DateFieldComp
+          label="Fecha despacho propuesta técnica"
+          name="fech_desp_pt"
+          value={version.fech_desp_pt || ""}
+          onChange={(e) => onChange(index, e.target.name, e.target.value)}
+          editMode={editMode}
+        />
+
+        <SimpleField
+          label="Oficios de envío a DMI"
+          name="oficioenviodmi"
+          value={version.oficioenviodmi || ""}
+          onChange={(e) => onChange(index, e.target.name, e.target.value)}
+          editMode={editMode}
+        />
+
+        <DateFieldComp
+          label="Fecha de envío requerimiento"
+          name="fechaenvioreq"
+          value={version.fechaenvioreq || ""}
+          onChange={(e) => onChange(index, e.target.name, e.target.value)}
+          editMode={editMode}
+        />
+
+        <div className="col-span-2">
+          <label className="block text-xs font-semibold mb-1 text-gray-700">
+            Observaciones del Versionamiento
+          </label>
+          {editMode ? (
+            <textarea
+              name="obs_version"
+              value={version.obs_version || ""}
+              onChange={(e) => onChange(index, 'obs_version', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-blue-50"
+              rows={4}
+            />
+          ) : (
+            <div className="w-full px-3 py-2 text-sm bg-blue-50 rounded text-gray-700">
+              {version.obs_version || ""}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
