@@ -209,16 +209,17 @@ export default function SirecqEditor({ mode = "view" }) {
     id_rol_usuario: 3,
 
     // 🔹 AQUI AÑADIMOS EL BLOQUE DE VERSIONES CORRECTO
-    versiones: [
-  {
-    num_version: 1,
-    ofi_desp_pt: requerimiento.oficio_despacho || null,
-    fech_desp_pt: requerimiento.fecha_despacho || null,
-    oficioenviodmi: requerimiento.oficios_envio_dmi || null,
-    fechaenvioreq: requerimiento.fecha_envio_req || null,
-    obs_version: requerimiento.observacion_tics || null,
-  },
-],
+        versiones: [
+      {
+        num_version: 1,
+        ofi_desp_pt: versiones[0]?.ofi_desp_pt || "",
+        fech_desp_pt: versiones[0]?.fech_desp_pt || null,
+        oficioenviodmi: versiones[0]?.oficioenviodmi || "",
+        fechaenvioreq: versiones[0]?.fechaenvioreq || null,
+        obs_version: versiones[0]?.obs_version || "",
+      },
+    ],
+
 
   },
 
