@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
-import { listSirecq, exportSirecqCsv } from "../services/sirecqService";
+import { listSirecq, exportSirecqCsv, listEstadosRequerimiento } from "../services/sirecqService";
 import { useAuth } from "../context/AuthContext";
 
 const ESTADOS = [
@@ -19,6 +19,8 @@ export default function Sirecq() {
   const [status, setStatus] = useState("Todos");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+  const [estadosList, setEstadosList] = useState([]);
+
 
   const [data, setData] = useState({
     items: [],
@@ -31,7 +33,13 @@ export default function Sirecq() {
   async function load() {
     setLoading(true);
     try {
-      const res = await listSirecq({ token, page, pageSize, search, status });
+      const res = await listSirecq({
+      token,
+      page,
+      pageSize,
+      search,
+      status: status === "Todos" ? "" : status.toUpperCase(),
+    });
       setData(res);
     } catch (error) {
       console.error("Error cargando SIRECQ internos:", error);
@@ -60,6 +68,19 @@ export default function Sirecq() {
     return () => clearTimeout(delay);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  useEffect(() => {
+  const fetchEstados = async () => {
+    try {
+      const estados = await listEstadosRequerimiento({ token });
+      setEstadosList([{ nombre_estado_requerimiento: "Todos" }, ...estados]);
+    } catch (error) {
+      console.error("Error cargando estados:", error);
+    }
+  };
+  fetchEstados();
+}, [token]);
+
 
   const showingRange = useMemo(() => {
     const start = (data.page - 1) * pageSize + 1;
@@ -160,20 +181,21 @@ export default function Sirecq() {
               </button>
             </div>
 
-            <select
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {ESTADOS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+           <select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
+            className="px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {estadosList.map((s, i) => (
+              <option key={i} value={s.nombre_estado_requerimiento}>
+                {s.nombre_estado_requerimiento}
+              </option>
+            ))}
+          </select>
+
           </div>
 
           {/* Tabla */}
@@ -203,9 +225,11 @@ export default function Sirecq() {
                   {/* Estado */}
                   <div className="px-4 py-3">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(row.estado)}`}
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(
+                        row.sirecqExterno?.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento
+                      )}`}
                     >
-                      {row.estado}
+                      {row.sirecqExterno?.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || "Sin estado"}
                     </span>
                   </div>
                   

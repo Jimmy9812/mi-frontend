@@ -74,98 +74,78 @@ function seed(force = false) {
   localStorage.setItem(LS_KEY, JSON.stringify(mockData));
 }
 
-// 🆕 LISTADO CON PAGINACIÓN
+// 🆕 LISTADO CON PAGINACIÓN + FILTROS DESDE BACKEND
 export async function listSirecq({
   token,
   page = 1,
   pageSize = 10,
   search = "",
-  status = "ALL",
+  status = "Todos",
 } = {}) {
   if (API) {
     try {
-      // Traer todos los registros del backend
-      const params = new URLSearchParams();
-      if (search && search.trim()) {
-        params.append('search', search.trim());
-      }
+      // Construcción de parámetros dinámicos
+      const params = new URLSearchParams({
+        page,
+        pageSize,
+        search: search.trim(),
+        status,
+      }).toString();
 
-      // Usar un límite alto para traer todos los registros
-      params.append('page', '1');
-      params.append('limit', '10000');
-
-      const res = await fetch(`${API}/sirecq-interno?${params.toString()}`, {
+      const res = await fetch(`${API}/sirecq-interno?${params}`, {
         headers: authHeaders(token),
       });
-      
+
       if (!res.ok) {
-        const errorText = await res.text().catch(() => '');
+        const errorText = await res.text().catch(() => "");
         console.error(`Error ${res.status}: ${res.statusText}`, errorText);
         throw new Error(`Error ${res.status}: No se pudo obtener Sirecq Internos`);
       }
-      
+
       const data = await res.json();
-      let transformedItems = (data.data || []).map(item => normalizarItem(item));
 
-      // Filtrar por búsqueda en frontend si es necesario
-      if (search && search.trim()) {
-        const normalize = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-        const searchNorm = normalize(search);
-        transformedItems = transformedItems.filter(item =>
-          normalize(String(item.id_sirecq_interno)).includes(searchNorm) ||
-          normalize(item.obsv_tecnica || "").includes(searchNorm)
-        );
-      }
-
-      // Normaliza cadenas para comparación
-      const normalize = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-
-      // Filtrar por estado en frontend
-      const filteredItems = status === "ALL" || status === "Todos" ? transformedItems :
-        transformedItems.filter(item => normalize(item.estado) === normalize(status));
-
-      // Paginar en frontend
-      const total = filteredItems.length;
-      const totalPages = Math.max(1, Math.ceil(total / pageSize));
-      const start = (page - 1) * pageSize;
-      const end = start + pageSize;
-      const pagedItems = filteredItems.slice(start, end);
+      // 🔹 Backend ya devuelve { data: { items, total, totalPages } }
+      const payload = data.data || {};
 
       return {
-        items: pagedItems,
-        page,
-        total,
-        totalPages,
+        items: (payload.items || []).map(normalizarItem),
+        page: payload.page || page,
+        total: payload.total || 0,
+        totalPages: payload.totalPages || 1,
       };
-      
     } catch (error) {
       console.error("Error en listSirecq:", error);
       throw error;
     }
   }
 
-  // Modo sin API - usar localStorage con paginación
+  // 🔹 Fallback local (sin backend)
   seed();
   await sleep(300);
   const allData = JSON.parse(localStorage.getItem(LS_KEY)) || [];
-  let transformedItems = allData.map(item => normalizarItem(item));
+  let transformedItems = allData.map((item) => normalizarItem(item));
 
-  // Filtrar por búsqueda
+  // Búsqueda local
   if (search && search.trim()) {
-    const normalize = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    const normalize = (str) =>
+      (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
     const searchNorm = normalize(search);
-    transformedItems = transformedItems.filter(item =>
-      normalize(String(item.id_sirecq_interno)).includes(searchNorm) ||
-      normalize(item.obsv_tecnica || "").includes(searchNorm)
+    transformedItems = transformedItems.filter(
+      (item) =>
+        normalize(String(item.id_sirecq_interno)).includes(searchNorm) ||
+        normalize(item.obsv_tecnica || "").includes(searchNorm)
     );
   }
 
-  // Filtrar por estado
-  const normalize = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-  const filteredItems = status === "ALL" || status === "Todos" ? transformedItems :
-    transformedItems.filter(item => normalize(item.estado) === normalize(status));
+  // Filtro local por estado
+  const normalize = (str) =>
+    (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  const filteredItems =
+    status === "Todos"
+      ? transformedItems
+      : transformedItems.filter((item) => normalize(item.estado) === normalize(status));
 
-  // Paginar
+  // Paginación local
   const total = filteredItems.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize;
@@ -179,6 +159,7 @@ export async function listSirecq({
     totalPages,
   };
 }
+
 
 export async function getSirecq(id, { token } = {}) {
   if (API) {
@@ -543,6 +524,32 @@ export async function listSistemas({ token } = {}) {
     }
   }
 }
+
+// 🆕 Listar estados de requerimiento
+export async function listEstadosRequerimiento({ token } = {}) {
+  if (API) {
+    try {
+      const res = await fetch(`${API}/estado-requerimiento`, {
+        method: "GET",
+        headers: authHeaders(token),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        console.error(`Error ${res.status}: ${res.statusText}`, errorText);
+        throw new Error(`Error ${res.status}: No se pudo obtener estados de requerimiento`);
+      }
+
+      const data = await res.json();
+      // Aseguramos formato homogéneo
+      return Array.isArray(data) ? data : data.data || [];
+    } catch (error) {
+      console.error("Error en listEstadosRequerimiento:", error);
+      throw error;
+    }
+  }
+}
+
 
 // 🧹 util para debug manual
 export function clearSirecqSeed() {

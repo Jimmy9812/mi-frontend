@@ -10,6 +10,7 @@ import {
   listDependencias,
   listClasificaciones,
   listSistemas,
+  listEstadosRequerimiento,
   addVersionToSirecq,
 } from "../services/sirecqService";
 
@@ -29,6 +30,8 @@ export default function SirecqEditor({ mode = "view" }) {
   const [dependencias, setDependencias] = useState([]);
   const [clasificacionesList, setClasificacionesList] = useState([]);
   const [sistemasList, setSistemasList] = useState([]);
+  const [estadosList, setEstadosList] = useState([]);
+
 
 
   // Estado inicial vacío
@@ -67,6 +70,12 @@ export default function SirecqEditor({ mode = "view" }) {
 
         const sist = await listSistemas({ token });
         setSistemasList(sist);
+
+        // 🔹 Cargar estados de requerimiento
+        const estados = await listEstadosRequerimiento({ token });
+        setEstadosList(estados);
+
+
 
 
         if (isCreate) {
@@ -216,7 +225,7 @@ export default function SirecqEditor({ mode = "view" }) {
     descripcion: requerimiento.descripcion,
     fase: "Requisito",
     fecha_registro: new Date().toISOString().split("T")[0],
-    id_estado_requerimiento: 5,
+    id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
     id_categoria: Number(requerimiento.prioridad) || 1,
     id_sistema: Number(requerimiento.id_sistema) || null,
     id_rol_usuario: 3,
@@ -263,7 +272,7 @@ console.log("📤 Payload enviado al backend:", payload);
       tema: requerimiento.tramite_priorizado,
       descripcion: requerimiento.descripcion,
       fase: "Requisito",
-      id_estado_requerimiento: 5,
+      id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
       id_categoria: Number(requerimiento.prioridad) || 1,
       id_sistema: Number(requerimiento.id_sistema) || 1, // ✅ ← corrección
       id_rol_usuario: 3,
@@ -578,31 +587,65 @@ console.log("📤 Payload enviado al backend:", payload);
             </div>
           </div>
 
-          {/* Sección 2 - Detalles adicionales */}
-          <div className="border-2 border-[#0891B2] rounded-xl p-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <SimpleField
-                label="Responsable(Analista Catastral)"
-                value={requerimiento.responsable}
-                name="responsable"
-                onChange={handleChange}
-                editMode={editMode || isCreate}
-              />
-              <DateFieldComp
-                label="Fecha de envío por la DMC"
-                value={requerimiento.fecha_envio_dmc}
-                name="fecha_envio_dmc"
-                onChange={handleChange}
-                editMode={editMode || isCreate}
-              />
-              <SimpleField
-                label="Estado del requerimiento"
-                value={requerimiento.estado}
-                name="estado"
-                onChange={handleChange}
-                editMode={editMode || isCreate}
-              />
-            </div>
+              {/* Sección 2 - Detalles adicionales */}
+              <div className="border-2 border-[#0891B2] rounded-xl p-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <SimpleField
+                    label="Responsable (Analista Catastral)"
+                    value={requerimiento.responsable}
+                    name="responsable"
+                    onChange={handleChange}
+                    editMode={editMode || isCreate}
+                  />
+
+                  <DateFieldComp
+                    label="Fecha de envío por la DMC"
+                    value={requerimiento.fecha_envio_dmc}
+                    name="fecha_envio_dmc"
+                    onChange={handleChange}
+                    editMode={editMode || isCreate}
+                  />
+
+                  {/* Estado del requerimiento */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-gray-700">
+                      Estado del requerimiento
+                    </label>
+                    {editMode ? (
+                      <select
+                        name="estado"
+                        value={requerimiento.estado || ""}
+                        onChange={(e) => {
+                          const selectedNombre = e.target.value;
+                          const selected = estadosList.find(
+                            (est) => est.nombre_estado_requerimiento === selectedNombre
+                          );
+                          setRequerimiento((prev) => ({
+                            ...prev,
+                            estado: selected?.nombre_estado_requerimiento || "",
+                            id_estado_requerimiento: selected?.id_estado_requerimiento || null,
+                          }));
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-blue-50 focus:ring-1 focus:ring-[#0891B2]"
+                      >
+                        <option value="">Seleccione...</option>
+                        {estadosList.map((est) => (
+                          <option
+                            key={est.id_estado_requerimiento}
+                            value={est.nombre_estado_requerimiento}
+                          >
+                            {est.nombre_estado_requerimiento}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="w-full px-3 py-2 text-sm bg-blue-50 rounded text-gray-700">
+                        {requerimiento.estado || ""}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <SimpleField
