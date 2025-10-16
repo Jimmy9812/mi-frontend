@@ -495,6 +495,55 @@ export async function listDependencias({ token } = {}) {
   }
 }
 
+// 🆕 Listar clasificaciones catastrales
+export async function listClasificaciones({ token } = {}) {
+  if (API) {
+    try {
+      const res = await fetch(`${API}/clasif-catastral`, {
+        method: "GET",
+        headers: authHeaders(token),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        console.error(`Error ${res.status}: ${res.statusText}`, errorText);
+        throw new Error(`Error ${res.status}: No se pudo obtener clasificaciones catastrales`);
+      }
+
+      const data = await res.json();
+      // Aseguramos formato homogéneo
+      return Array.isArray(data) ? data : data.data || [];
+    } catch (error) {
+      console.error("Error en listClasificaciones:", error);
+      throw error;
+    }
+  }
+}
+
+// 🆕 Listar sistemas
+export async function listSistemas({ token } = {}) {
+  if (API) {
+    try {
+      const res = await fetch(`${API}/sistema`, {
+        method: "GET",
+        headers: authHeaders(token),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        console.error(`Error ${res.status}: ${res.statusText}`, errorText);
+        throw new Error(`Error ${res.status}: No se pudo obtener sistemas`);
+      }
+
+      const data = await res.json();
+      return Array.isArray(data) ? data : data.data || [];
+    } catch (error) {
+      console.error("Error en listSistemas:", error);
+      throw error;
+    }
+  }
+}
+
 // 🧹 util para debug manual
 export function clearSirecqSeed() {
   localStorage.removeItem(LS_KEY);

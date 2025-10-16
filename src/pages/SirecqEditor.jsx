@@ -8,13 +8,13 @@ import {
   createSirecq,
   updateSirecq,
   listDependencias,
+  listClasificaciones,
+  listSistemas,
   addVersionToSirecq,
 } from "../services/sirecqService";
 
 // Catálogos fijos
-const sistemas = ["SIREC-Q", "STL", "SUIM", "CERTIFICADOS", "DBB"];
 const estados = ["Enviado", "Devuelto", "Test", "Producción", "En revisión", "Atendido"];
-const clasificaciones = ["A", "B", "C"];
 
 export default function SirecqEditor({ mode = "view" }) {
   const { id } = useParams();
@@ -27,6 +27,8 @@ export default function SirecqEditor({ mode = "view" }) {
   const [loading, setLoading] = useState(false);
   const [versiones, setVersiones] = useState([]);
   const [dependencias, setDependencias] = useState([]);
+  const [clasificacionesList, setClasificacionesList] = useState([]);
+  const [sistemasList, setSistemasList] = useState([]);
 
 
   // Estado inicial vacío
@@ -59,6 +61,14 @@ export default function SirecqEditor({ mode = "view" }) {
         const deps = await listDependencias({ token });
         setDependencias(deps);
 
+        // 🔹 Cargar clasificaciones y sistemas
+        const clasif = await listClasificaciones({ token });
+        setClasificacionesList(clasif);
+
+        const sist = await listSistemas({ token });
+        setSistemasList(sist);
+
+
         if (isCreate) {
           setVersiones([{
             num_version: 1,
@@ -88,11 +98,13 @@ export default function SirecqEditor({ mode = "view" }) {
           // ✅ ahora mapeamos correctamente la dependencia completa
           dependencia: data?.sirecqExterno?.dependencia || null,
           seguimiento: data?.sirecqExterno?.seguimientoinst || "",
-          clasificacion: (() => {
-            const id = data?.clasifCatastral?.id_clasif_catastral;
-            return id === 1 ? "A" : id === 2 ? "B" : id === 3 ? "C" : "";
-          })(),
-          sistema: req?.sistema?.nom_sistema || "SIREC-Q",
+           // ✅ Clasificación: guardamos también el id para preseleccionar
+          id_clasif_catastral: data?.clasifCatastral?.id_clasif_catastral || "",
+          clasificacion: data?.clasifCatastral?.nombre_clasif_catastral || "",
+
+          // ✅ Sistema: guardamos tanto el id como el objeto
+          id_sistema: req?.sistema?.id_sistema || "",
+          sistema: req?.sistema || null,
           responsable: analista ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim() : "",
           fecha_envio_dmc: data?.fecha_env_dmc 
             ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] 
@@ -194,12 +206,7 @@ export default function SirecqEditor({ mode = "view" }) {
       const payload = {
   fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
   obsv_tecnica: requerimiento.obsv_tecnica || "--",
-  id_clasif_catastral:
-    requerimiento.clasificacion === "A"
-      ? 1
-      : requerimiento.clasificacion === "B"
-      ? 2
-      : 3,
+  id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
   id_analista: 1,
   id_tecnico: 2,
 
@@ -211,8 +218,7 @@ export default function SirecqEditor({ mode = "view" }) {
     fecha_registro: new Date().toISOString().split("T")[0],
     id_estado_requerimiento: 5,
     id_categoria: Number(requerimiento.prioridad) || 1,
-    id_sistema:
-      sistemas.findIndex((s) => s === requerimiento.sistema) + 1 || 1,
+    id_sistema: Number(requerimiento.id_sistema) || null,
     id_rol_usuario: 3,
 
     // 🔹 AQUI AÑADIMOS EL BLOQUE DE VERSIONES CORRECTO
@@ -238,6 +244,7 @@ export default function SirecqEditor({ mode = "view" }) {
     id_dependencia: requerimiento.dependencia?.id_dependencia || 1,
   },
 };
+console.log("📤 Payload enviado al backend:", payload);
 
       if (isCreate) {
         const response = await createSirecq({ token, payload });
@@ -248,12 +255,7 @@ export default function SirecqEditor({ mode = "view" }) {
   const payload = {
     fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
     obsv_tecnica: requerimiento.obsv_tecnica || "--",
-    id_clasif_catastral:
-      requerimiento.clasificacion === "A"
-        ? 1
-        : requerimiento.clasificacion === "B"
-        ? 2
-        : 3,
+    id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
     id_analista: 1,
     id_tecnico: 2,
     requerimiento: {
@@ -263,8 +265,7 @@ export default function SirecqEditor({ mode = "view" }) {
       fase: "Requisito",
       id_estado_requerimiento: 5,
       id_categoria: Number(requerimiento.prioridad) || 1,
-      id_sistema:
-        sistemas.findIndex((s) => s === requerimiento.sistema) + 1 || 1,
+      id_sistema: Number(requerimiento.id_sistema) || 1, // ✅ ← corrección
       id_rol_usuario: 3,
     },
     sirecqExterno: {
@@ -455,18 +456,32 @@ export default function SirecqEditor({ mode = "view" }) {
                   Clasificación catastral
                 </label>
                 {editMode ? (
-                  <select
-                    name="clasificacion"
-                    value={requerimiento.clasificacion}
-                    onChange={handleChange}
-                    className="w-24 border border-gray-300 rounded-md bg-white text-gray-800 text-sm focus:ring-1 focus:ring-[#0891B2]"
-                  >
-                    {clasificaciones.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+              <select
+                name="id_clasif_catastral"
+                value={Number(requerimiento.id_clasif_catastral) || ""}
+                onChange={(e) => {
+                  const selectedId = Number(e.target.value);
+                  const selected = clasificacionesList.find(
+                    (c) => c.id_clasif_catastral === selectedId
+                  );
+                  setRequerimiento((prev) => ({
+                    ...prev,
+                    id_clasif_catastral: selectedId,
+                    clasificacion: selected?.nombre_clasif_catastral || "",
+                  }));
+                }}
+                className="w-40 border border-gray-300 rounded-md bg-white text-gray-800 text-sm focus:ring-1 focus:ring-[#0891B2]"
+              >
+
+                <option value="">Seleccione...</option>
+                {clasificacionesList.map((c) => (
+                  <option key={c.id_clasif_catastral} value={c.id_clasif_catastral}>
+                    {c.nombre_clasif_catastral}
+                  </option>
+                ))}
+              </select>
+
+
                 ) : (
                   <span className="bg-white px-4 py-1 rounded-md text-sm text-gray-800 shadow-inner">
                     {requerimiento.clasificacion}
@@ -510,21 +525,33 @@ export default function SirecqEditor({ mode = "view" }) {
               <div className="flex items-center justify-between bg-[#E0F2FE] rounded-lg px-4 py-2">
                 <label className="text-sm font-bold text-[#0891B2]">Sistema Afectar</label>
                 {editMode ? (
-                  <select
-                    name="sistema"
-                    value={requerimiento.sistema}
-                    onChange={handleChange}
-                    className="w-32 border border-gray-300 rounded-md bg-white text-gray-800 text-sm focus:ring-1 focus:ring-[#0891B2]"
-                  >
-                    {sistemas.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+              <select
+                name="id_sistema"
+                value={requerimiento.id_sistema || ""}
+                onChange={(e) => {
+                  const selected = sistemasList.find(
+                    (s) => s.id_sistema === Number(e.target.value)
+                  );
+                  setRequerimiento((prev) => ({
+                    ...prev,
+                    id_sistema: selected?.id_sistema || "",
+                    sistema: selected || null,
+                  }));
+                }}
+                className="w-40 border border-gray-300 rounded-md bg-white text-gray-800 text-sm focus:ring-1 focus:ring-[#0891B2]"
+              >
+                <option value="">Seleccione...</option>
+                {sistemasList.map((s) => (
+                  <option key={s.id_sistema} value={s.id_sistema}>
+                    {s.nom_sistema}
+                  </option>
+                ))}
+              </select>
+
+
                 ) : (
                   <span className="bg-white px-4 py-1 rounded-md text-sm text-gray-800 shadow-inner">
-                    {requerimiento.sistema}
+                    {requerimiento.sistema?.nom_sistema || ""}
                   </span>
                 )}
               </div>
