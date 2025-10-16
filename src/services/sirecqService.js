@@ -472,6 +472,29 @@ export async function addVersionToSirecq({ token, id_requerimiento, payload }) {
   return newVersion;
 }
 
+export async function listDependencias({ token } = {}) {
+  if (API) {
+    try {
+      const res = await fetch(`${API}/dependencia`, {
+        method: "GET",
+        headers: authHeaders(token),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        console.error(`Error ${res.status}: ${res.statusText}`, errorText);
+        throw new Error(`Error ${res.status}: No se pudo obtener dependencias`);
+      }
+
+      const data = await res.json();
+      return Array.isArray(data) ? data : data.data || [];
+    } catch (error) {
+      console.error("Error en listDependencias:", error);
+      throw error;
+    }
+  }
+}
+
 // 🧹 util para debug manual
 export function clearSirecqSeed() {
   localStorage.removeItem(LS_KEY);

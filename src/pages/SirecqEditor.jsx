@@ -7,12 +7,12 @@ import {
   getSirecq,
   createSirecq,
   updateSirecq,
+  listDependencias,
   addVersionToSirecq,
 } from "../services/sirecqService";
 
 // Catálogos fijos
 const sistemas = ["SIREC-Q", "STL", "SUIM", "CERTIFICADOS", "DBB"];
-const dependencias = ["DMSIST", "DMC", "DMF"];
 const estados = ["Enviado", "Devuelto", "Test", "Producción", "En revisión", "Atendido"];
 const clasificaciones = ["A", "B", "C"];
 
@@ -26,6 +26,8 @@ export default function SirecqEditor({ mode = "view" }) {
   const [editMode, setEditMode] = useState(isCreate);
   const [loading, setLoading] = useState(false);
   const [versiones, setVersiones] = useState([]);
+  const [dependencias, setDependencias] = useState([]);
+
 
   // Estado inicial vacío
   const [requerimiento, setRequerimiento] = useState({
@@ -43,33 +45,36 @@ export default function SirecqEditor({ mode = "view" }) {
     tecnico_desarrollo: "",
     descripcion: "",
     observaciones: "",
-    observacion_tics: "",
+    obsv_tecnica: "",
     requerimientoId: null,
   });
 
   // Cargar datos si es modo edición
   useEffect(() => {
     const fetchData = async () => {
-      if (isCreate) {
-        // Inicializar con versión 1 vacía
-        setVersiones([{
-          num_version: 1,
-          ofi_desp_pt: "",
-          fech_desp_pt: "",
-          oficioenviodmi: "",
-          fechaenvioreq: "",
-          obs_version: "",
-          isLoaded: false
-        }]);
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
-        const data = await getSirecq(id, { token });
 
-        // Mapeo según la estructura real del backend
+        // 🔹 Cargar dependencias desde backend
+        const deps = await listDependencias({ token });
+        setDependencias(deps);
+
+        if (isCreate) {
+          setVersiones([{
+            num_version: 1,
+            ofi_desp_pt: "",
+            fech_desp_pt: "",
+            oficioenviodmi: "",
+            fechaenvioreq: "",
+            obs_version: "",
+            isLoaded: false
+          }]);
+          setLoading(false);
+          return;
+        }
+
+        // 🔹 Cargar datos de Sirecq existente
+        const data = await getSirecq(id, { token });
         const req = data?.sirecqExterno?.requerimiento;
         const tecnico = data?.usuariosSirecq?.[1]?.rolUsuario?.usuario;
         const analista = req?.rolUsuario?.usuario;
@@ -80,8 +85,8 @@ export default function SirecqEditor({ mode = "view" }) {
           tramite_priorizado: req?.tema || "",
           tramite_cat: data?.sirecqExterno?.tramitecat || "",
           prioridad: req?.id_categoria || "",
-          dependencia: data?.sirecqExterno?.dependencia?.sigla_dependencia || 
-                      data?.sirecqExterno?.dependencia?.nombre_dependencia || "DMSIST",
+          // ✅ ahora mapeamos correctamente la dependencia completa
+          dependencia: data?.sirecqExterno?.dependencia || null,
           seguimiento: data?.sirecqExterno?.seguimientoinst || "",
           clasificacion: (() => {
             const id = data?.clasifCatastral?.id_clasif_catastral;
@@ -95,20 +100,20 @@ export default function SirecqEditor({ mode = "view" }) {
           estado: req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
           tecnico_desarrollo: tecnico ? `${tecnico.nombre_usuario} ${tecnico.apellidos_usuario}`.trim() : "",
           descripcion: req?.descripcion || "",
-          observaciones: data?.obsv_tecnica || data?.sirecqExterno?.observacionesgen || "",
-          observacion_tics: "",
+          observaciones: data?.sirecqExterno?.observacionesgen || "",
+          obsv_tecnica: data?.obsv_tecnica || "",
         });
 
-        // Cargar versiones existentes
+        // 🔹 Cargar versiones
         const loaded = req?.requerimientoVersiones?.map(v => ({
           ...v.versionamiento,
           isLoaded: true,
           fech_desp_pt: v.versionamiento?.fech_desp_pt 
-            ? new Date(v.versionamiento.fech_desp_pt).toISOString().split('T')[0] 
-            : '',
-          fechaenvioreq: v.versionamiento?.fechaenvioreq 
-            ? new Date(v.versionamiento.fechaenvioreq).toISOString().split('T')[0] 
-            : ''
+            ? new Date(v.versionamiento.fech_desp_pt).toISOString().split("T")[0]
+            : "",
+          fechaenvioreq: v.versionamiento?.fechaenvioreq
+            ? new Date(v.versionamiento.fechaenvioreq).toISOString().split("T")[0]
+            : "",
         })) || [];
 
         if (loaded.length === 0) {
@@ -119,20 +124,22 @@ export default function SirecqEditor({ mode = "view" }) {
             oficioenviodmi: "",
             fechaenvioreq: "",
             obs_version: "",
-            isLoaded: false
+            isLoaded: false,
           });
         }
 
         setVersiones(loaded);
       } catch (err) {
-        console.error("❌ Error al cargar el SIRECQ Interno:", err);
+        console.error("❌ Error al cargar datos del SIRECQ Interno:", err);
         alert("Error al cargar los datos del registro.");
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, [id, isCreate, token]);
+
 
   // Manejo de cambios
   const handleChange = (e) => {
@@ -186,7 +193,7 @@ export default function SirecqEditor({ mode = "view" }) {
 
       const payload = {
   fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
-  obsv_tecnica: requerimiento.observaciones || "",
+  obsv_tecnica: requerimiento.obsv_tecnica || "--",
   id_clasif_catastral:
     requerimiento.clasificacion === "A"
       ? 1
@@ -228,8 +235,7 @@ export default function SirecqEditor({ mode = "view" }) {
     seguimientoinst: requerimiento.seguimiento,
     tramitecat: requerimiento.tramite_cat,
     observacionesgen: requerimiento.observaciones || "",
-    id_dependencia:
-      dependencias.findIndex((d) => d === requerimiento.dependencia) + 1 || 1,
+    id_dependencia: requerimiento.dependencia?.id_dependencia || 1,
   },
 };
 
@@ -241,7 +247,7 @@ export default function SirecqEditor({ mode = "view" }) {
   // ⚙️ Construir payload base
   const payload = {
     fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
-    obsv_tecnica: requerimiento.observaciones || "",
+    obsv_tecnica: requerimiento.obsv_tecnica || "--",
     id_clasif_catastral:
       requerimiento.clasificacion === "A"
         ? 1
@@ -472,21 +478,30 @@ export default function SirecqEditor({ mode = "view" }) {
               <div className="flex items-center justify-between bg-[#E0F2FE] rounded-lg px-4 py-2">
                 <label className="text-sm font-bold text-[#0891B2]">Dependencia</label>
                 {editMode ? (
-                  <select
-                    name="dependencia"
-                    value={requerimiento.dependencia}
-                    onChange={handleChange}
-                    className="w-32 border border-gray-300 rounded-md bg-white text-gray-800 text-sm focus:ring-1 focus:ring-[#0891B2]"
-                  >
-                    {dependencias.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+                 <select
+                  name="dependencia"
+                  value={requerimiento.dependencia?.id_dependencia || ""}
+                  onChange={(e) => {
+                    const selected = dependencias.find(
+                      (d) => d.id_dependencia === Number(e.target.value)
+                    );
+                    setRequerimiento((prev) => ({ ...prev, dependencia: selected }));
+                  }}
+                  className="w-40 border border-gray-300 rounded-md bg-white text-gray-800 text-sm focus:ring-1 focus:ring-[#0891B2]"
+                >
+                  <option value="">Seleccione...</option>
+                  {dependencias.map((dep) => (
+                    <option key={dep.id_dependencia} value={dep.id_dependencia}>
+                      {dep.sigla_dependencia} - {dep.nombre_dependencia}
+                    </option>
+                  ))}
+                </select>
+
                 ) : (
                   <span className="bg-white px-4 py-1 rounded-md text-sm text-gray-800 shadow-inner">
-                    {requerimiento.dependencia}
+                    {requerimiento.dependencia?.sigla_dependencia ||
+                    requerimiento.dependencia?.nombre_dependencia ||
+                    ""}
                   </span>
                 )}
               </div>
@@ -651,15 +666,15 @@ export default function SirecqEditor({ mode = "view" }) {
             <div className="p-4">
               {editMode || isCreate ? (
                 <textarea
-                  name="observacion_tics"
-                  value={requerimiento.observacion_tics}
+                  name="obsv_tecnica"
+                  value={requerimiento.obsv_tecnica}
                   onChange={handleChange}
                   rows={5}
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded bg-blue-50 resize-none"
                 />
               ) : (
                 <div className="w-full px-3 py-2 text-xs bg-blue-50 rounded text-gray-700 min-h-[120px]">
-                  {requerimiento.observacion_tics}
+                  {requerimiento.obsv_tecnica}
                 </div>
               )}
             </div>
