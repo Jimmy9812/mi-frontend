@@ -253,7 +253,7 @@ useEffect(() => {
         try {
           await deleteSirecq({ token, id });
           alert("✅ Registro eliminado correctamente");
-          navigate("/sirecq-interno");
+          navigate("/sirecq");
         } catch (err) {
           console.error("❌ Error eliminando:", err);
           alert("❌ Error al eliminar el registro.");
@@ -458,7 +458,7 @@ setVersiones(
 
 // ✅ Salir de modo edición
 setEditMode(false);
-
+navigate("/sirecq");
 
 }
 
