@@ -103,7 +103,11 @@ export default function SirecqEditor({ mode = "view" }) {
           numero: req?.no_requerimiento || "",
           tramite_priorizado: req?.tema || "",
           tramite_cat: data?.sirecqExterno?.tramitecat || "",
-          prioridad: req?.id_categoria || "",
+          //prioridad: req?.id_categoria || "",
+          prioridad: data?.prioridad ?? "", 
+          tecnico_desarrollo: data?.tecnico || "",
+
+
           // ✅ ahora mapeamos correctamente la dependencia completa
           dependencia: data?.sirecqExterno?.dependencia || null,
           seguimiento: data?.sirecqExterno?.seguimientoinst || "",
@@ -119,7 +123,7 @@ export default function SirecqEditor({ mode = "view" }) {
             ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] 
             : req?.fecha_registro?.slice(0, 10) || "",
           estado: req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
-          tecnico_desarrollo: tecnico ? `${tecnico.nombre_usuario} ${tecnico.apellidos_usuario}`.trim() : "",
+          //tecnico_desarrollo: tecnico ? `${tecnico.nombre_usuario} ${tecnico.apellidos_usuario}`.trim() : "",
           descripcion: req?.descripcion || "",
           observaciones: data?.sirecqExterno?.observacionesgen || "",
           obsv_tecnica: data?.obsv_tecnica || "",
@@ -215,6 +219,8 @@ export default function SirecqEditor({ mode = "view" }) {
       const payload = {
   fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
   obsv_tecnica: requerimiento.obsv_tecnica || "--",
+  pprioridad: Number(requerimiento.prioridad) || null, // ✅ campo directo de SirecqInterno
+  tecnico: requerimiento.tecnico_desarrollo || "", // ✅ nuevo campo técnico DMSIST
   id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
   id_analista: 1,
   id_tecnico: 2,
@@ -226,7 +232,7 @@ export default function SirecqEditor({ mode = "view" }) {
     fase: "Requisito",
     fecha_registro: new Date().toISOString().split("T")[0],
     id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
-    id_categoria: Number(requerimiento.prioridad) || 1,
+    //id_categoria: Number(requerimiento.prioridad) || 1,
     id_sistema: Number(requerimiento.id_sistema) || null,
     id_rol_usuario: 3,
 
@@ -264,6 +270,8 @@ console.log("📤 Payload enviado al backend:", payload);
   const payload = {
     fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
     obsv_tecnica: requerimiento.obsv_tecnica || "--",
+    prioridad: Number(requerimiento.prioridad) || null,// ✅ ahora sí se envía
+    tecnico: requerimiento.tecnico_desarrollo?.trim() || null, // ✅ ahora sí se envía
     id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
     id_analista: 1,
     id_tecnico: 2,
@@ -273,7 +281,7 @@ console.log("📤 Payload enviado al backend:", payload);
       descripcion: requerimiento.descripcion,
       fase: "Requisito",
       id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
-      id_categoria: Number(requerimiento.prioridad) || 1,
+      //id_categoria: Number(requerimiento.prioridad) || 1,
       id_sistema: Number(requerimiento.id_sistema) || 1, // ✅ ← corrección
       id_rol_usuario: 3,
     },
@@ -323,30 +331,70 @@ console.log("📤 Payload enviado al backend:", payload);
   }
 
   // ✅ Actualizar Sirecq con posible nueva versión
-  await updateSirecq({ token, id, payload });
-  alert("✅ SIRECQ Interno actualizado correctamente");
+// ✅ Actualizar Sirecq con posible nueva versión
+await updateSirecq({ token, id, payload });
+alert("✅ SIRECQ Interno actualizado correctamente");
 
-  // 🔄 Recargar datos actualizados del backend
-  const refreshed = await getSirecq(id, { token });
-  const req = refreshed?.sirecqExterno?.requerimiento;
-  setRequerimiento((prev) => ({
-    ...prev,
-    descripcion: req?.descripcion || prev.descripcion,
-  }));
-  setVersiones(
-    req?.requerimientoVersiones?.map(v => ({
-      ...v.versionamiento,
-      isLoaded: true,
-      fech_desp_pt: v.versionamiento?.fech_desp_pt
-        ? new Date(v.versionamiento.fech_desp_pt).toISOString().split('T')[0]
-        : '',
-      fechaenvioreq: v.versionamiento?.fechaenvioreq
-        ? new Date(v.versionamiento.fechaenvioreq).toISOString().split('T')[0]
-        : ''
-    })) || []
-  );
+// 🔄 Recargar datos actualizados del backend
+const refreshed = await getSirecq(id, { token });
+const data = refreshed?.data || refreshed; // compatibilidad
+const req = data?.sirecqExterno?.requerimiento;
+const clasif = data?.clasifCatastral;
+const analista = req?.rolUsuario?.usuario;
 
-  setEditMode(false);
+// ✅ Refrescar todos los campos (incluidos prioridad y técnico)
+setRequerimiento({
+  requerimientoId: req?.id_requerimiento || null,
+  numero: req?.no_requerimiento || "",
+  tramite_priorizado: req?.tema || "",
+  tramite_cat: data?.sirecqExterno?.tramitecat || "",
+  prioridad: data?.prioridad ?? "", // ⚙️ viene directo de sirecq_interno
+  dependencia: data?.sirecqExterno?.dependencia || null,
+  seguimiento: data?.sirecqExterno?.seguimientoinst || "",
+  id_clasif_catastral: clasif?.id_clasif_catastral || "",
+  clasificacion: clasif?.nombre_clasif_catastral || "",
+  id_sistema: req?.sistema?.id_sistema || "",
+  sistema: req?.sistema || null,
+  responsable: analista
+    ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim()
+    : "",
+  fecha_envio_dmc: data?.fecha_env_dmc
+    ? new Date(data.fecha_env_dmc + "T12:00:00")
+        .toISOString()
+        .split("T")[0]
+    : req?.fecha_registro?.slice(0, 10) || "",
+  estado:
+    req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
+  tecnico_desarrollo:
+    data?.tecnico ||
+    data?.usuariosSirecq?.[1]?.rolUsuario?.usuario?.nombre_usuario ||
+    "",
+  descripcion: req?.descripcion || "",
+  observaciones: data?.sirecqExterno?.observacionesgen || "",
+  obsv_tecnica: data?.obsv_tecnica || "",
+});
+
+// 🔄 Actualizar versiones también
+setVersiones(
+  req?.requerimientoVersiones?.map((v) => ({
+    ...v.versionamiento,
+    isLoaded: true,
+    fech_desp_pt: v.versionamiento?.fech_desp_pt
+      ? new Date(v.versionamiento.fech_desp_pt)
+          .toISOString()
+          .split("T")[0]
+      : "",
+    fechaenvioreq: v.versionamiento?.fechaenvioreq
+      ? new Date(v.versionamiento.fechaenvioreq)
+          .toISOString()
+          .split("T")[0]
+      : "",
+  })) || []
+);
+
+// ✅ Salir de modo edición
+setEditMode(false);
+
 
 }
 
