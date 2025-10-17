@@ -11,6 +11,7 @@ import {
   listClasificaciones,
   listSistemas,
   listEstadosRequerimiento,
+  listAnalistas,
   addVersionToSirecq,
 } from "../services/sirecqService";
 
@@ -31,6 +32,9 @@ export default function SirecqEditor({ mode = "view" }) {
   const [clasificacionesList, setClasificacionesList] = useState([]);
   const [sistemasList, setSistemasList] = useState([]);
   const [estadosList, setEstadosList] = useState([]);
+  const [analistas, setAnalistas] = useState([]);
+  
+
 
 
 
@@ -74,6 +78,8 @@ export default function SirecqEditor({ mode = "view" }) {
         // 🔹 Cargar estados de requerimiento
         const estados = await listEstadosRequerimiento({ token });
         setEstadosList(estados);
+
+
 
 
 
@@ -166,6 +172,23 @@ export default function SirecqEditor({ mode = "view" }) {
   }, [id, isCreate, token]);
 
 
+  // 🔹 Cargar analistas desde backend
+useEffect(() => {
+  async function fetchAnalistas() {
+    try {
+      const data = await listAnalistas({ token });
+      console.log("📋 Analistas cargados:", data); // 👈 agrega este log
+      setAnalistas(data);
+    } catch (error) {
+      console.error("Error al cargar analistas:", error);
+    }
+  }
+  fetchAnalistas();
+}, [token]);
+
+
+
+
   // Manejo de cambios
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -219,10 +242,10 @@ export default function SirecqEditor({ mode = "view" }) {
       const payload = {
   fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
   obsv_tecnica: requerimiento.obsv_tecnica || "--",
-  pprioridad: Number(requerimiento.prioridad) || null, // ✅ campo directo de SirecqInterno
+  prioridad: Number(requerimiento.prioridad) || null, // ✅ campo directo de SirecqInterno
   tecnico: requerimiento.tecnico_desarrollo || "", // ✅ nuevo campo técnico DMSIST
   id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
-  id_analista: 1,
+  id_analista: requerimiento.id_analista || null,
   id_tecnico: 2,
 
   requerimiento: {
@@ -273,7 +296,7 @@ console.log("📤 Payload enviado al backend:", payload);
     prioridad: Number(requerimiento.prioridad) || null,// ✅ ahora sí se envía
     tecnico: requerimiento.tecnico_desarrollo?.trim() || null, // ✅ ahora sí se envía
     id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
-    id_analista: 1,
+    id_analista: requerimiento.id_analista || null,
     id_tecnico: 2,
     requerimiento: {
       no_requerimiento: requerimiento.numero,
@@ -638,13 +661,40 @@ setEditMode(false);
               {/* Sección 2 - Detalles adicionales */}
               <div className="border-2 border-[#0891B2] rounded-xl p-5">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <SimpleField
-                    label="Responsable (Analista Catastral)"
-                    value={requerimiento.responsable}
-                    name="responsable"
-                    onChange={handleChange}
-                    editMode={editMode || isCreate}
-                  />
+            {/* Responsable (Analista Catastral) */}
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-gray-700">
+                Responsable (Analista Catastral)
+              </label>
+              {editMode ? (
+                <select
+                  name="id_analista"
+                  value={requerimiento.id_analista || ""}
+                  onChange={(e) => {
+                    const selectedId = Number(e.target.value);
+                    const selected = analistas.find((a) => a.id_usuario === selectedId);
+                    setRequerimiento((prev) => ({
+                      ...prev,
+                      id_analista: selectedId,
+                      responsable: selected?.nombre_completo || "",
+                    }));
+                  }}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-blue-50 focus:ring-1 focus:ring-[#0891B2]"
+                >
+                  <option value="">Seleccione...</option>
+                  {analistas.map((a) => (
+                    <option key={`analista-${a.id_usuario}`} value={a.id_usuario}>
+                      {a.nombre_completo}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full px-3 py-2 text-sm bg-blue-50 rounded text-gray-700">
+                  {requerimiento.responsable || ""}
+                </div>
+              )}
+            </div>
+
 
                   <DateFieldComp
                     label="Fecha de envío por la DMC"

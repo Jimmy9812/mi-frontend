@@ -551,6 +551,19 @@ export async function listEstadosRequerimiento({ token } = {}) {
 }
 
 
+export async function listAnalistas({ token } = {}) {
+  const res = await fetch(`${API}/sirecq-interno/responsable`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Error al obtener analistas");
+  const data = await res.json();
+  return data.data || [];
+}
+
+
+
 // 🧹 util para debug manual
 export function clearSirecqSeed() {
   localStorage.removeItem(LS_KEY);
