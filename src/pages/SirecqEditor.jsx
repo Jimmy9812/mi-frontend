@@ -48,7 +48,8 @@ export default function SirecqEditor({ mode = "view" }) {
     seguimiento: "",
     clasificacion: "",
     sistema: "",
-    responsable: "",
+    responsable: "",       // nombre legible
+    id_responsable: null,  // id numérico del usuario responsable
     fecha_envio_dmc: "",
     estado: "",
     tecnico_desarrollo: "",
@@ -57,6 +58,7 @@ export default function SirecqEditor({ mode = "view" }) {
     obsv_tecnica: "",
     requerimientoId: null,
   });
+
 
   // Cargar datos si es modo edición
   useEffect(() => {
@@ -102,7 +104,7 @@ export default function SirecqEditor({ mode = "view" }) {
         const data = await getSirecq(id, { token });
         const req = data?.sirecqExterno?.requerimiento;
         const tecnico = data?.usuariosSirecq?.[1]?.rolUsuario?.usuario;
-        const analista = req?.rolUsuario?.usuario;
+        const responsable = req?.rolUsuario?.usuario;
 
         setRequerimiento({
           requerimientoId: req?.id_requerimiento || null,
@@ -124,7 +126,8 @@ export default function SirecqEditor({ mode = "view" }) {
           // ✅ Sistema: guardamos tanto el id como el objeto
           id_sistema: req?.sistema?.id_sistema || "",
           sistema: req?.sistema || null,
-          responsable: analista ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim() : "",
+          id_responsable: responsable?.id_usuario || null,
+          responsable: responsable? `${responsable.nombre_usuario} ${responsable.apellidos_usuario}`.trim(): "",
           fecha_envio_dmc: data?.fecha_env_dmc 
             ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] 
             : req?.fecha_registro?.slice(0, 10) || "",
@@ -186,6 +189,24 @@ useEffect(() => {
   fetchAnalistas();
 }, [token]);
 
+// 🔄 Sincroniza responsable cada vez que cambian analistas o el id_responsable
+  useEffect(() => {
+    if (analistas.length === 0) return;
+    if (!requerimiento.id_responsable) return;
+
+    const found = analistas.find(
+      (a) => Number(a.id_usuario) === Number(requerimiento.id_responsable)
+    );
+
+    if (found && requerimiento.responsable !== found.nombre_completo) {
+      setRequerimiento((prev) => ({
+        ...prev,
+        responsable: found.nombre_completo,
+      }));
+    }
+  }, [analistas, requerimiento.id_responsable]);
+
+
 
 
 
@@ -245,7 +266,7 @@ useEffect(() => {
   prioridad: Number(requerimiento.prioridad) || null, // ✅ campo directo de SirecqInterno
   tecnico: requerimiento.tecnico_desarrollo || "", // ✅ nuevo campo técnico DMSIST
   id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
-  id_analista: requerimiento.id_analista || null,
+  id_responsable: requerimiento.id_responsable || null,
   id_tecnico: 2,
 
   requerimiento: {
@@ -296,7 +317,6 @@ console.log("📤 Payload enviado al backend:", payload);
     prioridad: Number(requerimiento.prioridad) || null,// ✅ ahora sí se envía
     tecnico: requerimiento.tecnico_desarrollo?.trim() || null, // ✅ ahora sí se envía
     id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
-    id_analista: requerimiento.id_analista || null,
     id_tecnico: 2,
     requerimiento: {
       no_requerimiento: requerimiento.numero,
@@ -306,7 +326,7 @@ console.log("📤 Payload enviado al backend:", payload);
       id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
       //id_categoria: Number(requerimiento.prioridad) || 1,
       id_sistema: Number(requerimiento.id_sistema) || 1, // ✅ ← corrección
-      id_rol_usuario: 3,
+      id_rol_usuario: requerimiento.id_responsable || null,
     },
     sirecqExterno: {
       tramitepr: requerimiento.tramite_priorizado,
@@ -365,6 +385,9 @@ const req = data?.sirecqExterno?.requerimiento;
 const clasif = data?.clasifCatastral;
 const analista = req?.rolUsuario?.usuario;
 
+// ✅ Esperar un poco para asegurar que los analistas ya se hayan cargado
+await new Promise((resolve) => setTimeout(resolve, 300));
+
 // ✅ Refrescar todos los campos (incluidos prioridad y técnico)
 setRequerimiento({
   requerimientoId: req?.id_requerimiento || null,
@@ -378,6 +401,7 @@ setRequerimiento({
   clasificacion: clasif?.nombre_clasif_catastral || "",
   id_sistema: req?.sistema?.id_sistema || "",
   sistema: req?.sistema || null,
+  id_responsable: analista?.id_usuario || null, // ✅ AGREGADO: guardar el ID
   responsable: analista
     ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim()
     : "",
@@ -668,14 +692,16 @@ setEditMode(false);
               </label>
               {editMode ? (
                 <select
-                  name="id_analista"
-                  value={requerimiento.id_analista || ""}
+                  name="id_responsable"
+                  value={Number(requerimiento.id_responsable) || ""}
                   onChange={(e) => {
                     const selectedId = Number(e.target.value);
-                    const selected = analistas.find((a) => a.id_usuario === selectedId);
+                    const selected = analistas.find(
+                      (a) => Number(a.id_usuario) === selectedId
+                    );
                     setRequerimiento((prev) => ({
                       ...prev,
-                      id_analista: selectedId,
+                      id_responsable: selectedId,
                       responsable: selected?.nombre_completo || "",
                     }));
                   }}
@@ -683,11 +709,12 @@ setEditMode(false);
                 >
                   <option value="">Seleccione...</option>
                   {analistas.map((a) => (
-                    <option key={`analista-${a.id_usuario}`} value={a.id_usuario}>
+                    <option key={`responsable-${a.id_usuario}`} value={a.id_usuario}>
                       {a.nombre_completo}
                     </option>
                   ))}
                 </select>
+
               ) : (
                 <div className="w-full px-3 py-2 text-sm bg-blue-50 rounded text-gray-700">
                   {requerimiento.responsable || ""}
