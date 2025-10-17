@@ -1077,25 +1077,24 @@ function VersionBlock({ version, index, onChange, editMode }) {
           editMode={editMode}
         />
 
-<div>
-  <label className="block text-xs font-semibold mb-1 text-gray-700">
-    Observaciones del Versionamiento
-  </label>
-  {editMode ? (
-    <textarea
-      name="observaciones_version"
-      value={version.observaciones_version}
-      onChange={(e) => onChange(index, e)}
-      rows={3}
-      className="w-full px-3 py-2 text-xs border border-gray-300 rounded bg-[#f1f5f9] resize-none"
-    />
-  ) : (
-    <div className="w-full px-3 py-2 text-xs bg-[#f1f5f9] rounded text-gray-700 min-h-[60px]">
-      {version.observaciones_version || ""}
-    </div>
-  )}
-</div>
-
+          <div>
+            <label className="block text-xs font-semibold mb-1 text-gray-700">
+              Observaciones del Versionamiento
+            </label>
+            {editMode ? (
+              <textarea
+                name="obs_version"
+                value={version.obs_version || ""}
+                onChange={(e) => onChange(index, e.target.name, e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 text-xs border border-gray-300 rounded bg-[#f1f5f9] resize-none"
+              />
+            ) : (
+              <div className="w-full px-3 py-2 text-xs bg-[#f1f5f9] rounded text-gray-700 min-h-[60px]">
+                {version.obs_version || ""}
+              </div>
+            )}
+          </div>
 
       </div>
     </div>
