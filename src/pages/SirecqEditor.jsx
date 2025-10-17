@@ -171,7 +171,7 @@ export default function SirecqEditor({ mode = "view" }) {
           // ✅ Sistema: guardamos tanto el id como el objeto
           id_sistema: req?.sistema?.id_sistema || "",
           sistema: req?.sistema || null,
-          id_responsable: responsable?.id_usuario || null,
+          id_responsable: req?.rolUsuario?.id_rol_usuario || null, // ✅ usar id_rol_usuario
           responsable: responsable? `${responsable.nombre_usuario} ${responsable.apellidos_usuario}`.trim(): "",
           fecha_envio_dmc: data?.fecha_env_dmc 
             ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] 
@@ -239,8 +239,8 @@ useEffect(() => {
     if (analistas.length === 0) return;
     if (!requerimiento.id_responsable) return;
 
-    const found = analistas.find(
-      (a) => Number(a.id_usuario) === Number(requerimiento.id_responsable)
+      const found = analistas.find(
+      (a) => Number(a.id_rol_usuario) === Number(requerimiento.id_responsable)
     );
 
     if (found && requerimiento.responsable !== found.nombre_completo) {
@@ -250,9 +250,6 @@ useEffect(() => {
       }));
     }
   }, [analistas, requerimiento.id_responsable]);
-
-
-
 
 
   // Manejo de cambios
@@ -799,29 +796,32 @@ navigate("/sirecq");
         Responsable (Analista Catastral)
       </label>
       {editMode ? (
-        <select
-          name="id_responsable"
-          value={Number(requerimiento.id_responsable) || ""}
-          onChange={(e) => {
-            const selectedId = Number(e.target.value);
-            const selected = analistas.find(
-              (a) => Number(a.id_usuario) === selectedId
-            );
-            setRequerimiento((prev) => ({
-              ...prev,
-              id_responsable: selectedId,
-              responsable: selected?.nombre_completo || "",
-            }));
-          }}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-[#f1f5f9] focus:ring-1 focus:ring-[#3f6592]"
-        >
-          <option value="">Seleccione...</option>
-          {analistas.map((a) => (
-            <option key={`responsable-${a.id_usuario}`} value={a.id_usuario}>
-              {a.nombre_completo}
-            </option>
-          ))}
-        </select>
+<select
+  name="id_responsable"
+  value={Number(requerimiento.id_responsable) || ""}
+  onChange={(e) => {
+    const selectedId = Number(e.target.value);
+    const selected = analistas.find(
+      (a) => Number(a.id_rol_usuario) === selectedId
+    );
+    setRequerimiento((prev) => ({
+      ...prev,
+      id_responsable: selectedId,
+      responsable: selected?.nombre_completo || "",
+    }));
+  }}
+  className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-[#f1f5f9] focus:ring-1 focus:ring-[#3f6592]"
+>
+  <option value="">Seleccione...</option>
+  {analistas
+    .filter(a => a && a.id_rol_usuario && a.nombre_completo) // ✅ evita duplicados
+    .map((a) => (
+      <option key={`responsable-${a.id_rol_usuario}`} value={a.id_rol_usuario}>
+        {a.nombre_completo}
+      </option>
+  ))}
+</select>
+
       ) : (
         <div className="w-full px-3 py-2 text-sm bg-[#f1f5f9] rounded text-gray-700">
           {requerimiento.responsable || ""}
