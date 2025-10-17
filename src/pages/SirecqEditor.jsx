@@ -19,14 +19,61 @@ import {
 // Catálogos fijos
 const estados = ["Enviado", "Devuelto", "Test", "Producción", "En revisión", "Atendido"];
 
+function AlertModal({ open, message, onClose, type = "info" }) {
+  if (!open) return null;
+  
+  let color = "#3F6592", icon = null;
+  if (type === "success") {
+    color = "#22c55e";
+    icon = (
+      <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{color}}>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+      </svg>
+    );
+  } else if (type === "error") {
+    color = "#ef4444";
+    icon = (
+      <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{color}}>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 9l-6 6m0-6l6 6" />
+      </svg>
+    );
+  } else if (type === "warning") {
+    color = "#f59e42";
+    icon = (
+      <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{color}}>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" />
+      </svg>
+    );
+  }
+  
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{backdropFilter: 'blur(4px)', background: 'rgba(63,101,146,0.10)'}}>
+      <div className="bg-white rounded-xl shadow-2xl p-8 min-w-[320px] max-w-[90vw] flex flex-col items-center border" style={{borderColor: color}}>
+        {icon}
+        <div className="mb-4 text-center font-semibold" style={{color}}>{message}</div>
+        <button
+          onClick={onClose}
+          className="mt-2 px-6 py-2 rounded bg-[#3F6592] text-white hover:bg-[#27466a] shadow"
+        >
+          Aceptar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function SirecqEditor({ mode = "view" }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token, user, activeRole } = useAuth();
-
-
+  // Estado para alertas modales
+  const [alert, setAlert] = useState({ open: false, message: "", type: "info" });
+  const showAlert = (message, type = "info") => setAlert({ open: true, message, type });
+  const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
   const isCreate = mode === "create";
-
   const [editMode, setEditMode] = useState(isCreate);
   const [loading, setLoading] = useState(false);
   const [versiones, setVersiones] = useState([]);
@@ -36,10 +83,6 @@ export default function SirecqEditor({ mode = "view" }) {
   const [estadosList, setEstadosList] = useState([]);
   const [analistas, setAnalistas] = useState([]);
   
-
-
-
-
   // Estado inicial vacío
   const [requerimiento, setRequerimiento] = useState({
     numero: "",
@@ -167,7 +210,7 @@ export default function SirecqEditor({ mode = "view" }) {
         setVersiones(loaded);
       } catch (err) {
         console.error("❌ Error al cargar datos del SIRECQ Interno:", err);
-        alert("Error al cargar los datos del registro.");
+        showAlert("Error al cargar los datos del registro.", "error");
       } finally {
         setLoading(false);
       }
@@ -246,31 +289,41 @@ useEffect(() => {
   };
 
 
-      // 🗑️ Eliminar registro
-      const handleDelete = async () => {
-        if (!window.confirm("¿Seguro que deseas eliminar este registro SIRECQ Interno?")) return;
-
-        try {
-          await deleteSirecq({ token, id });
-          alert("✅ Registro eliminado correctamente");
-          navigate("/sirecq");
-        } catch (err) {
-          console.error("❌ Error eliminando:", err);
-          alert("❌ Error al eliminar el registro.");
-        }
-      };
-
+const handleDelete = async () => {
+  setAlert({
+    open: true,
+    message: "¿Está seguro de eliminar este registro SIRECQ Interno? Esta acción no se puede deshacer.",
+    type: "warning",
+    confirm: async () => {
+      setAlert({ open: false, message: "", type: "info" });
+      try {
+        await deleteSirecq({ token, id });
+        setAlert({
+          open: true,
+          message: "Registro SIRECQ Interno eliminado exitosamente",
+          type: "success",
+          confirm: () => {
+            setAlert({ open: false, message: "", type: "info" });
+            navigate("/sirecq");
+          }
+        });
+      } catch (error) {
+        showAlert("Error al eliminar: " + error.message, "error");
+      }
+    }
+  });
+};
   // Guardar (crear o actualizar)
   const handleSave = async () => {
     // Validaciones
     if (!requerimiento.numero?.trim()) {
-      alert("❌ El número de requerimiento es requerido.");
-      return;
-    }
-    if (!requerimiento.descripcion?.trim()) {
-      alert("❌ La descripción es requerida.");
-      return;
-    }
+    showAlert("El número de requerimiento es requerido.", "warning");
+    return;
+  }
+  if (!requerimiento.descripcion?.trim()) {
+    showAlert("La descripción es requerida.", "warning");
+    return;
+  }
 
     try {
       setLoading(true);
@@ -324,7 +377,7 @@ console.log("📤 Payload enviado al backend:", payload);
 
       if (isCreate) {
         const response = await createSirecq({ token, payload });
-        alert("✅ SIRECQ Interno creado correctamente");
+        setAlert("✅ SIRECQ Interno creado correctamente");
         navigate("/sirecq-interno");
       } else {
   // ⚙️ Construir payload base
@@ -393,7 +446,16 @@ console.log("📤 Payload enviado al backend:", payload);
   // ✅ Actualizar Sirecq con posible nueva versión
 // ✅ Actualizar Sirecq con posible nueva versión
 await updateSirecq({ token, id, payload });
-alert("✅ SIRECQ Interno actualizado correctamente");
+setAlert({
+  open: true,
+  message: "✅ SIRECQ Interno actualizado correctamente",
+  type: "success",
+  confirm: () => {
+    setAlert({ open: false, message: "", type: "info" });
+    navigate("/sirecq");
+  },
+});
+
 
 // 🔄 Recargar datos actualizados del backend
 const refreshed = await getSirecq(id, { token });
@@ -458,23 +520,39 @@ setVersiones(
 
 // ✅ Salir de modo edición
 setEditMode(false);
+setAlert({
+  open: true,
+  message: "SIRECQ Interno actualizado exitosamente",
+  type: "success",
+  confirm: () => {
+    setAlert({ open: false, message: "", type: "info" });
+    navigate("/sirecq");
+  }
+});
 navigate("/sirecq");
 
 }
 
 
     } catch (err) {
-      console.error("❌ Error al guardar:", err);
-      alert("Error al guardar el registro.");
-    } finally {
+    console.error("❌ Error al guardar:", err);
+    showAlert("Error al guardar el registro: " + err.message, "error");
+  } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className="p-6">Cargando...</div>;
+  if (loading) return <div className="p-6 text-center">Cargando…</div>;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+     <div className="min-h-screen bg-white flex flex-col">
+    {/* Modal de alerta interactivo mejorado */}
+    <AlertModal
+      open={alert.open}
+      message={alert.message}
+      type={alert.type}
+      onClose={alert.confirm ? alert.confirm : closeAlert}
+    />
 {/* Barra superior con botón Atrás */}
 <div className="flex items-center justify-between px-6 py-3">
   <button
