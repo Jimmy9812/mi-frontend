@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
 import { listSirecq, exportSirecqCsv, listEstadosRequerimiento } from "../services/sirecqService";
 import { useAuth } from "../context/AuthContext";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
 
 const ESTADOS = [
   { label: "Todos", value: "Todos" },
@@ -102,6 +105,52 @@ export default function Sirecq() {
     }
   };
 
+      const handleExportXlsx = async () => {
+        try {
+          // 🔹 1️⃣ Cargar todos los registros desde el backend
+          const res = await listSirecq({ token, page: 1, pageSize: 9999 });
+          const allItems = res.items || [];
+
+          // 🔹 2️⃣ Convertir datos al formato de Excel
+          const rows = allItems.map((row) => ({
+            "N° Requerimiento": row.sirecqExterno?.requerimiento?.no_requerimiento || "",
+            "Trámite Priorizado": row.sirecqExterno?.requerimiento?.tema || "",
+            "Dependencia": row.sirecqExterno?.dependencia?.sigla_dependencia || "",
+            "Clasificación Catastral": row.clasifCatastral?.nombre_clasif_catastral || "",
+            "Sistema Afectar": row.sirecqExterno?.requerimiento?.sistema?.nom_sistema || "",
+            "Estado": row.sirecqExterno?.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || "",
+            "Fecha Envío DMC": formatDate(row.fecha_env_dmc),
+            "Responsable": row.sirecqExterno?.requerimiento?.rolUsuario?.usuario
+              ? `${row.sirecqExterno?.requerimiento?.rolUsuario?.usuario?.nombre_usuario} ${row.sirecqExterno?.requerimiento?.rolUsuario?.usuario?.apellidos_usuario}`
+              : "",
+            "Técnico DMSIST": row.tecnico || "",
+            "Observación Técnica": row.obsv_tecnica || "",
+          }));
+
+          if (rows.length === 0) {
+            alert("No hay datos para exportar.");
+            return;
+          }
+
+          // 🔹 3️⃣ Crear y descargar el archivo Excel
+          const worksheet = XLSX.utils.json_to_sheet(rows);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "SIRECQ");
+
+          const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+          const blob = new Blob([wbout], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+
+          const fecha = new Date().toISOString().split("T")[0];
+          saveAs(blob, `SIRECQ_Internos_${fecha}.xlsx`);
+
+        } catch (error) {
+          console.error("❌ Error exportando XLSX:", error);
+          alert("Error al exportar a Excel: " + error.message);
+        }
+      };
+
   const getEstadoColor = (estado) => {
     switch (estado?.toUpperCase()) {
       case "ENVIADO":
@@ -158,12 +207,12 @@ export default function Sirecq() {
           {/* Acciones */}
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
-            >
-              <Download className="w-4 h-4" />
-              EXPORTAR
-            </button>
+            onClick={handleExportXlsx}
+            className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="w-4 h-4" />
+            EXPORTAR
+          </button>
 
             <div className="relative">
               <input
