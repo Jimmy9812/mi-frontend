@@ -34,6 +34,57 @@ const sistemaMap = sistemas.reduce((acc, s) => ({ ...acc, [s.name]: s.id }), {})
 const dependenciaMap = dependencias.reduce((acc, d) => ({ ...acc, [d.name]: d.id }), {});
 const estadoMap = estados.reduce((acc, e) => ({ ...acc, [e.name]: e.id }), {});
 
+
+function AlertModal({ open, message, onClose, type = "info" }) {
+  if (!open) return null;
+
+  let color = "#3F6592", icon = null;
+  if (type === "success") {
+    color = "#22c55e";
+    icon = (
+      <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color }}>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+      </svg>
+    );
+  } else if (type === "error") {
+    color = "#ef4444";
+    icon = (
+      <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color }}>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 9l-6 6m0-6l6 6" />
+      </svg>
+    );
+  } else if (type === "warning") {
+    color = "#f59e42";
+    icon = (
+      <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color }}>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" />
+      </svg>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center"
+      style={{ backdropFilter: 'blur(4px)', background: 'rgba(63,101,146,0.10)' }}>
+      <div className="bg-white rounded-xl shadow-2xl p-8 min-w-[320px] max-w-[90vw] flex flex-col items-center border"
+        style={{ borderColor: color }}>
+        {icon}
+        <div className="mb-4 text-center font-semibold" style={{ color }}>{message}</div>
+        <button
+          onClick={onClose}
+          className="mt-2 px-6 py-2 rounded bg-[#3F6592] text-white hover:bg-[#27466a] shadow"
+        >
+          Aceptar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+
 export default function ExternosEditor({ mode = "view" }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -44,11 +95,36 @@ export default function ExternosEditor({ mode = "view" }) {
   const [editMode, setEditMode] = useState(mode === "create");
   const [loading, setLoading] = useState(true);
 
+
+  // ======================= ALERTAS =========================
+const [alert, setAlert] = useState({ open: false, message: "", type: "info" });
+const showAlert = (message, type = "info") => setAlert({ open: true, message, type });
+const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
+
+
+
+
+
+
   // ======================= CARGAR DATOS =========================
   useEffect(() => {
     async function load() {
       if (mode === "create") {
-        setExterno({});
+        setExterno({
+
+          numero: "",
+          descripcion: "",
+          sistema: "",
+          dependencia: "",
+          estado: "",
+          tramite_pr: "",
+          tramite_cat: "",
+          seguimiento: "",
+          responsable: "",
+          observaciones: "",
+
+
+        });
         setVersiones([{ num_version: 1, ofi_desp_pt: '', fech_desp_pt: '', oficioenviodmi: '', fechaenvioreq: '', obs_version: '', isLoaded: false }]);
         setLoading(false);
         return;
@@ -102,7 +178,7 @@ export default function ExternosEditor({ mode = "view" }) {
         setVersiones(loaded);
       } catch (err) {
         console.error("❌ Error en getExterno:", err);
-        alert("No se pudo cargar el requerimiento externo");
+        showAlert("No se pudo cargar el requerimiento externo");
         navigate("/externos");
       } finally {
         setLoading(false);
@@ -198,23 +274,23 @@ export default function ExternosEditor({ mode = "view" }) {
   const handleSave = async () => {
     // Validación de campos requeridos
     if (!externo.numero?.trim()) {
-      alert("❌ El número de requerimiento es requerido.");
+      showAlert("❌ El número de requerimiento es requerido.");
       return;
     }
     if (!externo.descripcion?.trim()) {
-      alert("❌ La descripción es requerida.");
+     showAlert("❌ La descripción es requerida.");
       return;
     }
     if (!externo.sistema) {
-      alert("❌ Debe seleccionar un sistema.");
+      showAlert("Debe seleccionar un sistema.", "warning");
       return;
     }
     if (!externo.dependencia) {
-      alert("❌ Debe seleccionar una dependencia.");
+      showAlert("❌ Debe seleccionar una dependencia.");
       return;
     }
     if (!externo.estado) {
-      alert("❌ Debe seleccionar un estado.");
+      showAlert("❌ Debe seleccionar un estado.");
       return;
     }
 
@@ -224,7 +300,7 @@ export default function ExternosEditor({ mode = "view" }) {
 
       if (mode === "create") {
         await createExterno({ token, payload });
-        alert("✅ Requerimiento externo creado correctamente");
+        showAlert("✅ Requerimiento externo creado correctamente", "success");
         navigate("/externos");
       } else {
         await updateExterno({ token, id, payload });
@@ -242,14 +318,21 @@ export default function ExternosEditor({ mode = "view" }) {
               obs_version: v.obs_version || null
             }
           });
-          alert(`✅ Versión ${v.num_version} agregada correctamente`);
+          showAlert(`✅ Versión ${v.num_version} agregada correctamente`);
         }
-        alert("✅ Requerimiento externo actualizado correctamente");
-        setEditMode(false);
-      }
+       setAlert({
+          open: true,
+          message: "✅ Requerimiento externo actualizado correctamente",
+          type: "success",
+          confirm: () => {
+            setAlert({ open: false, message: "", type: "info" });
+            navigate("/externos"); // 👈 redirige al listado al cerrar
+          },
+          });
+          }
     } catch (err) {
       console.error("❌ Error al guardar externo:", err);
-      alert("Ocurrió un error al guardar el requerimiento externo.");
+      showAlert("Ocurrió un error al guardar el requerimiento externo.", "error");
     }
   };
 
@@ -259,26 +342,45 @@ export default function ExternosEditor({ mode = "view" }) {
   const isCreate = mode === "create";
   const isView = mode === "view";
 
-  const handleDelete = async () => {
-  const confirmDelete = window.confirm(
-    "¿Está seguro de eliminar este registro SIRECQ Externo? Esta acción no se puede deshacer."
-  );
-  if (!confirmDelete) return;
-
-  try {
-    await deleteExterno({ token, id: externo.id_sirecq_externo });
-    alert("✅ SIRECQ Externo eliminado correctamente.");
-    navigate("/externos");
-  } catch (err) {
-    console.error("❌ Error al eliminar externo:", err);
-    alert("Ocurrió un error al eliminar el registro: " + err.message);
-  }
-};
+    const handleDelete = async () => {
+      setAlert({
+        open: true,
+        message: "¿Está seguro de eliminar este registro SIRECQ Externo? Esta acción no se puede deshacer.",
+        type: "warning",
+        confirm: async () => {
+          setAlert({ open: false, message: "", type: "info" });
+          try {
+            await deleteExterno({ token, id: externo.id_sirecq_externo });
+            setAlert({
+              open: true,
+              message: "Registro SIRECQ Externo eliminado exitosamente",
+              type: "success",
+              confirm: () => {
+                setAlert({ open: false, message: "", type: "info" });
+                navigate("/externos");
+              }
+            });
+          } catch (error) {
+            showAlert("Error al eliminar: " + error.message, "error");
+          }
+        }
+      });
+    };
 
 
   // ======================= RENDER =========================
   return (
+    
     <div className="min-h-screen flex flex-col">
+
+      <AlertModal
+  open={alert.open}
+  message={alert.message}
+  type={alert.type}
+  onClose={alert.confirm ? alert.confirm : closeAlert}
+/>
+
+
       {/* Header */}
       <div className="flex justify-between items-center px-6 py-3">
         <button
@@ -526,12 +628,14 @@ function PaintedPicker({ label, editMode, kind = "select", name, value, onChange
             disabled={!editMode}
             className={`${inputWidth} bg-white border rounded px-2 py-1 text-sm disabled:opacity-60`}
           >
+            <option value="">Seleccione...</option> {/* 👈 agregado */}
             {options.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
               </option>
             ))}
           </select>
+
         ) : (
           <input
             type="number"
