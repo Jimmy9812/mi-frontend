@@ -243,6 +243,37 @@ export async function updateExterno({ token, id, payload }) {
   return updated;
 }
 
+
+// ✅ Eliminar externo
+export async function deleteExterno({ token, id }) {
+  if (!id) throw new Error("ID requerido para eliminar SIRECQ Externo");
+
+  if (API && USE_API) {
+    try {
+      const res = await fetch(`${API}/sirecq-externo/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: authHeaders(token),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      return result.data || result;
+    } catch (err) {
+      console.warn("[externosService] Error deleteExterno API:", err?.message);
+      throw err;
+    }
+  }
+
+  // 🔹 Modo MOCK local
+  await sleep();
+  const all = readAll();
+  const idx = all.findIndex((x) => x.id === id);
+  if (idx === -1) throw new Error("Registro no encontrado");
+  all.splice(idx, 1);
+  writeAll(all);
+  return { message: "Externo eliminado (modo mock)" };
+}
+
+
 export async function exportExternosCsv({
   token,
   search = "",

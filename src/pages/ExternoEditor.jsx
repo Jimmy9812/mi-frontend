@@ -1,9 +1,9 @@
 // src/pages/ExternosEditor.jsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Edit } from "lucide-react";
+import { ArrowLeft, Save, Edit, Trash} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { getExterno, createExterno, updateExterno, addVersionToRequerimiento } from "../services/externosService";
+import { getExterno, createExterno, updateExterno, addVersionToRequerimiento, deleteExterno } from "../services/externosService";
 import GifLoader from "../components/LoadingGif";
 
 // Mapeos de opciones basados en IDs
@@ -259,6 +259,23 @@ export default function ExternosEditor({ mode = "view" }) {
   const isCreate = mode === "create";
   const isView = mode === "view";
 
+  const handleDelete = async () => {
+  const confirmDelete = window.confirm(
+    "¿Está seguro de eliminar este registro SIRECQ Externo? Esta acción no se puede deshacer."
+  );
+  if (!confirmDelete) return;
+
+  try {
+    await deleteExterno({ token, id: externo.id_sirecq_externo });
+    alert("✅ SIRECQ Externo eliminado correctamente.");
+    navigate("/externos");
+  } catch (err) {
+    console.error("❌ Error al eliminar externo:", err);
+    alert("Ocurrió un error al eliminar el registro: " + err.message);
+  }
+};
+
+
   // ======================= RENDER =========================
   return (
     <div className="min-h-screen flex flex-col">
@@ -282,26 +299,41 @@ export default function ExternosEditor({ mode = "view" }) {
           <span className="font-bold text-[#3F6592] text-lg tracking-wide">
             EXTERNOS SIREC-Q
           </span>
-          <div className="flex gap-2">
-            {!isCreate && isView && !editMode && (
-              <button
-                onClick={() => setEditMode(true)}
-                className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174] transition"
-                title="Editar"
-              >
-                <Edit className="w-5 h-5" />
-              </button>
-            )}
-            {(editMode || isCreate) && (
-              <button
-                onClick={handleSave}
-                className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174] transition"
-                title="Guardar"
-              >
-                <Save className="w-5 h-5" />
-              </button>
-            )}
-          </div>
+<div className="flex gap-2">
+  {/* 🔴 Botón Eliminar — solo visible si no es modo crear */}
+  {!isCreate && (
+    <button
+      onClick={handleDelete}
+      className="w-10 h-10 flex items-center justify-center bg-[#e11d48] hover:bg-[#b91c1c] text-white shadow-md rounded-md transition-all duration-200"
+      title="Eliminar SIRECQ Externo"
+    >
+      <Trash className="w-5 h-5" />
+    </button>
+  )}
+
+  {/* 🟡 Botón Editar */}
+  {!isCreate && !editMode && (
+    <button
+      onClick={() => setEditMode(true)}
+      className="w-10 h-10 flex items-center justify-center bg-[#facc15] hover:bg-[#eab308] text-white shadow-md rounded-md transition-all duration-200"
+      title="Editar"
+    >
+      <Edit className="w-5 h-5" />
+    </button>
+  )}
+
+  {/* 🟢 Botón Guardar */}
+  {(editMode || isCreate) && (
+    <button
+      onClick={handleSave}
+      className="w-10 h-10 flex items-center justify-center bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md rounded-md transition-all duration-200"
+      title="Guardar"
+    >
+      <Save className="w-5 h-5" />
+    </button>
+  )}
+</div>
+
         </div>
       </div>
 
