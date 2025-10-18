@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
 import { listExternos, exportExternosCsv } from "../services/externosService";
 import { useAuth } from "../context/AuthContext";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
 
 const TIPOS = ["Todos", "RSW", "RD", "RPM"];
 const ESTADOS = ["Todos", "EN REVISIÓN", "ENVIADO", "PENDIENTE", "DEVUELTO", "FAVORABLE"];
@@ -67,6 +70,58 @@ export default function Externos() {
       setLoading(false);
     }
   };
+
+  const handleExportXlsx = async () => {
+  try {
+    // 1️⃣ Cargar todos los registros desde el backend
+    const url = `${import.meta.env.VITE_API_URL}/sirecq-externo`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const result = await res.json();
+
+    const allItems = result.data || [];
+
+    // 2️⃣ Convertir datos al formato de Excel
+    const rows = allItems.map((row) => ({
+      "N° Requerimiento": row.requerimiento?.no_requerimiento || "",
+      "Tema / Trámite": row.requerimiento?.tema || "",
+      "Descripción": row.requerimiento?.descripcion || "",
+      "Dependencia": row.dependencia?.sigla_dependencia || row.dependencia?.nombre_dependencia || "",
+      "Sistema Afectar": row.requerimiento?.sistema?.nom_sistema || "",
+      "Estado": row.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || "",
+      "Fecha Registro": formatDate(row.requerimiento?.fecha_registro),
+      "Seguimiento Institucional": row.seguimientoinst || "",
+      "Trámite CAT": row.tramitecat || "",
+      "Trámite Priorizado": row.tramitepr || "",
+      "Responsable (Analista)": row.requerimiento?.rolUsuario?.usuario
+        ? `${row.requerimiento.rolUsuario.usuario.nombre_usuario} ${row.requerimiento.rolUsuario.usuario.apellidos_usuario}`
+        : "",
+      "Observaciones Generales": row.observacionesgen || "",
+    }));
+
+    if (rows.length === 0) {
+      alert("No hay datos para exportar.");
+      return;
+    }
+
+    // 3️⃣ Crear y descargar el archivo Excel
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Externos");
+
+    const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([wbout], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const fecha = new Date().toISOString().split("T")[0];
+    saveAs(blob, `SIRECQ_Externos_${fecha}.xlsx`);
+
+  } catch (error) {
+    console.error("❌ Error exportando XLSX:", error);
+    alert("Error al exportar a Excel: " + error.message);
+  }
+};
 
 
 
@@ -187,12 +242,13 @@ const filteredData = useMemo(() => {
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-3">
             <button
-              onClick={handleExport}
+              onClick={handleExportXlsx}
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
             >
               <Download className="w-4 h-4" />
-              EXPORT
+              EXPORTAR
             </button>
+
 
             <div className="relative">
               <input
@@ -334,24 +390,28 @@ const filteredData = useMemo(() => {
               >
                 «
               </button>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i + 1}
-                  onClick={() => setPage(i + 1)}
-                  className={`w-8 h-8 rounded ${
-                    page === i + 1 ? "bg-[#3F6592] text-white" : "hover:bg-slate-100"
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40"
-              >
+              {Array.from(
+              { length: Math.min(8, totalPages) }, // máximo 8 botones visibles
+              (_, i) => {
+                // Calcula desde qué número de página empezar a mostrar
+                const startPage = Math.max(1, Math.min(page - 3, totalPages - 7));
+                const pageNum = startPage + i;
+                if (pageNum > totalPages) return null;
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`w-8 h-8 rounded ${
+                      pageNum === page ? "bg-[#3F6592] text-white" : "hover:bg-slate-100"
+                    }`}
+                  >
+                  {pageNum}
+                  </button>
+                );
+                }
+                )}
                 »
-              </button>
             </div>
           </div>
 
