@@ -375,7 +375,7 @@ console.log("📤 Payload enviado al backend:", payload);
       if (isCreate) {
         const response = await createSirecq({ token, payload });
         setAlert("✅ SIRECQ Interno creado correctamente");
-        navigate("/sirecq-interno");
+        navigate("/sirecq");
       } else {
   // ⚙️ Construir payload base
   const payload = {
