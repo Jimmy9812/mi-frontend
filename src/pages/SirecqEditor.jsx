@@ -330,11 +330,14 @@ const handleDelete = async () => {
       const payload = {
   fecha_env_dmc: requerimiento.fecha_envio_dmc || null,
   obsv_tecnica: requerimiento.obsv_tecnica || "--",
-  prioridad: Number(requerimiento.prioridad) || null, // ✅ campo directo de SirecqInterno
-  tecnico: requerimiento.tecnico_desarrollo || "", // ✅ nuevo campo técnico DMSIST
+  prioridad: Number(requerimiento.prioridad) || null,
+  tecnico: requerimiento.tecnico_desarrollo || "",
   id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
-  id_responsable: requerimiento.id_responsable || null,
-  id_tecnico: 2,
+  // ❌ ELIMINAR ESTA LÍNEA:
+  // id_responsable: requerimiento.id_responsable || null,
+  // ✅ AGREGAR ESTOS CAMPOS:
+  id_analista: requerimiento.id_responsable || null, // ← Mapeo correcto
+  id_tecnico: 2, // ← Mantener
 
   requerimiento: {
     no_requerimiento: requerimiento.numero,
@@ -343,12 +346,11 @@ const handleDelete = async () => {
     fase: "Requisito",
     fecha_registro: new Date().toISOString().split("T")[0],
     id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
-    //id_categoria: Number(requerimiento.prioridad) || 1,
+    id_categoria: 1, // ✅ AGREGAR CAMPO OBLIGATORIO (valor por defecto o del formulario)
     id_sistema: Number(requerimiento.id_sistema) || null,
-    id_rol_usuario: 3,
+    id_rol_usuario: requerimiento.id_responsable || null, // ← Responsable del requerimiento
 
-    // 🔹 AQUI AÑADIMOS EL BLOQUE DE VERSIONES CORRECTO
-        versiones: [
+    versiones: [
       {
         num_version: 1,
         ofi_desp_pt: versiones[0]?.ofi_desp_pt || "",
@@ -358,8 +360,6 @@ const handleDelete = async () => {
         obs_version: versiones[0]?.obs_version || "",
       },
     ],
-
-
   },
 
   sirecqExterno: {
