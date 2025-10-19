@@ -125,18 +125,21 @@ export async function getRequerimientoById(id, token) {
         oficioEnvio:
           it.test_versions?.map((tv) => ({
             id: tv.id_test_version,
+            id_version: tv.versionamiento?.id_version, // ✅ Agregado
             valor: tv.versionamiento?.oficioenviodmi || "",
             version: tv.versionamiento?.num_version,
           })) || [],
         fechaEnvio:
           it.test_versions?.map((tv) => ({
             id: tv.id_test_version,
+            id_version: tv.versionamiento?.id_version, // ✅ Agregado
             valor: tv.versionamiento?.fechaenvioreq?.slice(0, 10) || "",
             version: tv.versionamiento?.num_version,
           })) || [],
         propuesta:
           it.test_versions?.map((tv) => ({
             id: tv.id_test_version,
+            id_version: tv.versionamiento?.id_version, // ✅ Agregado
             oficio: tv.versionamiento?.ofi_desp_pt || "",
             fecha: tv.versionamiento?.fech_desp_pt?.slice(0, 10) || "",
             version: tv.versionamiento?.num_version,

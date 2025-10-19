@@ -117,6 +117,7 @@ export default function TestProduccionEditor() {
   }, [id, isCreate, user?.token]);
 
   /* ---------------- GUARDAR ---------------- */
+// ✅ Actualizar registro existente
 const handleSave = async () => {
   const basePayload = {
     no_requerimiento: form.numero,
@@ -129,8 +130,8 @@ const handleSave = async () => {
   try {
     setLoading(true);
 
-    // ✅ CREAR NUEVO
     if (isCreate) {
+      // CREACIÓN NUEVA (Versión 1)
       const versionV1 = {
         oficioenviodmi: form.oficioEnvio[0]?.valor || null,
         fechaenvioreq: form.fechaEnvio[0]?.valor || null,
@@ -142,64 +143,60 @@ const handleSave = async () => {
         { testProduccion: basePayload, versionamiento: versionV1 },
         user?.token
       );
-
-      alert("✅ Registro creado con versión 1");
+      alert("✅ Registro creado correctamente con versión 1");
       navigate("/test-produccion");
       return;
     }
 
-    // ✅ EDITAR EXISTENTE
-    const versionesActualizadas = [];
-    const nuevasVersiones = [];
+    // EDICIÓN EXISTENTE (Actualizar versiones)
+const versionesActualizadas = [];
+let versionamiento = null;
 
-    form.oficioEnvio.forEach((of, i) => {
-      const propuesta = form.propuesta[i];
-      const fecha = form.fechaEnvio[i];
+form.oficioEnvio.forEach((of, i) => {
+  const propuesta = form.propuesta[i];
+  const fecha = form.fechaEnvio[i];
 
-      // Nueva versión (sin ID)
-      if (!of.id && (of.valor || propuesta?.oficio || fecha?.valor)) {
-        nuevasVersiones.push({
-          oficioenviodmi: of.valor || null,
-          fechaenvioreq: fecha?.valor || null,
-          ofi_desp_pt: propuesta?.oficio || null,
-          fech_desp_pt: propuesta?.fecha || null,
-          obs_version: null,
-        });
-      }
-      // Versión existente
-      else if (of.id) {
-        versionesActualizadas.push({
-          id_version: of.id_version,
-          oficioenviodmi: of.valor || null,
-          fechaenvioreq: fecha?.valor || null,
-          ofi_desp_pt: propuesta?.oficio || null,
-          fech_desp_pt: propuesta?.fecha || null,
-          obs_version: null,
-        });
-      }
+  // Si tiene id_version → actualizar
+  if (of.id_version) {
+    versionesActualizadas.push({
+      id_version: of.id_version,
+      oficioenviodmi: of.valor || null,
+      fechaenvioreq: fecha?.valor || null,
+      ofi_desp_pt: propuesta?.oficio || null,
+      fech_desp_pt: propuesta?.fecha || null,
+      obs_version: null,
     });
-
-    const updatePayload = {
-      ...basePayload,
-      versionesActualizadas,
+  } 
+  // Si no tiene id_version → crear nueva versión
+  else {
+    versionamiento = {
+      oficioenviodmi: of.valor || null,
+      fechaenvioreq: fecha?.valor || null,
+      ofi_desp_pt: propuesta?.oficio || null,
+      fech_desp_pt: propuesta?.fecha || null,
+      obs_version: null,
     };
+  }
+});
 
-    if (nuevasVersiones.length > 0) {
-      updatePayload.versionamiento = nuevasVersiones[nuevasVersiones.length - 1];
-    }
+const updatePayload = {
+  ...basePayload,
+  versionesActualizadas,
+  ...(versionamiento ? { versionamiento } : {}), // 👈 si hay nueva versión, se añade
+};
 
-    await updateTestCompleto(id, updatePayload, user?.token);
+await updateTestCompleto(id, updatePayload, user?.token);
+
 
     alert("✅ Cambios guardados correctamente");
     navigate("/test-produccion");
   } catch (err) {
     console.error("❌ Error en handleSave:", err);
-    alert("Error al guardar cambios, revisa la consola.");
+    alert("Error al guardar. Revisa la consola.");
   } finally {
     setLoading(false);
   }
 };
-
 
 
 
