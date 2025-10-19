@@ -5,130 +5,224 @@ import {
   getRequerimientoById,
   createRequerimiento,
   updateRequerimiento,
+  addVersionToTest,
+  updateTestCompleto, 
 } from "../services/testProduccionService";
+import { useAuth } from "../context/AuthContext";
+import { getAnalistas } from "../services/usersRolService";
 import { ArrowLeft, Save, Plus, Edit } from "lucide-react";
 
-/** Helpers de normalización */
-const toOficioArray = (val) => {
-  if (Array.isArray(val)) return val;
-  if (typeof val === "string" && val.trim().length) {
-    return [{ id: Date.now(), valor: val, version: 1 }];
-  }
-  return [];
-};
-const toFechaArray = (val) => {
-  if (Array.isArray(val)) return val;
-  const v = (val || "").toString().slice(0, 10);
-  if (v) return [{ id: Date.now(), valor: v, version: 1 }];
-  return [];
-};
-const toPropuestaArray = (arr, oficio, fecha) => {
-  if (Array.isArray(arr)) return arr;
-  const o = (oficio || "").trim();
-  const f = (fecha || "").toString().slice(0, 10);
-  if (o || f) {
-    return [{ id: Date.now(), oficio: o, fecha: f, version: 1 }];
-  }
-  return [];
-};
+/* ---------------- HELPERS ---------------- */
+const makeInitialVersion = () => ({
+  id: Date.now(),
+  valor: "",
+  version: 1,
+});
+const makeInitialPropuesta = () => ({
+  id: Date.now(),
+  oficio: "",
+  fecha: "",
+  version: 1,
+});
 
 export default function TestProduccionEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  const isCreate = !id || id === "new";
+  const { user } = useAuth();
+  const isCreate = !id || id === "nuevo" || id === "new";
 
   const [isEditing, setIsEditing] = useState(isCreate);
   const [loading, setLoading] = useState(true);
+  const [analistas, setAnalistas] = useState([]);
 
   const [form, setForm] = useState({
     numero: "",
-    estado: "",
+    id_rol_usuario: null,
     ejecutor: "",
     etapa: "",
-    // versiones
-    oficioEnvio: [],
-    fechaEnvio: [],
-    propuesta: [],
-    // texto largo
+    oficioEnvio: [makeInitialVersion()],
+    fechaEnvio: [makeInitialVersion()],
+    propuesta: [makeInitialPropuesta()],
     respuestaTics: "",
     descripcion: "",
   });
 
+  /* 🔹 Cargar analistas (id_rol === 2) */
+  useEffect(() => {
+    const loadAnalistas = async () => {
+      try {
+        const res = await getAnalistas({ token: user?.token });
+        const list = Array.isArray(res) ? res : res?.data || [];
+        const filtered = list.filter(
+          (a) =>
+            a.id_rol === 2 ||
+            a.rol_id === 2 ||
+            a?.rol?.id_rol === 2 ||
+            a?.rol?.id === 2
+        );
+        setAnalistas(filtered);
+      } catch (err) {
+        console.warn("⚠️ No se pudo cargar analistas:", err);
+      }
+    };
+    loadAnalistas();
+  }, [user?.token]);
+
+  /* 🔹 Cargar registro si es modo edición */
   useEffect(() => {
     const load = async () => {
       if (!isCreate) {
-        const data = await getRequerimientoById(id);
-        if (data) {
-          setForm({
-            numero: data.numero || "",
-            estado: data.estado || "",
-            ejecutor: data.ejecutor || "",
-            etapa: data.etapa || "",
-            oficioEnvio: toOficioArray(data.oficioEnvio),
-            fechaEnvio: toFechaArray(data.fechaEnvio || data.fecha),
-            propuesta: toPropuestaArray(
-              data.propuesta,
-              data.propuestaOficio,
-              data.fechaPropuesta
-            ),
-            respuestaTics: data.respuestaTics || "",
-            descripcion: data.descripcion || "",
-          });
+        try {
+          const data = await getRequerimientoById(id, user?.token);
+          if (data) {
+            setForm({
+              numero: data.numero || "",
+              id_rol_usuario:
+                data.id_rol_usuario ||
+                data.rolUsuario?.id_rol_usuario ||
+                null,
+              ejecutor:
+                data.ejecutor ||
+                (data.rolUsuario?.usuario
+                  ? `${data.rolUsuario.usuario.nombre_usuario} ${data.rolUsuario.usuario.apellidos_usuario}`
+                  : ""),
+              etapa:
+                data.etapa_implementacion ||
+                data.etapa ||
+                data.etapa_implementation ||
+                "",
+              oficioEnvio:
+                data.oficioEnvio?.length > 0
+                  ? data.oficioEnvio
+                  : [makeInitialVersion()],
+              fechaEnvio:
+                data.fechaEnvio?.length > 0
+                  ? data.fechaEnvio
+                  : [makeInitialVersion()],
+              propuesta:
+                data.propuesta?.length > 0
+                  ? data.propuesta
+                  : [makeInitialPropuesta()],
+              respuestaTics: data.respuestaTics || "",
+              descripcion: data.descripcion || "",
+            });
+          }
+        } catch (err) {
+          console.error("Error cargando TestProduccion:", err);
         }
-      } else {
-        setIsEditing(true);
       }
       setLoading(false);
     };
     load();
-  }, [id, isCreate]);
+  }, [id, isCreate, user?.token]);
 
-  const handleSave = async () => {
-    const lastOficio = (form.oficioEnvio || [])[form.oficioEnvio.length - 1];
-    const lastFecha = (form.fechaEnvio || [])[form.fechaEnvio.length - 1];
-    const lastProp = (form.propuesta || [])[form.propuesta.length - 1];
-
-    const payload = {
-      numero: form.numero,
-      estado: form.estado,
-      ejecutor: form.ejecutor,
-      etapa: form.etapa,
-      oficioEnvio: lastOficio?.valor || "",
-      fechaEnvio: lastFecha?.valor || "",
-      propuestaOficio: lastProp?.oficio || "",
-      fechaPropuesta: lastProp?.fecha || "",
-      respuestaTics: form.respuestaTics,
-      descripcion: form.descripcion,
-    };
-
-    if (isCreate) {
-      await createRequerimiento(payload);
-    } else {
-      await updateRequerimiento(id, payload);
-    }
-    navigate("/test-produccion");
+  /* ---------------- GUARDAR ---------------- */
+const handleSave = async () => {
+  const basePayload = {
+    no_requerimiento: form.numero,
+    id_rol_usuario: form.id_rol_usuario,
+    etapa_implementation: form.etapa,
+    respuesta_tics: form.respuestaTics,
+    descripcion: form.descripcion,
   };
 
-  const addOficioEnvio = () => {
+  try {
+    setLoading(true);
+
+    // ✅ CREAR NUEVO
+    if (isCreate) {
+      const versionV1 = {
+        oficioenviodmi: form.oficioEnvio[0]?.valor || null,
+        fechaenvioreq: form.fechaEnvio[0]?.valor || null,
+        ofi_desp_pt: form.propuesta[0]?.oficio || null,
+        fech_desp_pt: form.propuesta[0]?.fecha || null,
+      };
+
+      await createRequerimiento(
+        { testProduccion: basePayload, versionamiento: versionV1 },
+        user?.token
+      );
+
+      alert("✅ Registro creado con versión 1");
+      navigate("/test-produccion");
+      return;
+    }
+
+    // ✅ EDITAR EXISTENTE
+    const versionesActualizadas = [];
+    const nuevasVersiones = [];
+
+    form.oficioEnvio.forEach((of, i) => {
+      const propuesta = form.propuesta[i];
+      const fecha = form.fechaEnvio[i];
+
+      // Nueva versión (sin ID)
+      if (!of.id && (of.valor || propuesta?.oficio || fecha?.valor)) {
+        nuevasVersiones.push({
+          oficioenviodmi: of.valor || null,
+          fechaenvioreq: fecha?.valor || null,
+          ofi_desp_pt: propuesta?.oficio || null,
+          fech_desp_pt: propuesta?.fecha || null,
+          obs_version: null,
+        });
+      }
+      // Versión existente
+      else if (of.id) {
+        versionesActualizadas.push({
+          id_version: of.id_version,
+          oficioenviodmi: of.valor || null,
+          fechaenvioreq: fecha?.valor || null,
+          ofi_desp_pt: propuesta?.oficio || null,
+          fech_desp_pt: propuesta?.fecha || null,
+          obs_version: null,
+        });
+      }
+    });
+
+    const updatePayload = {
+      ...basePayload,
+      versionesActualizadas,
+    };
+
+    if (nuevasVersiones.length > 0) {
+      updatePayload.versionamiento = nuevasVersiones[nuevasVersiones.length - 1];
+    }
+
+    await updateTestCompleto(id, updatePayload, user?.token);
+
+    alert("✅ Cambios guardados correctamente");
+    navigate("/test-produccion");
+  } catch (err) {
+    console.error("❌ Error en handleSave:", err);
+    alert("Error al guardar cambios, revisa la consola.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+
+  /* ---------------- AÑADIR NUEVAS VERSIONES ---------------- */
+  const addOficioEnvio = () =>
     setForm((p) => ({
       ...p,
       oficioEnvio: [
         ...(p.oficioEnvio || []),
-        { id: Date.now(), valor: "", version: (p.oficioEnvio || []).length + 1 },
+        { id: Date.now(), valor: "", version: (p.oficioEnvio?.length || 0) + 1 },
       ],
     }));
-  };
-  const addFechaEnvio = () => {
+
+  const addFechaEnvio = () =>
     setForm((p) => ({
       ...p,
       fechaEnvio: [
         ...(p.fechaEnvio || []),
-        { id: Date.now(), valor: "", version: (p.fechaEnvio || []).length + 1 },
+        { id: Date.now(), valor: "", version: (p.fechaEnvio?.length || 0) + 1 },
       ],
     }));
-  };
-  const addPropuesta = () => {
+
+  const addPropuesta = () =>
     setForm((p) => ({
       ...p,
       propuesta: [
@@ -137,17 +231,17 @@ export default function TestProduccionEditor() {
           id: Date.now(),
           oficio: "",
           fecha: "",
-          version: (p.propuesta || []).length + 1,
+          version: (p.propuesta?.length || 0) + 1,
         },
       ],
     }));
-  };
 
+  /* ---------------- RENDER ---------------- */
   if (loading) return <div className="p-6">Cargando…</div>;
 
   return (
     <div className="p-6">
-      {/* 🔹 Header como en Figma */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <button
           onClick={() => navigate(-1)}
@@ -156,57 +250,105 @@ export default function TestProduccionEditor() {
           <ArrowLeft className="w-4 h-4" /> Atrás
         </button>
 
-       
-
-        <span className="flex items-center gap-2">
-          <span className="font-medium">Jimmy Maila</span>
-          <i className="fas fa-user" />
-        </span>
+        <div className="flex gap-2">
+          {!isCreate && (
+            <button
+              onClick={() => setIsEditing((v) => !v)}
+              className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174]"
+              title="Editar"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={handleSave}
+            className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174]"
+            title="Guardar"
+          >
+            <Save className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Línea superior */}
-      <hr className="border-t-2 border-[#3F6592] mb-2" />
-
-     {/* Encabezado con fondo claro y botones */}
-<div className="px-6 mt-2 mb-4">
-  <div className="flex items-center justify-between bg-[#f1f5f9] rounded px-5 py-3">
-    <span className="font-bold text-[#3F6592] text-lg tracking-wide">
-      TEST PRODUCCIÓN
-    </span>
-    <div className="flex gap-2">
-      <button
-        onClick={() => setIsEditing((v) => !v)}
-        className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174] transition"
-        title="Editar"
-      >
-        <Edit className="w-4 h-4" />
-      </button>
-      <button
-        onClick={handleSave}
-        className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174] transition"
-        title="Guardar"
-      >
-        <Save className="w-4 h-4" />
-      </button>
-    </div>
-  </div>
-</div>
-
-
-      {/* Línea inferior del título */}
       <hr className="border-t-2 border-[#3F6592] mb-6" />
 
       {/* ---- FORMULARIO ---- */}
       <div className="border rounded-xl p-4 space-y-6">
         {/* Primera fila */}
-        <div className="grid grid-cols-4 gap-4">
-          <ReadBox label="N° Requerimiento" value={form.numero} />
-          <ReadBox label="Estado del requerimiento" value={form.estado} />
-          <ReadBox label="Ejecutor" value={form.ejecutor} />
-          <ReadBox label="Etapa de implementación" value={form.etapa} />
+        <div className="grid grid-cols-3 gap-4">
+          {/* N° requerimiento */}
+          <div>
+            <label className="block font-bold mb-1">N° Requerimiento</label>
+            {isEditing ? (
+              <input
+                type="text"
+                value={form.numero}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, numero: e.target.value }))
+                }
+                className="w-full bg-white border px-3 py-2 rounded"
+              />
+            ) : (
+              <div className="bg-[#D6C7BF] px-3 py-2 rounded">
+                {form.numero || "—"}
+              </div>
+            )}
+          </div>
+
+          {/* Ejecutor */}
+          <div>
+            <label className="block font-bold mb-1">Ejecutor</label>
+            {isEditing ? (
+              <select
+                value={form.id_rol_usuario || ""}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    id_rol_usuario: Number(e.target.value),
+                  }))
+                }
+                className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
+              >
+                <option value="">Seleccione ejecutor</option>
+                {analistas.map((a) => (
+                  <option key={a.id_rol_usuario} value={a.id_rol_usuario}>
+                    {a.usuario?.nombre_usuario} {a.usuario?.apellidos_usuario}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="bg-[#D6C7BF] px-3 py-2 rounded">
+                {form.ejecutor || "—"}
+              </div>
+            )}
+          </div>
+
+          {/* Etapa */}
+          <div>
+            <label className="block font-bold mb-1">
+              Etapa de implementación
+            </label>
+            {isEditing ? (
+              <select
+                value={form.etapa || ""}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, etapa: e.target.value }))
+                }
+                className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
+              >
+                <option value="">Seleccione etapa</option>
+                <option value="Test">Test</option>
+                <option value="Producción">Producción</option>
+              </select>
+            ) : (
+              <div className="bg-[#D6C7BF] px-3 py-2 rounded">
+                {form.etapa || "—"}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Segunda fila */}
+        {/* Oficio y Propuesta */}
         <div className="grid grid-cols-2 gap-6">
           <SectionWithBox
             title="Oficio de envío a DMI"
@@ -215,7 +357,7 @@ export default function TestProduccionEditor() {
             onChange={(idItem, val) =>
               setForm((p) => ({
                 ...p,
-                oficioEnvio: (p.oficioEnvio || []).map((it) =>
+                oficioEnvio: p.oficioEnvio.map((it) =>
                   it.id === idItem ? { ...it, valor: val } : it
                 ),
               }))
@@ -231,7 +373,7 @@ export default function TestProduccionEditor() {
             onChangePropuesta={(idItem, field, val) =>
               setForm((p) => ({
                 ...p,
-                propuesta: (p.propuesta || []).map((it) =>
+                propuesta: p.propuesta.map((it) =>
                   it.id === idItem ? { ...it, [field]: val } : it
                 ),
               }))
@@ -241,7 +383,7 @@ export default function TestProduccionEditor() {
           />
         </div>
 
-        {/* Tercera fila */}
+        {/* Fecha + Respuesta/Descripción */}
         <div className="grid grid-cols-2 gap-6">
           <SectionWithBox
             title="Fecha"
@@ -250,7 +392,7 @@ export default function TestProduccionEditor() {
             onChangeFecha={(idItem, val) =>
               setForm((p) => ({
                 ...p,
-                fechaEnvio: (p.fechaEnvio || []).map((it) =>
+                fechaEnvio: p.fechaEnvio.map((it) =>
                   it.id === idItem ? { ...it, valor: val } : it
                 ),
               }))
@@ -264,7 +406,9 @@ export default function TestProduccionEditor() {
               title="Respuesta TICS"
               value={form.respuestaTics}
               isEditing={isEditing}
-              onChange={(v) => setForm((p) => ({ ...p, respuestaTics: v }))}
+              onChange={(v) =>
+                setForm((p) => ({ ...p, respuestaTics: v }))
+              }
             />
             <BlockText
               title="Descripción"
@@ -276,26 +420,19 @@ export default function TestProduccionEditor() {
         </div>
       </div>
 
-      {/* Línea final y GIF */}
       <hr className="border-t-2 border-[#3F6592] mt-6 mb-4" />
       <div className="flex justify-center">
-        <img src="/metro-responsive.gif" alt="Municipio de Quito" className="h-24" />
+        <img
+          src="/metro-responsive.gif"
+          alt="Municipio de Quito"
+          className="h-24"
+        />
       </div>
     </div>
   );
 }
 
-/* ---- SUBCOMPONENTES ---- */
-
-function ReadBox({ label, value }) {
-  return (
-    <div>
-      <label className="block font-bold mb-1">{label}</label>
-      <div className="bg-[#D6C7BF] px-3 py-2 rounded">{value || "—"}</div>
-    </div>
-  );
-}
-
+/* ---------- SUBCOMPONENTES ---------- */
 function SectionWithBox({
   title,
   items,
@@ -310,101 +447,52 @@ function SectionWithBox({
     <div>
       <label className="block font-bold mb-1">{title}</label>
       <div className="border rounded-lg p-3">
-        {(items || []).map((it) => (
+        {items.map((it) => (
           <div key={it.id} className="flex items-center gap-3 mb-2">
             {schema === "oficio" && (
-              <div className="flex-1">
-                <div className="text-sm font-semibold mb-1">
-                  Envío de requerimiento
-                </div>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={it.valor || ""}
-                    onChange={(e) => onChange?.(it.id, e.target.value)}
-                    className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
-                  />
-                ) : (
-                  <div className="bg-[#D6C7BF] px-3 py-2 rounded">
-                    {it.valor || "—"}
-                  </div>
-                )}
-              </div>
+              <InputBox
+                label="Oficio de envío"
+                value={it.valor}
+                onChange={(v) => onChange?.(it.id, v)}
+                isEditing={isEditing}
+              />
             )}
-
             {schema === "propuesta" && (
               <>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold mb-1">
-                    Oficio de recepción
-                  </div>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={it.oficio || ""}
-                      onChange={(e) =>
-                        onChangePropuesta?.(it.id, "oficio", e.target.value)
-                      }
-                      className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
-                    />
-                  ) : (
-                    <div className="bg-[#D6C7BF] px-3 py-2 rounded">
-                      {it.oficio || "—"}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="text-sm font-semibold mb-1">Fecha</div>
-                  {isEditing ? (
-                    <input
-                      type="date"
-                      value={(it.fecha || "").slice(0, 10)}
-                      onChange={(e) =>
-                        onChangePropuesta?.(it.id, "fecha", e.target.value)
-                      }
-                      className="bg-[#D6C7BF] px-3 py-2 rounded"
-                    />
-                  ) : (
-                    <div className="bg-[#D6C7BF] px-3 py-2 rounded">
-                      {(it.fecha || "").slice(0, 10) || "—"}
-                    </div>
-                  )}
-                </div>
+                <InputBox
+                  label="Oficio de recepción"
+                  value={it.oficio}
+                  onChange={(v) =>
+                    onChangePropuesta?.(it.id, "oficio", v)
+                  }
+                  isEditing={isEditing}
+                />
+                <InputBox
+                  label="Fecha"
+                  type="date"
+                  value={it.fecha}
+                  onChange={(v) =>
+                    onChangePropuesta?.(it.id, "fecha", v)
+                  }
+                  isEditing={isEditing}
+                />
               </>
             )}
-
             {schema === "fecha" && (
-              <div className="flex-1">
-                <div className="text-sm font-semibold mb-1">
-                  Envío de requerimiento
-                </div>
-                {isEditing ? (
-                  <input
-                    type="date"
-                    value={(it.valor || "").slice(0, 10)}
-                    onChange={(e) => onChangeFecha?.(it.id, e.target.value)}
-                    className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
-                  />
-                ) : (
-                  <div className="bg-[#D6C7BF] px-3 py-2 rounded">
-                    {(it.valor || "").slice(0, 10) || "—"}
-                  </div>
-                )}
-              </div>
+              <InputBox
+                label="Envío de requerimiento"
+                type="date"
+                value={it.valor}
+                onChange={(v) => onChangeFecha?.(it.id, v)}
+                isEditing={isEditing}
+              />
             )}
-
             <span className="bg-[#D6C7BF] px-3 py-2 rounded text-sm font-semibold">
-              Versión
+              Versión {it.version}
             </span>
-            <input
-              readOnly
-              value={it.version}
-              className="w-12 text-center border rounded py-2"
-              title={`Versión ${it.version}`}
-            />
           </div>
         ))}
-        {isEditing && (
+        {isEditing && !window.location.pathname.includes("nuevo") && (
           <button
             onClick={onAdd}
             className="p-2 border border-[#3F6592] rounded-full text-[#3F6592] hover:bg-[#3F6592] hover:text-white"
@@ -414,6 +502,26 @@ function SectionWithBox({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function InputBox({ label, type = "text", value, onChange, isEditing }) {
+  return (
+    <div className="flex-1">
+      <div className="text-sm font-semibold mb-1">{label}</div>
+      {isEditing ? (
+        <input
+          type={type}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
+        />
+      ) : (
+        <div className="bg-[#D6C7BF] px-3 py-2 rounded">
+          {value || "—"}
+        </div>
+      )}
     </div>
   );
 }

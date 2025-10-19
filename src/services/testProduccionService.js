@@ -1,6 +1,15 @@
 // src/services/testProduccionService.js
+// Servicio para TestProduccion — soporta modo API (NestJS) y fallback MOCK
 
-// 🚨 Mock de datos para pruebas
+const API = (import.meta.env.VITE_API_URL || "").trim() || null;
+const USE_API = true; // true = usa API NestJS si API está configurado
+
+const authHeaders = (token) => ({
+  "Content-Type": "application/json",
+  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+});
+
+// 🚨 Mock de datos para pruebas (fallback cuando no hay backend)
 let MOCK_TEST_PRODUCCION = [
   {
     id: 1,
@@ -47,59 +56,126 @@ let MOCK_TEST_PRODUCCION = [
 ];
 
 // 🔹 Listar requerimientos con paginación y filtros
-export async function listRequerimientos({ page, pageSize, search, status }) {
-  let filtered = MOCK_TEST_PRODUCCION;
+// 🔹 Listar requerimientos
+export async function listRequerimientos({
+  page = 1,
+  pageSize = 10,
+  search = "",
+  status = "ALL",
+  token,
+} = {}) {
+  if (API && USE_API) {
+    try {
+      const res = await fetch(`${API}/test-produccion`, {
+        headers: authHeaders(token),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const itemsRaw = Array.isArray(json?.data) ? json.data : json || [];
 
-  if (status && status !== "ALL") {
-    filtered = filtered.filter((r) => r.estado === status);
+      const mapped = itemsRaw.map((it) => ({
+        id: it.id_test_produccion || it.id,
+        numero: it.no_requerimiento || "",
+        estado:
+          it.test_versions?.length > 0
+            ? `V${it.test_versions[0].versionamiento?.num_version || 1}`
+            : it.etapa_implementacion || "—",
+        fecha: it.createdAt || null,
+        raw: it,
+      }));
+
+      const s = search.trim().toLowerCase();
+      let filtered = mapped.filter((x) => {
+        const okSearch =
+          !s ||
+          (x.numero || "").toLowerCase().includes(s) ||
+          ((x.raw?.descripcion || "") + " " + (x.raw?.respuesta_tics || "")).toLowerCase().includes(s);
+        return okSearch;
+      });
+
+      const total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      const start = (page - 1) * pageSize;
+      const items = filtered.slice(start, start + pageSize);
+      return { items, page, total, totalPages };
+    } catch (err) {
+      console.warn("[testProduccionService] listRequerimientos API error:", err?.message);
+    }
   }
-
-  if (search) {
-    filtered = filtered.filter(
-      (r) =>
-        r.numero.toLowerCase().includes(search.toLowerCase()) ||
-        r.descripcion.toLowerCase().includes(search.toLowerCase())
-    );
-  }
-
-  const total = filtered.length;
-  const totalPages = Math.ceil(total / pageSize) || 1;
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  const items = filtered.slice(start, end);
-
-  return {
-    items,
-    page,
-    total,
-    totalPages,
-  };
+  return { items: [], page, total: 0, totalPages: 1 };
 }
-
 // 🔹 Obtener detalle
-export async function getRequerimientoById(id) {
-  return MOCK_TEST_PRODUCCION.find((r) => r.id === Number(id)) || null;
+export async function getRequerimientoById(id, token) {
+  if (API && USE_API) {
+    try {
+      const res = await fetch(`${API}/test-produccion/${encodeURIComponent(id)}`, {
+        headers: authHeaders(token),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const it = json?.data || json;
+      if (!it) return null;
+
+      return {
+        id: it.id_test_produccion,
+        numero: it.no_requerimiento || "",
+        ejecutor: `${it.rolUsuario?.usuario?.nombre_usuario || ""} ${it.rolUsuario?.usuario?.apellidos_usuario || ""}`.trim(),
+        id_rol_usuario: it.rolUsuario?.id_rol_usuario || null,
+        etapa: it.etapa_implementacion || "",
+        oficioEnvio:
+          it.test_versions?.map((tv) => ({
+            id: tv.id_test_version,
+            valor: tv.versionamiento?.oficioenviodmi || "",
+            version: tv.versionamiento?.num_version,
+          })) || [],
+        fechaEnvio:
+          it.test_versions?.map((tv) => ({
+            id: tv.id_test_version,
+            valor: tv.versionamiento?.fechaenvioreq?.slice(0, 10) || "",
+            version: tv.versionamiento?.num_version,
+          })) || [],
+        propuesta:
+          it.test_versions?.map((tv) => ({
+            id: tv.id_test_version,
+            oficio: tv.versionamiento?.ofi_desp_pt || "",
+            fecha: tv.versionamiento?.fech_desp_pt?.slice(0, 10) || "",
+            version: tv.versionamiento?.num_version,
+          })) || [],
+        respuestaTics: it.respuesta_tics || "",
+        descripcion: it.descripcion || "",
+        raw: it,
+      };
+    } catch (err) {
+      console.warn("[testProduccionService] getRequerimientoById error:", err?.message);
+    }
+  }
+  return null;
 }
 
 // 🔹 Crear
-export async function createRequerimiento(data) {
-  const newItem = {
-    ...data,
-    id: Date.now(),
-  };
-  MOCK_TEST_PRODUCCION.push(newItem);
-  return newItem;
+export async function createRequerimiento(data, token) {
+  if (API && USE_API) {
+    const res = await fetch(`${API}/test-produccion`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+  return null;
 }
 
 // 🔹 Actualizar
-export async function updateRequerimiento(id, data) {
-  const index = MOCK_TEST_PRODUCCION.findIndex((r) => r.id === Number(id));
-  if (index !== -1) {
-    MOCK_TEST_PRODUCCION[index] = {
-      ...MOCK_TEST_PRODUCCION[index],
-      ...data,
-    };
-    return MOCK_TEST_PRODUCCION[index];
+export async function updateRequerimiento(id, data, token) {
+  if (API && USE_API) {
+    const res = await fetch(`${API}/test-produccion/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
   }
   return null;
 }
@@ -137,4 +213,55 @@ export async function exportRequerimientosCsv(items) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+// ✅ Eliminar TestProduccion
+export async function deleteTestProduccion(id, token) {
+  if (API && USE_API) {
+    const res = await fetch(`${API}/test-produccion/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`HTTP ${res.status} - ${txt}`);
+    }
+    const json = await res.json();
+    return json;
+  }
+  const idx = MOCK_TEST_PRODUCCION.findIndex((r) => r.id === Number(id));
+  if (idx === -1) throw new Error("No encontrado");
+  MOCK_TEST_PRODUCCION.splice(idx, 1);
+  return { message: "Eliminado (mock)" };
+}
+
+// ✅ Agregar versión a test de producción
+export async function addVersionToTest({ idTestProduccion, payload, token }) {
+  if (API && USE_API) {
+    const res = await fetch(`${API}/test-produccion/versiones/${encodeURIComponent(idTestProduccion)}`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+  throw new Error("Mock no implementado");
+}
+
+// ✅ Actualizar TestProduccion completo (incluye versiones nuevas o modificadas)
+export async function updateTestCompleto(id, data, token) {
+  if (API && USE_API) {
+    const res = await fetch(`${API}/test-produccion/test-version/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`HTTP ${res.status} - ${txt}`);
+    }
+    return await res.json();
+  }
+  throw new Error("Mock no implementado para updateTestCompleto");
 }

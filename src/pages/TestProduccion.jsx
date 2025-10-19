@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { listRequerimientos, exportRequerimientosCsv } from "../services/testProduccionService";
 
 // 🔹 Estados posibles (mock)
 const ESTADOS = [
@@ -30,35 +31,24 @@ export default function TestProduccion() {
 
   const [data, setData] = useState({ items: [], page: 1, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(false);
-
-  // 🚨 Mock load
-  function loadMock() {
+  // Load desde servicio (API o mock)
+  async function load() {
     setLoading(true);
-    let filtered = MOCK_DATA;
-
-    if (status !== "ALL") {
-      filtered = filtered.filter((r) => r.estado === status);
+    try {
+      const resp = await listRequerimientos({ page, pageSize, search, status, token: user?.token || null });
+      setData(resp);
+    } catch (err) {
+      console.error("Error cargando tests de producción:", err);
+      setData({ items: [], page: 1, total: 0, totalPages: 1 });
+    } finally {
+      setLoading(false);
     }
-    if (search) {
-      filtered = filtered.filter((r) =>
-        r.numero.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    const items = filtered.slice(start, end);
-
-    setData({ items, page, total, totalPages });
-    setLoading(false);
   }
 
   useEffect(() => {
-    loadMock();
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, status, search]);
+  }, [page, pageSize, status, search, user?.token]);
 
   const showingRange = useMemo(() => {
     const start = (data.page - 1) * pageSize + 1;
@@ -99,7 +89,20 @@ export default function TestProduccion() {
           {/* Acciones */}
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => alert("Export CSV mock 🚀")}
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  // solicitamos todos usando pageSize grande
+                  const resp = await listRequerimientos({ page: 1, pageSize: 10000, search, status, token: user?.token });
+                  const items = resp.items || [];
+                  await exportRequerimientosCsv(items);
+                } catch (err) {
+                  console.error("Error exportando:", err);
+                  alert("Error al exportar test producción");
+                } finally {
+                  setLoading(false);
+                }
+              }}
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
             >
               <Download className="w-4 h-4" />
@@ -115,7 +118,7 @@ export default function TestProduccion() {
                 className="pl-3 pr-10 py-2 rounded-md border focus:ring-2 focus:ring-indigo-500"
               />
               <button
-                onClick={loadMock}
+                onClick={() => setPage(1)}
                 className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100"
               >
                 <Search className="w-4 h-4 text-slate-600" />
@@ -159,12 +162,10 @@ export default function TestProduccion() {
                 >
                   <div className="px-4 py-3">{row.numero}</div>
                   <div className="px-4 py-3">{row.estado}</div>
-                  <div className="px-4 py-3">
-                    {new Date(row.fecha).toLocaleDateString()}
-                  </div>
+                  <div className="px-4 py-3">{row.fecha ? new Date(row.fecha).toLocaleDateString() : "—"}</div>
                   <div className="px-4 py-3 flex justify-center">
                     <button
-                      onClick={() => navigate(`/test-produccion/${row.id}`)} // ✅ corregido
+                      onClick={() => navigate(`/test-produccion/${row.id}`)}
                       className="px-3 py-1 bg-[#3F6592] text-white rounded-md hover:opacity-90"
                     >
                       <Eye className="w-4 h-4" />
