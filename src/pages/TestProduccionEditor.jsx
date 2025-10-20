@@ -12,6 +12,29 @@ import { useAuth } from "../context/AuthContext";
 import { getAnalistas } from "../services/usersRolService";
 import { ArrowLeft, Save, Plus, Edit } from "lucide-react";
 
+
+// 🕓 Normaliza la fecha seleccionada en un input <date> sin crear objeto Date
+function toDateOnly(dateStr) {
+  if (!dateStr) return null;
+  // Garantiza que el valor se mantenga en formato "YYYY-MM-DD" sin UTC
+  return dateStr.toString().split("T")[0];
+}
+
+// 🕓 Corrige fechas que vienen del backend (idéntico a ExternosEditor)
+function normalizeDateFromBackend(dateString) {
+  if (!dateString) return "";
+  try {
+    // Evita desfaces de zona horaria tomando solo la parte de la fecha
+    // sin convertir el objeto Date ni aplicar offset.
+    return dateString.toString().split("T")[0];
+  } catch {
+    return "";
+  }
+}
+
+
+
+
 /* ---------------- HELPERS ---------------- */
 const makeInitialVersion = () => ({
   id: Date.now(),
@@ -97,11 +120,17 @@ export default function TestProduccionEditor() {
                   : [makeInitialVersion()],
               fechaEnvio:
                 data.fechaEnvio?.length > 0
-                  ? data.fechaEnvio
+                  ? data.fechaEnvio.map((f) => ({
+                      ...f,
+                      valor: normalizeDateFromBackend(f.valor),
+                    }))
                   : [makeInitialVersion()],
               propuesta:
                 data.propuesta?.length > 0
-                  ? data.propuesta
+                  ? data.propuesta.map((p) => ({
+                      ...p,
+                      fecha: normalizeDateFromBackend(p.fecha),
+                    }))
                   : [makeInitialPropuesta()],
               respuestaTics: data.respuestaTics || "",
               descripcion: data.descripcion || "",
@@ -116,8 +145,9 @@ export default function TestProduccionEditor() {
     load();
   }, [id, isCreate, user?.token]);
 
-  /* ---------------- GUARDAR ---------------- */
+  
 // ✅ Actualizar registro existente
+/* ---------------- GUARDAR ---------------- */
 const handleSave = async () => {
   const basePayload = {
     no_requerimiento: form.numero,
@@ -131,7 +161,7 @@ const handleSave = async () => {
     setLoading(true);
 
     if (isCreate) {
-      // CREACIÓN NUEVA (Versión 1)
+      // ✅ CREACIÓN NUEVA (Versión 1)
       const versionV1 = {
         oficioenviodmi: form.oficioEnvio[0]?.valor || null,
         fechaenvioreq: form.fechaEnvio[0]?.valor || null,
@@ -143,50 +173,50 @@ const handleSave = async () => {
         { testProduccion: basePayload, versionamiento: versionV1 },
         user?.token
       );
+
       alert("✅ Registro creado correctamente con versión 1");
       navigate("/test-produccion");
       return;
     }
 
-    // EDICIÓN EXISTENTE (Actualizar versiones)
-const versionesActualizadas = [];
-let versionamiento = null;
+    // ✅ EDICIÓN EXISTENTE (Actualizar versiones)
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const versionesActualizadas = [];
+    let versionamiento = null;
 
-form.oficioEnvio.forEach((of, i) => {
-  const propuesta = form.propuesta[i];
-  const fecha = form.fechaEnvio[i];
+    form.oficioEnvio.forEach((of, i) => {
+      const propuesta = form.propuesta[i];
+      const fecha = form.fechaEnvio[i];
 
-  // Si tiene id_version → actualizar
-  if (of.id_version) {
-    versionesActualizadas.push({
-      id_version: of.id_version,
-      oficioenviodmi: of.valor || null,
-      fechaenvioreq: fecha?.valor || null,
-      ofi_desp_pt: propuesta?.oficio || null,
-      fech_desp_pt: propuesta?.fecha || null,
-      obs_version: null,
+      if (of.id_version) {
+        // ✅ Actualiza versión existente
+        versionesActualizadas.push({
+          id_version: of.id_version,
+          oficioenviodmi: of.valor || null,
+          fechaenvioreq: form.fechaEnvio[i]?.valor || null,
+          ofi_desp_pt: propuesta?.oficio || null,
+          fech_desp_pt: propuesta?.fecha || null,
+          obs_version: null,
+        });
+      } else {
+        // ✅ Nueva versión
+        versionamiento = {
+          oficioenviodmi: of.valor || null,
+          fechaenvioreq: form.fechaEnvio[i]?.valor || null,
+          ofi_desp_pt: propuesta?.oficio || null,
+          fech_desp_pt: propuesta?.fecha || null,
+          obs_version: null,
+        };
+      }
     });
-  } 
-  // Si no tiene id_version → crear nueva versión
-  else {
-    versionamiento = {
-      oficioenviodmi: of.valor || null,
-      fechaenvioreq: fecha?.valor || null,
-      ofi_desp_pt: propuesta?.oficio || null,
-      fech_desp_pt: propuesta?.fecha || null,
-      obs_version: null,
+
+    const updatePayload = {
+      ...basePayload,
+      versionesActualizadas,
+      ...(versionamiento ? { versionamiento } : {}),
     };
-  }
-});
 
-const updatePayload = {
-  ...basePayload,
-  versionesActualizadas,
-  ...(versionamiento ? { versionamiento } : {}), // 👈 si hay nueva versión, se añade
-};
-
-await updateTestCompleto(id, updatePayload, user?.token);
-
+    await updateTestCompleto(id, updatePayload, user?.token);
 
     alert("✅ Cambios guardados correctamente");
     navigate("/test-produccion");
@@ -197,7 +227,6 @@ await updateTestCompleto(id, updatePayload, user?.token);
     setLoading(false);
   }
 };
-
 
 
   /* ---------------- AÑADIR NUEVAS VERSIONES ---------------- */
@@ -387,13 +416,16 @@ await updateTestCompleto(id, updatePayload, user?.token);
             items={form.fechaEnvio}
             schema="fecha"
             onChangeFecha={(idItem, val) =>
-              setForm((p) => ({
-                ...p,
-                fechaEnvio: p.fechaEnvio.map((it) =>
-                  it.id === idItem ? { ...it, valor: val } : it
-                ),
-              }))
-            }
+            setForm((p) => ({
+              ...p,
+              fechaEnvio: p.fechaEnvio.map((it) =>
+                it.id === idItem
+                  ? { ...it, valor: toDateOnly(val) }
+                  : it
+              ),
+            }))
+}
+
             onAdd={addFechaEnvio}
             isEditing={isEditing}
           />
@@ -455,35 +487,35 @@ function SectionWithBox({
               />
             )}
             {schema === "propuesta" && (
-              <>
-                <InputBox
-                  label="Oficio de recepción"
-                  value={it.oficio}
-                  onChange={(v) =>
-                    onChangePropuesta?.(it.id, "oficio", v)
-                  }
-                  isEditing={isEditing}
-                />
-                <InputBox
-                  label="Fecha"
-                  type="date"
-                  value={it.fecha}
-                  onChange={(v) =>
-                    onChangePropuesta?.(it.id, "fecha", v)
-                  }
-                  isEditing={isEditing}
-                />
-              </>
-            )}
-            {schema === "fecha" && (
+            <>
               <InputBox
-                label="Envío de requerimiento"
-                type="date"
-                value={it.valor}
-                onChange={(v) => onChangeFecha?.(it.id, v)}
+                label="Oficio de recepción"
+                value={it.oficio}
+                onChange={(v) =>
+                  onChangePropuesta?.(it.id, "oficio", v)
+                }
                 isEditing={isEditing}
               />
-            )}
+              <InputBox
+                label="Fecha"
+                type="date"
+                value={it.fecha}
+                onChange={(v) => onChangePropuesta?.(it.id, "fecha", v)}
+                isEditing={isEditing}
+              />
+            </>
+          )}
+
+          {schema === "fecha" && (
+            <InputBox
+              label="Envío de requerimiento"
+              type="date"
+              value={it.valor}
+              onChange={(v) => onChangeFecha?.(it.id, v)}
+              isEditing={isEditing}
+            />
+          )}
+
             <span className="bg-[#D6C7BF] px-3 py-2 rounded text-sm font-semibold">
               Versión {it.version}
             </span>

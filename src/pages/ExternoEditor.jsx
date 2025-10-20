@@ -239,18 +239,25 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
     };
 
     if (isUpdate) {
-      const firstVersion = versiones[0] || {};
+      // 🆕 Filtrar solo las versiones que YA EXISTÍAN (isLoaded = true)
+      const versionesExistentes = versiones.filter(v => v.isLoaded);
+      
+      // 🆕 Mapear todas las versiones existentes para enviarlas al backend
+      const versionesActualizadas = versionesExistentes.map(v => ({
+        id_version: v.id_version,
+        ofi_desp_pt: v.ofi_desp_pt || null,
+        fech_desp_pt: v.fech_desp_pt || null,
+        oficioenviodmi: v.oficioenviodmi || null,
+        fechaenvioreq: v.fechaenvioreq || null,
+        obs_version: v.obs_version || null
+      }));
+
       return {
         sirecqExterno: baseSirecq,
-        requerimiento: baseRequerimiento,
-        versionamiento: {
-          num_version: 1,
-          ofi_desp_pt: firstVersion.ofi_desp_pt || null,
-          fech_desp_pt: firstVersion.fech_desp_pt ? firstVersion.fech_desp_pt : null,
-          oficioenviodmi: firstVersion.oficioenviodmi || null,
-          fechaenvioreq: firstVersion.fechaenvioreq ? firstVersion.fechaenvioreq : null,
-          obs_version: firstVersion.obs_version || null,
-        },
+        requerimiento: {
+          ...baseRequerimiento,
+          versionesActualizadas: versionesActualizadas // 👈 Enviar array de versiones
+        }
       };
     }
 
