@@ -268,3 +268,11 @@ export async function updateTestCompleto(id, data, token) {
   }
   throw new Error("Mock no implementado para updateTestCompleto");
 }
+
+export async function getEjecutores(token) {
+  const res = await fetch(`${API}/test-produccion/ejecutor`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Error al obtener ejecutores");
+  return await res.json();
+}

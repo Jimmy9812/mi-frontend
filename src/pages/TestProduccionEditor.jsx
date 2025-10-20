@@ -9,7 +9,7 @@ import {
   updateTestCompleto, 
 } from "../services/testProduccionService";
 import { useAuth } from "../context/AuthContext";
-import { getAnalistas } from "../services/usersRolService";
+import { getEjecutores } from "../services/testProduccionService";
 import { ArrowLeft, Save, Plus, Edit } from "lucide-react";
 
 
@@ -56,7 +56,9 @@ export default function TestProduccionEditor() {
 
   const [isEditing, setIsEditing] = useState(isCreate);
   const [loading, setLoading] = useState(true);
-  const [analistas, setAnalistas] = useState([]);
+  const [ejecutores, setEjecutores] = useState([]);
+
+
 
   const [form, setForm] = useState({
     numero: "",
@@ -70,26 +72,21 @@ export default function TestProduccionEditor() {
     descripcion: "",
   });
 
-  /* 🔹 Cargar analistas (id_rol === 2) */
-  useEffect(() => {
-    const loadAnalistas = async () => {
-      try {
-        const res = await getAnalistas({ token: user?.token });
-        const list = Array.isArray(res) ? res : res?.data || [];
-        const filtered = list.filter(
-          (a) =>
-            a.id_rol === 2 ||
-            a.rol_id === 2 ||
-            a?.rol?.id_rol === 2 ||
-            a?.rol?.id === 2
-        );
-        setAnalistas(filtered);
-      } catch (err) {
-        console.warn("⚠️ No se pudo cargar analistas:", err);
-      }
-    };
-    loadAnalistas();
-  }, [user?.token]);
+  
+ /* 🔹 Cargar ejecutores */
+        useEffect(() => {
+          const loadEjecutores = async () => {
+            try {
+              const res = await getEjecutores(user?.token);
+              const list = Array.isArray(res) ? res : res?.data || [];
+              setEjecutores(list); // 👈 puedes renombrar este estado a 'ejecutores' si prefieres
+            } catch (err) {
+              console.warn("⚠️ No se pudo cargar ejecutores:", err);
+            }
+          };
+          loadEjecutores();
+        }, [user?.token]);
+
 
   /* 🔹 Cargar registro si es modo edición */
   useEffect(() => {
@@ -97,6 +94,7 @@ export default function TestProduccionEditor() {
       if (!isCreate) {
         try {
           const data = await getRequerimientoById(id, user?.token);
+          console.log("📦 Data recibida desde API:", data);
           if (data) {
             setForm({
               numero: data.numero || "",
@@ -110,10 +108,13 @@ export default function TestProduccionEditor() {
                   ? `${data.rolUsuario.usuario.nombre_usuario} ${data.rolUsuario.usuario.apellidos_usuario}`
                   : ""),
               etapa:
-                data.etapa_implementacion ||
-                data.etapa ||
-                data.etapa_implementation ||
-                "",
+              data.etapa_implementation ||
+              data.etapa ||
+              data.etapa_implementacion ||
+              data.raw?.etapa_implementation || // 👈 AQUI ESTABA EL CAMPO REAL
+              "",
+
+
               oficioEnvio:
                 data.oficioEnvio?.length > 0
                   ? data.oficioEnvio
@@ -264,6 +265,8 @@ const handleSave = async () => {
 
   /* ---------------- RENDER ---------------- */
   if (loading) return <div className="p-6">Cargando…</div>;
+  
+  console.log("🎯 Valor actual de form.etapa:", JSON.stringify(form.etapa));
 
   return (
     <div className="p-6">
@@ -336,11 +339,12 @@ const handleSave = async () => {
                 className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
               >
                 <option value="">Seleccione ejecutor</option>
-                {analistas.map((a) => (
-                  <option key={a.id_rol_usuario} value={a.id_rol_usuario}>
-                    {a.usuario?.nombre_usuario} {a.usuario?.apellidos_usuario}
-                  </option>
-                ))}
+                {ejecutores.map((a) => (
+                <option key={a.id_rol_usuario} value={a.id_rol_usuario}>
+                  {a.nombre_completo}
+                </option>
+              ))}
+
               </select>
             ) : (
               <div className="bg-[#D6C7BF] px-3 py-2 rounded">
