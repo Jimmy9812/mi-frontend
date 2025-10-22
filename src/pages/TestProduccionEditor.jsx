@@ -10,7 +10,7 @@ import {
 } from "../services/testProduccionService";
 import { useAuth } from "../context/AuthContext";
 import { getEjecutores } from "../services/testProduccionService";
-import { ArrowLeft, Save, Plus, Edit } from "lucide-react";
+import { ArrowLeft, Save, Plus, Edit, CheckCircle, XCircle, Info, AlertTriangle } from "lucide-react";
 
 
 // 🕓 Normaliza la fecha seleccionada en un input <date> sin crear objeto Date
@@ -48,6 +48,30 @@ const makeInitialPropuesta = () => ({
   version: 1,
 });
 
+function AlertModal({ open, type = "info", message, onClose }) {
+  if (!open) return null;
+  const config = {
+    success: { color: "text-green-500 border-green-300", icon: <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />, title: "¡Éxito!" },
+    error:   { color: "text-red-500 border-red-300",   icon: <XCircle className="w-12 h-12 mx-auto mb-2 text-red-500" />,   title: "Error" },
+    info:    { color: "text-blue-500 border-blue-300",  icon: <Info className="w-12 h-12 mx-auto mb-2 text-blue-500" />,    title: "Aviso" },
+    warning: { color: "text-yellow-500 border-yellow-300", icon: <AlertTriangle className="w-12 h-12 mx-auto mb-2 text-yellow-500" />, title: "Advertencia" },
+  };
+  const { color, icon, title } = config[type] || config.info;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(30, 41, 59, 0.25)", backdropFilter: "blur(2px)" }}>
+      <div className={`bg-white rounded-xl shadow-xl px-8 py-8 min-w-[320px] max-w-[90vw] border-t-4 ${color} flex flex-col items-center`}>
+        {icon}
+        <div className={`mb-2 text-xl font-bold ${color}`}>{title}</div>
+        <div className="mb-6 text-gray-700 text-center">{message}</div>
+        <button onClick={onClose} className="px-6 py-2 rounded bg-[#3F6592] text-white font-semibold hover:bg-[#27466b]">
+          Aceptar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 export default function TestProduccionEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -57,6 +81,19 @@ export default function TestProduccionEditor() {
   const [isEditing, setIsEditing] = useState(isCreate);
   const [loading, setLoading] = useState(true);
   const [ejecutores, setEjecutores] = useState([]);
+  const [alert, setAlert] = useState({ open: false, type: "info", message: "" });
+  const showAlert = (type, message) => setAlert({ open: true, type, message });
+  const closeAlert = () => {
+  setAlert((prev) => {
+    const type = prev.type;
+    const updated = { ...prev, open: false };
+    // si el tipo fue exitoso, redirige luego de cerrar el modal
+    if (type === "success") {
+      setTimeout(() => navigate("/test-produccion"), 400);
+    }
+    return updated;
+  });
+};
 
 
 
@@ -175,8 +212,9 @@ const handleSave = async () => {
         user?.token
       );
 
-      alert("✅ Registro creado correctamente con versión 1");
-      navigate("/test-produccion");
+      showAlert("success", "Registro creado correctamente con versión 1");
+
+      
       return;
     }
 
@@ -219,11 +257,11 @@ const handleSave = async () => {
 
     await updateTestCompleto(id, updatePayload, user?.token);
 
-    alert("✅ Cambios guardados correctamente");
-    navigate("/test-produccion");
+    showAlert("success", "Cambios guardados correctamente");
+    
   } catch (err) {
     console.error("❌ Error en handleSave:", err);
-    alert("Error al guardar. Revisa la consola.");
+    showAlert("error", "No se pudo cargar el registro desde el servidor.");
   } finally {
     setLoading(false);
   }
@@ -268,8 +306,20 @@ const handleSave = async () => {
   
   console.log("🎯 Valor actual de form.etapa:", JSON.stringify(form.etapa));
 
+
+ 
+  
   return (
+    
     <div className="p-6">
+    {/* 🔔 Modal de alertas */}
+    <AlertModal
+      open={alert.open}
+      type={alert.type}
+      message={alert.message}
+      onClose={closeAlert}
+    />
+    
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <button
