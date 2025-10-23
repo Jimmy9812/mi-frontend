@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { listIncidentes } from "../services/incidentesService";
 import { listAccidentes } from "../services/accidentesService";
 import { listExternos } from "../services/externosService";
+import { listRequerimientos as listTestRequerimientos } from "../services/testProduccionService";
+import { listSirecq } from "../services/sirecqService";
 import { useAuth } from "../context/AuthContext";
 import { Bar, Doughnut, Radar } from "react-chartjs-2";
 import {
@@ -48,6 +50,8 @@ export default function DashboardHomePage() {
     incidentes: "bg-green-400",
     accidentes: "bg-blue-400",
     externos: "bg-orange-400",
+    testproduccion: "bg-purple-400",
+    sirecq: "bg-indigo-400",
   };
 
   // Estado para datos
@@ -62,17 +66,30 @@ export default function DashboardHomePage() {
     async function fetchData() {
       setLoading(true);
       let res;
-      if (moduloActivo === "incidentes") {
-        res = await listIncidentes({ token, page: 1, pageSize: 1000 });
-        setItems(res.items || []);
-      } else if (moduloActivo === "accidentes") {
-        res = await listAccidentes({ token, page: 1, pageSize: 1000 });
-        setItems(res.items || []);
-      } else if (moduloActivo === "externos") {
-        res = await listExternos({ token, page: 1, pageSize: 1000 });
-        setItems(res.data || res.items || []);
+      try {
+        if (moduloActivo === "incidentes") {
+          res = await listIncidentes({ token, page: 1, pageSize: 10000 });
+          setItems(res.items || []);
+        } else if (moduloActivo === "accidentes") {
+          res = await listAccidentes({ token, page: 1, pageSize: 10000 });
+          setItems(res.items || []);
+        } else if (moduloActivo === "externos") {
+          res = await listExternos({ token, page: 1, pageSize: 10000 });
+          setItems(res.data || res.items || []);
+        } else if (moduloActivo === "testproduccion") {
+          res = await listTestRequerimientos({ token, page: 1, pageSize: 10000 });
+          setItems(res.items || []);
+        } else if (moduloActivo === "sirecq") {
+          res = await listSirecq({ token, page: 1, pageSize: 10000 });
+          // listSirecq devuelve { items, page, total } en el servicio
+          setItems(res.items || []);
+        }
+      } catch (err) {
+        console.error("Error cargando datos del módulo:", moduloActivo, err);
+        setItems([]);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     fetchData();
   }, [moduloActivo, token]);
@@ -213,6 +230,20 @@ export default function DashboardHomePage() {
           >
             <Users className="w-5 h-5" />
             <span>Externos</span>
+          </button>
+          <button
+            onClick={() => setModuloActivo("testproduccion")}
+            className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-purple-50 border border-gray-300 text-purple-600"
+          >
+            <FileText className="w-5 h-5" />
+            <span>Test Producción</span>
+          </button>
+          <button
+            onClick={() => setModuloActivo("sirecq")}
+            className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-indigo-50 border border-gray-300 text-indigo-600"
+          >
+            <Database className="w-5 h-5" />
+            <span>SIRECQ</span>
           </button>
         </div>
 
