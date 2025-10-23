@@ -1,19 +1,39 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
-export default function PrivateRoute({ children, required = [] }) {
-  const { isAuthenticated, loading, hasPermission } = useAuth();
+export default function PrivateRoute({ children }) {
+  const { user, activeRole, loading, canAccessRoute, showRoleSelector } = useAuth();
+  const location = useLocation();
 
-  // Mientras el AuthContext carga (ej. desde localStorage/JWT)
-  if (loading) return <div className="text-white">Cargando...</div>;
+  // Mientras carga la autenticación
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-lg">Cargando...</div>
+      </div>
+    );
+  }
 
   // No autenticado -> redirigir al login
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-  // Si se pasaron permisos requeridos, verificarlos
-  if (required.length > 0 && !hasPermission(...required)) {
-    // Autenticado pero sin permisos -> redirigir al dashboard
+  // Si está autenticado pero necesita seleccionar rol
+  // Permitir que pase para que Layout muestre el selector
+  if (showRoleSelector) {
+    return children;
+  }
+
+  // Si no hay rol activo después de haber pasado el selector, redirigir al dashboard
+  if (!activeRole) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Verificar si el usuario tiene acceso a esta ruta
+  if (!canAccessRoute(location.pathname)) {
+    // Redirigir a página de error 403
+    return <Navigate to="/error/403" replace />;
   }
 
   // Autenticado y autorizado

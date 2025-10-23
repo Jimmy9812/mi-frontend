@@ -14,7 +14,8 @@ import IncidenteEditor from "./pages/IncidenteEditor";
 import AccidenteEditor from "./pages/AccidenteEditor";
 import TestProduccionEditor from "./pages/TestProduccionEditor";
 import Sirecq from "./pages/Sirecq";
-import SirecqEditor from "./pages/SirecqEditor"; // lo agregaremos después
+import SirecqEditor from "./pages/SirecqEditor";
+import Error403 from "./pages/errors/Error403";
 
 
 export default function App() {
@@ -28,7 +29,10 @@ export default function App() {
           {/* Login */}
           <Route path="/login" element={<Login />} />
 
-          {/* Dashboard */}
+          {/* Página de error 403 - NO protegida por PrivateRoute */}
+          <Route path="/error/403" element={<Error403 />} />
+
+          {/* Dashboard - Página principal con botones filtrados por rol */}
           <Route
             path="/dashboard"
             element={
@@ -115,6 +119,7 @@ export default function App() {
               </PrivateRoute>
             }
           />
+          
           {/* EXTERNOS */}
           <Route
             path="/externos"
@@ -140,6 +145,7 @@ export default function App() {
               </PrivateRoute>
             }
           />
+          
           {/* DASHBOARD HOME */}
           <Route
             path="/dashboard-home"

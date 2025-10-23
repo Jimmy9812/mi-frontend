@@ -8,40 +8,49 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
   const [showRoleSelector, setShowRoleSelector] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // 🔹 Permisos por rol
-  const ROLE_PERMISSIONS = {
-    Administrador: [
-      "INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT",
-      "ACCIDENTES_VIEW", "ACCIDENTES_WRITE", "ACCIDENTES_EXPORT",
-      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_WRITE", "TESTPRODUCCION_EXPORT"
-    ],
-    "ADMINISTRACIÓN": [
-      "INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT",
-      "ACCIDENTES_VIEW", "ACCIDENTES_WRITE", "ACCIDENTES_EXPORT",
-      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_WRITE", "TESTPRODUCCION_EXPORT"
-    ],
-    OPERADOR: [
-      "INCIDENTES_VIEW", "INCIDENTES_WRITE", "INCIDENTES_EXPORT",
-      "ACCIDENTES_VIEW", "ACCIDENTES_WRITE", "ACCIDENTES_EXPORT",
-      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_WRITE", "TESTPRODUCCION_EXPORT"
-    ],
-    ANALISTA: [
-      "INCIDENTES_VIEW", "INCIDENTES_EXPORT",
-      "ACCIDENTES_VIEW", "ACCIDENTES_EXPORT",
-      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_EXPORT"
-    ],
-    TÉCNICO: [
-      "INCIDENTES_VIEW", "INCIDENTES_WRITE",
-      "ACCIDENTES_VIEW", "ACCIDENTES_WRITE",
-      "TESTPRODUCCION_VIEW", "TESTPRODUCCION_WRITE"
-    ],
-    USUARIO: [
-      "INCIDENTES_VIEW",
-      "ACCIDENTES_VIEW",
-      "TESTPRODUCCION_VIEW"
-    ],
+  // 🔹 Definición de módulos y rutas por rol
+  const ROLE_ACCESS = {
+    "Tecnico Incidente": {
+      modules: ["INCIDENTES"],
+      routes: ["/incidentes", "/incidentes/nuevo", "/incidentes/:id", "/dashboard", "/dashboard-home"],
+      defaultRoute: "/dashboard"
+    },
+    "Tecnico Accidente": {
+      modules: ["ACCIDENTES"],
+      routes: ["/accidentes", "/accidentes/nuevo", "/accidentes/:id", "/dashboard", "/dashboard-home"],
+      defaultRoute: "/dashboard"
+    },
+    "Supervisor Accidente": {
+      modules: ["ACCIDENTES"],
+      routes: ["/accidentes", "/accidentes/nuevo", "/accidentes/:id", "/dashboard", "/dashboard-home"],
+      defaultRoute: "/dashboard"
+    },
+    "Supervisor Informatico": {
+      modules: ["TEST_PRODUCCION", "EXTERNOS", "SIRECQ"],
+      routes: [
+        "/test-produccion", "/test-produccion/nuevo", "/test-produccion/:id",
+        "/externos", "/externos/nuevo", "/externos/:id",
+        "/sirecq", "/sirecq/nuevo", "/sirecq/:id",
+        "/dashboard", "/dashboard-home"
+      ],
+      defaultRoute: "/dashboard"
+    },
+    "Administrador": {
+      modules: ["INCIDENTES", "ACCIDENTES", "TEST_PRODUCCION", "EXTERNOS", "SIRECQ"],
+      routes: [
+        "/incidentes", "/incidentes/nuevo", "/incidentes/:id",
+        "/accidentes", "/accidentes/nuevo", "/accidentes/:id",
+        "/test-produccion", "/test-produccion/nuevo", "/test-produccion/:id",
+        "/externos", "/externos/nuevo", "/externos/:id",
+        "/sirecq", "/sirecq/nuevo", "/sirecq/:id",
+        "/dashboard-home",
+        "/dashboard"
+      ],
+      defaultRoute: "/dashboard"
+    }
   };
 
   // 🔹 Restaurar sesión desde localStorage
@@ -52,14 +61,17 @@ export function AuthProvider({ children }) {
 
     if (storedToken && storedUser) {
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-      if (storedRole) {
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      
+      if (storedRole && userData.roles.includes(storedRole)) {
         setActiveRole(storedRole);
       }
     }
+    setLoading(false);
   }, []);
 
-  // 🔹 Guardar sesión en localStorage al hacer login
+  // 🔹 Login
   const login = async (data) => {
     const { usuario, token } = data;
     setUser(usuario);
@@ -68,23 +80,32 @@ export function AuthProvider({ children }) {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(usuario));
 
+    // Si tiene múltiples roles, mostrar selector
     if (usuario.roles.length > 1) {
       setShowRoleSelector(true);
+      navigate("/dashboard", { replace: true });
     } else {
-      setActiveRole(usuario.roles[0]);
-      localStorage.setItem("activeRole", usuario.roles[0]);
+      // Si solo tiene un rol, seleccionarlo automáticamente
+      const singleRole = usuario.roles[0];
+      setActiveRole(singleRole);
+      localStorage.setItem("activeRole", singleRole);
+      
+      const defaultRoute = ROLE_ACCESS[singleRole]?.defaultRoute || "/dashboard";
+      navigate(defaultRoute, { replace: true });
     }
-
-    navigate("/dashboard", { replace: true });
   };
 
+  // 🔹 Seleccionar rol (cuando tiene múltiples)
   const selectRole = (role) => {
     setActiveRole(role);
     localStorage.setItem("activeRole", role);
     setShowRoleSelector(false);
-    navigate("/dashboard", { replace: true });
+    
+    const defaultRoute = ROLE_ACCESS[role]?.defaultRoute || "/dashboard";
+    navigate(defaultRoute, { replace: true });
   };
 
+  // 🔹 Logout
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -98,9 +119,52 @@ export function AuthProvider({ children }) {
     navigate("/login", { replace: true });
   };
 
-  // 🔹 Calcula permisos del rol activo
-  const permissions = activeRole ? (ROLE_PERMISSIONS[activeRole] || []) : [];
-  const hasPermission = (...perms) => perms.every((p) => permissions.includes(p));
+  // 🔹 Verificar si el usuario tiene acceso a un módulo
+  const hasModule = (module) => {
+    if (!activeRole) return false;
+    const roleAccess = ROLE_ACCESS[activeRole];
+    return roleAccess?.modules.includes(module) || false;
+  };
+
+  // 🔹 Verificar si el usuario puede acceder a una ruta
+  const canAccessRoute = (path) => {
+    if (!activeRole) return false;
+    const roleAccess = ROLE_ACCESS[activeRole];
+    if (!roleAccess) return false;
+
+    // Siempre permitir acceso a /dashboard
+    if (path === "/dashboard" || path === "/error/403") return true;
+
+    // Verificar rutas exactas y con parámetros dinámicos
+    return roleAccess.routes.some(allowedRoute => {
+      // Convertir ruta con parámetros a regex
+      const pattern = allowedRoute.replace(/:\w+/g, '[^/]+');
+      const regex = new RegExp(`^${pattern}$`);
+      return regex.test(path);
+    });
+  };
+
+  // 🔹 Obtener módulos disponibles para el menú
+  const getAvailableModules = () => {
+    if (!activeRole) return [];
+    return ROLE_ACCESS[activeRole]?.modules || [];
+  };
+
+  // 🔹 Obtener ruta por defecto del rol activo
+  const getDefaultRoute = () => {
+    if (!activeRole) return "/dashboard";
+    return ROLE_ACCESS[activeRole]?.defaultRoute || "/dashboard";
+  };
+
+  // 🔹 Función legacy hasPermission (por compatibilidad con componentes antiguos)
+  // Retorna true para mantener compatibilidad, ya que ahora usamos hasModule y canAccessRoute
+  const hasPermission = (...perms) => {
+    // Si no hay rol activo, denegar acceso
+    if (!activeRole) return false;
+    // Por ahora, permitir todo si el usuario tiene un rol activo
+    // Los permisos reales se manejan por hasModule y canAccessRoute
+    return true;
+  };
 
   return (
     <AuthContext.Provider
@@ -109,12 +173,17 @@ export function AuthProvider({ children }) {
         token,
         activeRole,
         showRoleSelector,
+        loading,
         isAuthenticated: !!user,
         login,
         logout,
         selectRole,
-        permissions,
-        hasPermission,
+        hasModule,
+        canAccessRoute,
+        getAvailableModules,
+        getDefaultRoute,
+        hasPermission, // Para compatibilidad con componentes antiguos
+        ROLE_ACCESS
       }}
     >
       {children}

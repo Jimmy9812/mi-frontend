@@ -14,8 +14,60 @@ import {
 
 export default function Dashboard() {
   const [open, setOpen] = useState(false);
-  const { user, logout } = useAuth(); 
+  const { user, logout, getAvailableModules, activeRole, showRoleSelector } = useAuth(); 
   const navigate = useNavigate();
+
+  // 🔹 Si no hay rol activo o está mostrando el selector, no renderizar nada aún
+  if (!activeRole || showRoleSelector) {
+    return null;
+  }
+
+  // 🔹 Configuración completa de todos los módulos
+  const ALL_MODULES = [
+    { 
+      key: "SIRECQ",
+      label: "SIREC-Q", 
+      icon: <FileText className="w-7 h-7" />, 
+      offset: -720, 
+      to: "/sirecq" 
+    },
+    { 
+      key: "EXTERNOS",
+      label: "EXTERNOS", 
+      icon: <Users className="w-7 h-7" />, 
+      offset: -690, 
+      to: "/externos" 
+    },
+    { 
+      key: "TEST_PRODUCCION",
+      label: "TEST/PRODUCCIÓN", 
+      icon: <Database className="w-7 h-7" />, 
+      offset: -660, 
+      to: "/test-produccion" 
+    },
+    { 
+      key: "ACCIDENTES",
+      label: "ACCIDENTES", 
+      icon: <AlertTriangle className="w-7 h-7" />, 
+      offset: -630, 
+      to: "/accidentes" 
+    },
+    { 
+      key: "INCIDENTES",
+      label: "INCIDENTES", 
+      icon: <Activity className="w-7 h-7" />, 
+      offset: -600, 
+      to: "/incidentes" 
+    },
+  ];
+
+  // 🔹 Obtener módulos permitidos para el rol activo
+  const availableModules = getAvailableModules();
+
+  // 🔹 Filtrar solo los módulos permitidos
+  const visibleModules = ALL_MODULES.filter(module => 
+    availableModules.includes(module.key)
+  );
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
@@ -91,18 +143,12 @@ export default function Dashboard() {
         className="absolute z-30 top-3 left-1/3 h-20 w-auto"
       />
 
-      {/* Botones inclinados */}
+      {/* Botones inclinados - FILTRADOS POR ROL */}
       <div
         className="absolute inset-y-0 left-340 z-20 flex flex-col justify-center gap-10 pr-20"
         style={{ transform: "translateY(70px)" }}
       >
-        {[
-          { label: "SIREC-Q", icon: <FileText className="w-7 h-7" />, offset: -720, to: "/sirecq" },
-          { label: "EXTERNOS", icon: <Users className="w-7 h-7" />, offset: -690, to: "/externos" },
-          { label: "TEST/PRODUCCIÓN", icon: <Database className="w-7 h-7" />, offset: -660, to: "/test-produccion" },
-          { label: "ACCIDENTES", icon: <AlertTriangle className="w-7 h-7" />, offset: -630, to: "/accidentes" },
-          { label: "INCIDENTES", icon: <Activity className="w-7 h-7" />, offset: -600, to: "/incidentes" },
-        ].map((item, idx) => (
+        {visibleModules.map((item, idx) => (
           <Link
             key={idx}
             to={item.to}
@@ -119,6 +165,17 @@ export default function Dashboard() {
             </span>
           </Link>
         ))}
+
+        {/* 🔹 Mensaje si no hay módulos disponibles */}
+        {visibleModules.length === 0 && (
+          <div className="text-white text-center bg-red-500/20 backdrop-blur-sm p-6 rounded-lg border border-red-300 transform -skew-x-6">
+            <div className="transform skew-x-6">
+              <p className="text-lg font-semibold">⚠️ Sin acceso a módulos</p>
+              <p className="text-sm mt-2">Rol: {activeRole}</p>
+              <p className="text-xs mt-1 text-gray-200">Contacta al administrador</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
