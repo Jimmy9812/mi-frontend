@@ -73,30 +73,36 @@ export async function listRequerimientos({
       const json = await res.json();
       const itemsRaw = Array.isArray(json?.data) ? json.data : json || [];
 
-      const mapped = itemsRaw.map((it) => ({
-        id: it.id_test_produccion || it.id,
-        numero: it.no_requerimiento || "",
-        estado:
-          it.test_versions?.length > 0
-            ? `V${it.test_versions[0].versionamiento?.num_version || 1}`
-            : it.etapa_implementacion || "—",
-        fecha: it.createdAt || null,
-        raw: it,
-      }));
+      // ✅ Mapeo corregido
+      const mapped = itemsRaw.map((it) => {
+        const version = it?.test_versions?.[0]?.versionamiento || {};
+        const fechaEnvio = version.fechaenvioreq || null;
 
+        return {
+          id_test_produccion: it.id_test_produccion || it.id,
+          no_requerimiento: it.no_requerimiento || "—",
+          etapa_implementation: it.etapa_implementation || "—",
+          fechaenvioreq: fechaEnvio,
+          raw: it,
+        };
+      });
+
+      // ✅ Búsqueda opcional
       const s = search.trim().toLowerCase();
       let filtered = mapped.filter((x) => {
         const okSearch =
           !s ||
-          (x.numero || "").toLowerCase().includes(s) ||
+          (x.no_requerimiento || "").toLowerCase().includes(s) ||
           ((x.raw?.descripcion || "") + " " + (x.raw?.respuesta_tics || "")).toLowerCase().includes(s);
         return okSearch;
       });
 
+      // ✅ Paginación
       const total = filtered.length;
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
       const start = (page - 1) * pageSize;
       const items = filtered.slice(start, start + pageSize);
+
       return { items, page, total, totalPages };
     } catch (err) {
       console.warn("[testProduccionService] listRequerimientos API error:", err?.message);
@@ -104,6 +110,7 @@ export async function listRequerimientos({
   }
   return { items: [], page, total: 0, totalPages: 1 };
 }
+
 // 🔹 Obtener detalle
 export async function getRequerimientoById(id, token) {
   if (API && USE_API) {

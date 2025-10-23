@@ -32,18 +32,34 @@ export default function TestProduccion() {
   const [data, setData] = useState({ items: [], page: 1, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(false);
   // Load desde servicio (API o mock)
-  async function load() {
-    setLoading(true);
-    try {
-      const resp = await listRequerimientos({ page, pageSize, search, status, token: user?.token || null });
-      setData(resp);
-    } catch (err) {
-      console.error("Error cargando tests de producción:", err);
-      setData({ items: [], page: 1, total: 0, totalPages: 1 });
-    } finally {
-      setLoading(false);
-    }
+      async function load() {
+  setLoading(true);
+  try {
+    const resp = await listRequerimientos({
+      page,
+      pageSize,
+      search,
+      status,
+      token: user?.token || null,
+    });
+
+    // ✅ Se corrige acceso a items
+    const items = resp?.items || [];
+
+    setData({
+      items,
+      page: resp?.page || 1,
+      total: resp?.total || items.length,
+      totalPages: resp?.totalPages || 1,
+    });
+  } catch (err) {
+    console.error("Error cargando tests de producción:", err);
+    setData({ items: [], page: 1, total: 0, totalPages: 1 });
+  } finally {
+    setLoading(false);
   }
+}
+
 
 // 🔍 Efecto para cargar datos con debounce en la búsqueda
     useEffect(() => {
@@ -158,39 +174,53 @@ export default function TestProduccion() {
           </div>
 
           {/* Tabla */}
-          <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="grid grid-cols-[1.2fr_1fr_1fr_120px] bg-[#3F6592] text-white font-semibold text-sm">
-              <div className="px-4 py-3">N° Requerimiento</div>
-              <div className="px-4 py-3">Estado</div>
-              <div className="px-4 py-3">Fecha</div>
-              <div className="px-4 py-3 text-center">Acción</div>
-            </div>
+<div className="rounded-xl border overflow-hidden bg-white">
+  <div className="grid grid-cols-[1.2fr_1fr_1fr_120px] bg-[#3F6592] text-white font-semibold text-sm">
+    <div className="px-4 py-3">N° Requerimiento</div>
+    <div className="px-4 py-3">Etapa de Implementación</div>
+    <div className="px-4 py-3">Fecha de Envío</div>
+    <div className="px-4 py-3 text-center">Acción</div>
+  </div>
 
-            {loading ? (
-              <div className="p-6 text-center text-slate-500">Cargando…</div>
-            ) : data.items.length === 0 ? (
-              <div className="p-6 text-center text-slate-500">No hay resultados</div>
-            ) : (
-              data.items.map((row) => (
-                <div
-                  key={row.id}
-                  className="grid grid-cols-[1.2fr_1fr_1fr_120px] border-t items-center text-sm"
-                >
-                  <div className="px-4 py-3">{row.numero}</div>
-                  <div className="px-4 py-3">{row.estado}</div>
-                  <div className="px-4 py-3">{row.fecha ? new Date(row.fecha).toLocaleDateString() : "—"}</div>
-                  <div className="px-4 py-3 flex justify-center">
-                    <button
-                      onClick={() => navigate(`/test-produccion/${row.id}`)}
-                      className="px-3 py-1 bg-[#3F6592] text-white rounded-md hover:opacity-90"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+  {loading ? (
+    <div className="p-6 text-center text-slate-500">Cargando…</div>
+  ) : data.items.length === 0 ? (
+    <div className="p-6 text-center text-slate-500">No hay resultados</div>
+  ) : (
+    data.items.map((row) => (
+      <div
+        key={row.id_test_produccion}
+        className="grid grid-cols-[1.2fr_1fr_1fr_120px] border-t items-center text-sm"
+      >
+        {/* 🔹 N° Requerimiento */}
+        <div className="px-4 py-3">{row.no_requerimiento || "—"}</div>
+
+        {/* 🔹 Etapa de Implementación */}
+        <div className="px-4 py-3">{row.etapa_implementation || "—"}</div>
+
+        {/* 🔹 Fecha de Envío */}
+        <div className="px-4 py-3">
+          {row.fechaenvioreq
+          ? row.fechaenvioreq.split("T")[0].split("-").reverse().join("/")
+          : "—"}
+
+        </div>
+
+        {/* 🔹 Acción */}
+        <div className="px-4 py-3 flex justify-center">
+          <button
+            onClick={() =>
+              navigate(`/test-produccion/${row.id_test_produccion}`)
+            }
+            className="px-3 py-1 bg-[#3F6592] text-white rounded-md hover:opacity-90"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    ))
+  )}
+</div>
 
           {/* Footer */}
           <div className="mt-0 flex items-center justify-between">
