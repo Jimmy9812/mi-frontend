@@ -4,36 +4,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Edit, Trash} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getExterno, createExterno, updateExterno, addVersionToRequerimiento, deleteExterno } from "../services/externosService";
+import { listDependencias, listSistemas, listEstadosRequerimiento } from "../services/sirecqService";
 import GifLoader from "../components/LoadingGif";
-
-// Mapeos de opciones basados en IDs
-const sistemas = [
-  { id: 1, name: "SIREC-Q" },
-  { id: 2, name: "STL" },
-  { id: 4, name: "SUIM" },
-  { id: 5, name: "CERTIFICADOS" },
-  { id: 3, name: "DBB" }
-];
-
-const dependencias = [
-  { id: 1, name: "DMSIST" },
-  { id: 2, name: "DMC" },
-  { id: 3, name: "DMF" }
-];
-
-const estados = [
-  { id: 1, name: "Enviado" },
-  { id: 2, name: "Devuelto" },
-  { id: 3, name: "Test" },
-  { id: 4, name: "Producción" },
-  { id: 5, name: "En revisión" },
-  { id: 6, name: "Atendido" }
-];
-
-const sistemaMap = sistemas.reduce((acc, s) => ({ ...acc, [s.name]: s.id }), {});
-const dependenciaMap = dependencias.reduce((acc, d) => ({ ...acc, [d.name]: d.id }), {});
-const estadoMap = estados.reduce((acc, e) => ({ ...acc, [e.name]: e.id }), {});
-
 
 function AlertModal({ open, message, onClose, type = "info" }) {
   if (!open) return null;
@@ -83,8 +55,6 @@ function AlertModal({ open, message, onClose, type = "info" }) {
   );
 }
 
-
-
 export default function ExternosEditor({ mode = "view" }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -95,23 +65,41 @@ export default function ExternosEditor({ mode = "view" }) {
   const [editMode, setEditMode] = useState(mode === "create");
   const [loading, setLoading] = useState(true);
 
-
   // ======================= ALERTAS =========================
-const [alert, setAlert] = useState({ open: false, message: "", type: "info" });
-const showAlert = (message, type = "info") => setAlert({ open: true, message, type });
-const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
+  const [alert, setAlert] = useState({ open: false, message: "", type: "info" });
+  const showAlert = (message, type = "info") => setAlert({ open: true, message, type });
+  const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
 
+  // Estado para los catálogos
+  const [dependencias, setDependencias] = useState([]);
+  const [sistemasList, setSistemasList] = useState([]);
+  const [estadosList, setEstadosList] = useState([]);
 
-
-
-
+  // Cargar catálogos
+  useEffect(() => {
+    const fetchCatalogos = async () => {
+      try {
+        const [deps, sist, ests] = await Promise.all([
+          listDependencias({ token }),
+          listSistemas({ token }),
+          listEstadosRequerimiento({ token })
+        ]);
+        setDependencias(deps || []);
+        setSistemasList(sist || []);
+        setEstadosList(ests || []);
+      } catch (error) {
+        console.error("Error al cargar catálogos:", error);
+        showAlert("Error al cargar catálogos", "error");
+      }
+    };
+    fetchCatalogos();
+  }, [token]);
 
   // ======================= CARGAR DATOS =========================
   useEffect(() => {
     async function load() {
       if (mode === "create") {
         setExterno({
-
           numero: "",
           descripcion: "",
           sistema: "",
@@ -122,8 +110,6 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
           seguimiento: "",
           responsable: "",
           observaciones: "",
-
-
         });
         setVersiones([{ num_version: 1, ofi_desp_pt: '', fech_desp_pt: '', oficioenviodmi: '', fechaenvioreq: '', obs_version: '', isLoaded: false }]);
         setLoading(false);
@@ -185,20 +171,35 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
       }
     }
     load();
-  }, [id, mode, navigate]);
+  }, [id, mode, navigate, token]);
 
   // ======================= HANDLERS =========================
   const handleChange = (e) => {
     const { name, value } = e.target;
     setExterno((prev) => {
       if (name === "sistema") {
-        return { ...prev, sistema: value, id_sistema: sistemaMap[value] || 1 };
+        const selected = sistemasList.find(s => s.id_sistema === Number(value));
+        return { 
+          ...prev, 
+          sistema: selected?.nom_sistema || "", 
+          id_sistema: selected?.id_sistema || null 
+        };
       }
       if (name === "dependencia") {
-        return { ...prev, dependencia: value, id_dependencia: dependenciaMap[value] || 1 };
+        const selected = dependencias.find(d => d.id_dependencia === Number(value));
+        return { 
+          ...prev, 
+          dependencia: selected?.sigla_dependencia || "", 
+          id_dependencia: selected?.id_dependencia || null 
+        };
       }
       if (name === "estado") {
-        return { ...prev, estado: value, id_estado_requerimiento: estadoMap[value] || 1 };
+        const selected = estadosList.find(e => e.id_estado_requerimiento === Number(value));
+        return { 
+          ...prev, 
+          estado: selected?.nombre_estado_requerimiento || "", 
+          id_estado_requerimiento: selected?.id_estado_requerimiento || null 
+        };
       }
 
       return { ...prev, [name]: value };
@@ -239,10 +240,8 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
     };
 
     if (isUpdate) {
-      // 🆕 Filtrar solo las versiones que YA EXISTÍAN (isLoaded = true)
       const versionesExistentes = versiones.filter(v => v.isLoaded);
       
-      // 🆕 Mapear todas las versiones existentes para enviarlas al backend
       const versionesActualizadas = versionesExistentes.map(v => ({
         id_version: v.id_version,
         ofi_desp_pt: v.ofi_desp_pt || null,
@@ -256,7 +255,7 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
         sirecqExterno: baseSirecq,
         requerimiento: {
           ...baseRequerimiento,
-          versionesActualizadas: versionesActualizadas // 👈 Enviar array de versiones
+          versionesActualizadas: versionesActualizadas
         }
       };
     }
@@ -281,23 +280,23 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
   const handleSave = async () => {
     // Validación de campos requeridos
     if (!externo.numero?.trim()) {
-      showAlert("❌ El número de requerimiento es requerido.");
+      showAlert("❌ El número de requerimiento es requerido.", "warning");
       return;
     }
     if (!externo.descripcion?.trim()) {
-     showAlert("❌ La descripción es requerida.");
+      showAlert("❌ La descripción es requerida.", "warning");
       return;
     }
     if (!externo.sistema) {
-      showAlert("Debe seleccionar un sistema.", "warning");
+      showAlert("❌ Debe seleccionar un sistema.", "warning");
       return;
     }
     if (!externo.dependencia) {
-      showAlert("❌ Debe seleccionar una dependencia.");
+      showAlert("❌ Debe seleccionar una dependencia.", "warning");
       return;
     }
     if (!externo.estado) {
-      showAlert("❌ Debe seleccionar un estado.");
+      showAlert("❌ Debe seleccionar un estado.", "warning");
       return;
     }
 
@@ -327,20 +326,45 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
           });
           showAlert(`✅ Versión ${v.num_version} agregada correctamente`);
         }
-       setAlert({
+        setAlert({
           open: true,
           message: "✅ Requerimiento externo actualizado correctamente",
           type: "success",
           confirm: () => {
             setAlert({ open: false, message: "", type: "info" });
-            navigate("/externos"); // 👈 redirige al listado al cerrar
+            navigate("/externos");
           },
-          });
-          }
+        });
+      }
     } catch (err) {
       console.error("❌ Error al guardar externo:", err);
       showAlert("Ocurrió un error al guardar el requerimiento externo.", "error");
     }
+  };
+
+  const handleDelete = async () => {
+    setAlert({
+      open: true,
+      message: "¿Está seguro de eliminar este registro SIRECQ Externo? Esta acción no se puede deshacer.",
+      type: "warning",
+      confirm: async () => {
+        setAlert({ open: false, message: "", type: "info" });
+        try {
+          await deleteExterno({ token, id: externo.id_sirecq_externo });
+          setAlert({
+            open: true,
+            message: "Registro SIRECQ Externo eliminado exitosamente",
+            type: "success",
+            confirm: () => {
+              setAlert({ open: false, message: "", type: "info" });
+              navigate("/externos");
+            }
+          });
+        } catch (error) {
+          showAlert("Error al eliminar: " + error.message, "error");
+        }
+      }
+    });
   };
 
   if (loading) return <div className="p-6">Cargando...</div>;
@@ -349,44 +373,15 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
   const isCreate = mode === "create";
   const isView = mode === "view";
 
-    const handleDelete = async () => {
-      setAlert({
-        open: true,
-        message: "¿Está seguro de eliminar este registro SIRECQ Externo? Esta acción no se puede deshacer.",
-        type: "warning",
-        confirm: async () => {
-          setAlert({ open: false, message: "", type: "info" });
-          try {
-            await deleteExterno({ token, id: externo.id_sirecq_externo });
-            setAlert({
-              open: true,
-              message: "Registro SIRECQ Externo eliminado exitosamente",
-              type: "success",
-              confirm: () => {
-                setAlert({ open: false, message: "", type: "info" });
-                navigate("/externos");
-              }
-            });
-          } catch (error) {
-            showAlert("Error al eliminar: " + error.message, "error");
-          }
-        }
-      });
-    };
-
-
   // ======================= RENDER =========================
   return (
-    
     <div className="min-h-screen flex flex-col">
-
       <AlertModal
-  open={alert.open}
-  message={alert.message}
-  type={alert.type}
-  onClose={alert.confirm ? alert.confirm : closeAlert}
-/>
-
+        open={alert.open}
+        message={alert.message}
+        type={alert.type}
+        onClose={alert.confirm ? alert.confirm : closeAlert}
+      />
 
       {/* Header */}
       <div className="flex justify-between items-center px-6 py-3">
@@ -408,41 +403,37 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
           <span className="font-bold text-[#3F6592] text-lg tracking-wide">
             EXTERNOS SIREC-Q
           </span>
-<div className="flex gap-2">
-  {/* 🔴 Botón Eliminar — solo visible si no es modo crear */}
-  {!isCreate && (
-    <button
-      onClick={handleDelete}
-      className="w-10 h-10 flex items-center justify-center bg-[#e11d48] hover:bg-[#b91c1c] text-white shadow-md rounded-md transition-all duration-200"
-      title="Eliminar SIRECQ Externo"
-    >
-      <Trash className="w-5 h-5" />
-    </button>
-  )}
+          <div className="flex gap-2">
+            {!isCreate && (
+              <button
+                onClick={handleDelete}
+                className="w-10 h-10 flex items-center justify-center bg-[#e11d48] hover:bg-[#b91c1c] text-white shadow-md rounded-md transition-all duration-200"
+                title="Eliminar SIRECQ Externo"
+              >
+                <Trash className="w-5 h-5" />
+              </button>
+            )}
 
-  {/* 🟡 Botón Editar */}
-  {!isCreate && !editMode && (
-    <button
-      onClick={() => setEditMode(true)}
-      className="w-10 h-10 flex items-center justify-center bg-[#facc15] hover:bg-[#eab308] text-white shadow-md rounded-md transition-all duration-200"
-      title="Editar"
-    >
-      <Edit className="w-5 h-5" />
-    </button>
-  )}
+            {!isCreate && !editMode && (
+              <button
+                onClick={() => setEditMode(true)}
+                className="w-10 h-10 flex items-center justify-center bg-[#facc15] hover:bg-[#eab308] text-white shadow-md rounded-md transition-all duration-200"
+                title="Editar"
+              >
+                <Edit className="w-5 h-5" />
+              </button>
+            )}
 
-  {/* 🟢 Botón Guardar */}
-  {(editMode || isCreate) && (
-    <button
-      onClick={handleSave}
-      className="w-10 h-10 flex items-center justify-center bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md rounded-md transition-all duration-200"
-      title="Guardar"
-    >
-      <Save className="w-5 h-5" />
-    </button>
-  )}
-</div>
-
+            {(editMode || isCreate) && (
+              <button
+                onClick={handleSave}
+                className="w-10 h-10 flex items-center justify-center bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md rounded-md transition-all duration-200"
+                title="Guardar"
+              >
+                <Save className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -467,15 +458,28 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
             editMode={false}
           />
 
-          <PaintedPicker
-            label="Estado del requerimiento"
-            editMode={editMode || isCreate}
-            kind="select"
-            name="estado"
-            value={externo.estado || ""}
-            onChange={handleChange}
-            options={estados.map(e => e.name)}
-          />
+          <div>
+            <label className="block text-sm font-semibold mb-1">Estado del requerimiento</label>
+            {editMode || isCreate ? (
+              <select
+                name="estado"
+                value={externo.id_estado_requerimiento || ""}
+                onChange={handleChange}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-[#f1f5f9]"
+              >
+                <option value="">Seleccione...</option>
+                {estadosList.map((e) => (
+                  <option key={e.id_estado_requerimiento} value={e.id_estado_requerimiento}>
+                    {e.nombre_estado_requerimiento}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full px-3 py-2 text-sm bg-[#f1f5f9] rounded text-gray-800">
+                {externo.estado || ""}
+              </div>
+            )}
+          </div>
 
           <div className="row-span-3">
             <label className="block text-sm font-semibold mb-1">Descripción</label>
@@ -494,15 +498,28 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
             )}
           </div>
 
-          <PaintedPicker
-            label="Sistema Afectar"
-            editMode={editMode || isCreate}
-            kind="select"
-            name="sistema"
-            value={externo.sistema || ""}
-            onChange={handleChange}
-            options={sistemas.map(s => s.name)}
-          />
+          <div>
+            <label className="block text-sm font-semibold mb-1">Sistema Afectar</label>
+            {editMode || isCreate ? (
+              <select
+                name="sistema"
+                value={externo.id_sistema || ""}
+                onChange={handleChange}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-[#f1f5f9]"
+              >
+                <option value="">Seleccione...</option>
+                {sistemasList.map((s) => (
+                  <option key={s.id_sistema} value={s.id_sistema}>
+                    {s.nom_sistema}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full px-3 py-2 text-sm bg-[#f1f5f9] rounded text-gray-800">
+                {externo.sistema || ""}
+              </div>
+            )}
+          </div>
 
           <EditableField
             label="Seguimiento Institucional"
@@ -536,15 +553,28 @@ const closeAlert = () => setAlert({ open: false, message: "", type: "info" });
             editMode={editMode || isCreate}
           />
 
-          <PaintedPicker
-            label="Dependencia"
-            editMode={editMode || isCreate}
-            kind="select"
-            name="dependencia"
-            value={externo.dependencia || ""}
-            onChange={handleChange}
-            options={dependencias.map(d => d.name)}
-          />
+          <div>
+            <label className="block text-sm font-semibold mb-1">Dependencia</label>
+            {editMode || isCreate ? (
+              <select
+                name="dependencia"
+                value={externo.id_dependencia || ""}
+                onChange={handleChange}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-[#f1f5f9]"
+              >
+                <option value="">Seleccione...</option>
+                {dependencias.map((d) => (
+                  <option key={d.id_dependencia} value={d.id_dependencia}>
+                    {d.sigla_dependencia} - {d.nombre_dependencia}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full px-3 py-2 text-sm bg-[#f1f5f9] rounded text-gray-800">
+                {externo.dependencia || ""}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -618,42 +648,6 @@ function EditableField({ label, name, value, onChange, editMode }) {
       ) : (
         <div className="w-full p-2 rounded bg-[#f1f5f9] text-gray-800">{value || ""}</div>
       )}
-    </div>
-  );
-}
-
-function PaintedPicker({ label, editMode, kind = "select", name, value, onChange, options = [], inputWidth = "w-[96px]" }) {
-  return (
-    <div>
-      <label className="block text-sm font-semibold mb-1">{label}</label>
-      <div className="flex items-center justify-between bg-[#f1f5f9] rounded px-2 py-2 text-gray-800">
-        {kind === "select" ? (
-          <select
-            name={name}
-            value={value || ""}
-            onChange={onChange}
-            disabled={!editMode}
-            className={`${inputWidth} bg-white border rounded px-2 py-1 text-sm disabled:opacity-60`}
-          >
-            <option value="">Seleccione...</option> {/* 👈 agregado */}
-            {options.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-
-        ) : (
-          <input
-            type="number"
-            name={name}
-            value={value ?? ""}
-            onChange={onChange}
-            disabled={!editMode}
-            className={`${inputWidth} bg-white border rounded px-2 py-1 text-sm text-center disabled:opacity-60`}
-          />
-        )}
-      </div>
     </div>
   );
 }
