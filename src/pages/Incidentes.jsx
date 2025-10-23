@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Home, Search, Eye, Plus, Download } from "lucide-react";
+import { Home, Search, Eye, Plus, FileSpreadsheet, FileDown } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { listIncidentes, exportIncidentesCsv } from "../services/incidentesService";
+import { listIncidentes, exportIncidentesCsv, exportIncidentesXlsx } from "../services/incidentesService";
 
 const ESTADOS = [
   { label: "Todos", value: "ALL" },
@@ -153,12 +153,39 @@ useEffect(() => {
 
           {/* Acciones */}
           <div className="flex flex-wrap items-center gap-3">
+            
+
             <button
-              onClick={handleExport}
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  const allIncidentes = await listIncidentes({ 
+                    token, 
+                    role: user?.activeRole, 
+                    page: 1, 
+                    pageSize: 10000,
+                    search,
+                    status 
+                  });
+                  
+                  await exportIncidentesXlsx({
+                    token,
+                    items: allIncidentes.items,
+                    search,
+                    status
+                  });
+                } catch (error) {
+                  console.error('Error al exportar a XLSX:', error);
+                  alert('Error al exportar los incidentes a XLSX');
+                } finally {
+                  setLoading(false);
+                }
+              }}
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
+              title="Exportar a Excel"
             >
-              <Download className="w-4 h-4" />
-              EXPORT
+              <FileSpreadsheet className="w-4 h-4" />
+              EXCEL
             </button>
 
            <div className="relative">

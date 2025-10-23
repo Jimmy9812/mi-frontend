@@ -136,9 +136,7 @@ export default function ExternosEditor({ mode = "view" }) {
           id_estado_requerimiento:
             res.requerimiento?.estadoRequerimiento?.id_estado_requerimiento || null,
           seguimiento: res.seguimientoinst ?? "",
-          responsable: res.requerimiento?.rolUsuario?.usuario
-            ? `${res.requerimiento.rolUsuario.usuario.nombre_usuario} ${res.requerimiento.rolUsuario.usuario.apellidos_usuario}`
-            : "",
+          responsable: res.responext ?? "",
           tramite_pr: res.tramitepr ?? "",
           tramite_cat: res.tramitecat ?? "",
           dependencia: res.dependencia?.sigla_dependencia || "",

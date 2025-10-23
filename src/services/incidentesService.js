@@ -385,6 +385,73 @@ export async function updateIncidente({ token, id, payload }) {
   return updated;
 }
 
+// Exportar a XLSX 
+export async function exportIncidentesXlsx({ token, items, search = "", status = "ALL", filename = null }) {
+  const XLSX = await import('xlsx');
+
+  // Si no hay items, intentar obtenerlos del backend
+  if (API && !items && (token || search !== undefined || status !== undefined)) {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (status && status !== "ALL") params.set("status", status);
+
+    const res = await fetch(`${API}/incidentes?${params.toString()}`, {
+      headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error("No se pudo obtener los datos para exportar");
+    const data = await res.json();
+    items = transformBackendData(data);
+  }
+
+  // Si no hay items o no es array, error
+  if (!Array.isArray(items)) {
+    throw new Error("No hay datos para exportar");
+  }
+
+  // Mapear items a formato tabular
+  const rows = items.map(item => ({
+    "N° Incidente": item.numero,
+    "Estado": item.estado,
+    "Fecha Ingreso": item.fecha_ingreso || item.fecha,
+    "Descripción": item.descripcion,
+    "Zona": item.zona,
+    "Tipología": item.tipologia_tramite || item.tipologia,
+    "Año SIREC-Q": item.aniosirecq || item.anio_sirecq,
+    "Mensaje Error": item.mensaje_error,
+    "Fecha Solución": item.fecha_solucion,
+    "Observaciones": item.observaciones,
+    "Técnico": item.tecnico_nombre || item.tecnico,
+    "Analista": item.analista_nombre || item.analista
+  }));
+
+  // Crear workbook y worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Ajustar ancho de columnas
+  ws['!cols'] = [
+    { wch: 12 }, // N° Incidente
+    { wch: 12 }, // Estado
+    { wch: 12 }, // Fecha
+    { wch: 40 }, // Descripción
+    { wch: 15 }, // Zona
+    { wch: 15 }, // Tipología
+    { wch: 12 }, // Año
+    { wch: 30 }, // Mensaje Error
+    { wch: 12 }, // Fecha Solución
+    { wch: 40 }, // Observaciones
+    { wch: 25 }, // Técnico
+    { wch: 25 }  // Analista
+  ];
+
+  // Añadir la hoja al libro
+  XLSX.utils.book_append_sheet(wb, ws, "Incidentes");
+
+  // Generar archivo
+  const defaultFilename = `incidentes_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename || defaultFilename);
+}
+
 // Exportar CSV
 export async function exportIncidentesCsv(arg = {}) {
   if (API && (arg.token || arg.search !== undefined || arg.status !== undefined)) {
