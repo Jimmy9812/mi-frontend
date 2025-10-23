@@ -45,10 +45,26 @@ export default function TestProduccion() {
     }
   }
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, status, search, user?.token]);
+// 🔍 Efecto para cargar datos con debounce en la búsqueda
+    useEffect(() => {
+      load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, pageSize, status, search, user?.token]);
+
+    // ✅ Al volver desde otra ruta, vuelve a ejecutar load()
+    useEffect(() => {
+      load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); 
+
+    // ✅ Refresco automático al cambiar de página con búsqueda activa
+    useEffect(() => {
+      if (search.trim() !== "") {
+        load();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page]);
+
 
   const showingRange = useMemo(() => {
     const start = (data.page - 1) * pageSize + 1;
@@ -114,7 +130,7 @@ export default function TestProduccion() {
                 type="text"
                 placeholder="Buscar"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {setSearch(e.target.value); setPage(1);}}
                 className="pl-3 pr-10 py-2 rounded-md border focus:ring-2 focus:ring-indigo-500"
               />
               <button

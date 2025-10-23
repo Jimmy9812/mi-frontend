@@ -10,7 +10,7 @@ import {
 } from "../services/testProduccionService";
 import { useAuth } from "../context/AuthContext";
 import { getEjecutores } from "../services/testProduccionService";
-import { ArrowLeft, Save, Plus, Edit, CheckCircle, XCircle, Info, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, Plus, Edit, CheckCircle, XCircle, Info, AlertTriangle, Trash } from "lucide-react";
 
 
 // 🕓 Normaliza la fecha seleccionada en un input <date> sin crear objeto Date
@@ -75,7 +75,7 @@ function AlertModal({ open, type = "info", message, onClose }) {
 export default function TestProduccionEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const isCreate = !id || id === "nuevo" || id === "new";
 
   const [isEditing, setIsEditing] = useState(isCreate);
@@ -320,36 +320,81 @@ const handleSave = async () => {
       onClose={closeAlert}
     />
     
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+ {/* Header */}
+<div className="flex justify-between items-center px-6 py-3">
+  <button
+    onClick={() => navigate(-1)}
+    className="flex items-center gap-2 text-gray-700 hover:text-[#5b0f2c]"
+  >
+    <ArrowLeft className="w-5 h-5" /> Atrás
+  </button>
+
+  <span className="text-sm font-semibold">
+    {user?.nombre_usuario || user?.name || user?.email || "Usuario"}
+  </span>
+</div>
+
+<div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
+
+<div className="px-6 mt-2 mb-4">
+  <div className="flex items-center justify-between bg-[#f1f5f9] rounded px-5 py-3 shadow-sm">
+    <span className="font-bold text-[#3F6592] text-lg tracking-wide">
+      TEST / PRODUCCIÓN
+    </span>
+
+    <div className="flex gap-2">
+      {/* 🔴 Botón Eliminar — visible solo para Administrador */}
+      {(activeRole === "Administrador" || activeRole === "ADMINISTRACIÓN") && !isCreate && (
         <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-700"
+          onClick={() => {
+            if (window.confirm("¿Desea eliminar este registro de Test/Producción? Esta acción no se puede deshacer.")) {
+              // aquí puedes llamar a tu función deleteTest(id)
+              console.log("🗑️ Eliminando registro ID:", id);
+            }
+          }}
+          className="w-10 h-10 flex items-center justify-center bg-[#e11d48] hover:bg-[#b91c1c] text-white shadow-md rounded-md transition-all duration-200"
+          title="Eliminar Test / Producción"
         >
-          <ArrowLeft className="w-4 h-4" /> Atrás
+          <Trash className="w-5 h-5" />
         </button>
+      )}
 
-        <div className="flex gap-2">
-          {!isCreate && (
-            <button
-              onClick={() => setIsEditing((v) => !v)}
-              className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174]"
-              title="Editar"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          )}
-          <button
-            onClick={handleSave}
-            className="p-2 bg-[#3F6592] text-white rounded hover:bg-[#335174]"
-            title="Guardar"
-          >
-            <Save className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      {/* 🟡✏️ Botón Editar / 💾 Guardar */}
+      {!isCreate ? (
+        <button
+          onClick={() => {
+            if (isEditing) {
+              handleSave();
+            } else {
+              setIsEditing(true);
+            }
+          }}
+          className={`w-10 h-10 flex items-center justify-center rounded-md shadow-md transition-all duration-200 text-white ${
+            isEditing
+              ? "bg-[#16a34a] hover:bg-[#15803d]" // 💾 verde al editar
+              : "bg-[#facc15] hover:bg-[#eab308]" // ✏️ amarillo por defecto
+          }`}
+          title={isEditing ? "Guardar cambios" : "Editar"}
+        >
+          {isEditing ? <Save className="w-5 h-5" /> : <Edit className="w-5 h-5" />}
+        </button>
+      ) : (
+        // 💾 Mostrar siempre botón Guardar al crear nuevo registro
+        <button
+          onClick={handleSave}
+          className="w-10 h-10 flex items-center justify-center bg-[#16a34a] hover:bg-[#15803d] text-white shadow-md rounded-md transition-all duration-200"
+          title="Guardar nuevo registro"
+        >
+          <Save className="w-5 h-5" />
+        </button>
+      )}
+    </div>
+  </div>
+</div>
 
-      <hr className="border-t-2 border-[#3F6592] mb-6" />
+<div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
+
+
 
       {/* ---- FORMULARIO ---- */}
       <div className="border rounded-xl p-4 space-y-6">
@@ -368,7 +413,7 @@ const handleSave = async () => {
                 className="w-full bg-white border px-3 py-2 rounded"
               />
             ) : (
-              <div className="bg-[#D6C7BF] px-3 py-2 rounded">
+              <div className="bg-[#f1f5f9] px-3 py-2 rounded">
                 {form.numero || "—"}
               </div>
             )}
@@ -386,7 +431,7 @@ const handleSave = async () => {
                     id_rol_usuario: Number(e.target.value),
                   }))
                 }
-                className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
+                className="w-full bg-[#f1f5f9] px-3 py-2 rounded"
               >
                 <option value="">Seleccione ejecutor</option>
                 {ejecutores.map((a) => (
@@ -397,7 +442,7 @@ const handleSave = async () => {
 
               </select>
             ) : (
-              <div className="bg-[#D6C7BF] px-3 py-2 rounded">
+              <div className="bg-[#f1f5f9] px-3 py-2 rounded">
                 {form.ejecutor || "—"}
               </div>
             )}
@@ -414,14 +459,14 @@ const handleSave = async () => {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, etapa: e.target.value }))
                 }
-                className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
+                className="w-full bg-[#f1f5f9] px-3 py-2 rounded"
               >
                 <option value="">Seleccione etapa</option>
                 <option value="Test">Test</option>
                 <option value="Producción">Producción</option>
               </select>
             ) : (
-              <div className="bg-[#D6C7BF] px-3 py-2 rounded">
+              <div className="bg-[#f1f5f9] px-3 py-2 rounded">
                 {form.etapa || "—"}
               </div>
             )}
@@ -570,7 +615,7 @@ function SectionWithBox({
             />
           )}
 
-            <span className="bg-[#D6C7BF] px-3 py-2 rounded text-sm font-semibold">
+            <span className="bg-[#f1f5f9] px-3 py-2 rounded text-sm font-semibold">
               Versión {it.version}
             </span>
           </div>
@@ -598,10 +643,10 @@ function InputBox({ label, type = "text", value, onChange, isEditing }) {
           type={type}
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-[#D6C7BF] px-3 py-2 rounded"
+          className="w-full bg-[#f1f5f9] px-3 py-2 rounded"
         />
       ) : (
-        <div className="bg-[#D6C7BF] px-3 py-2 rounded">
+        <div className="bg-[#f1f5f9] px-3 py-2 rounded">
           {value || "—"}
         </div>
       )}
@@ -618,10 +663,10 @@ function BlockText({ title, value, isEditing, onChange }) {
           rows={5}
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full border rounded p-3 bg-[#D6C7BF]"
+          className="w-full border rounded p-3 bg-[#f1f5f9]"
         />
       ) : (
-        <div className="bg-[#D6C7BF] px-3 py-2 rounded whitespace-pre-line">
+        <div className="bg-[#f1f5f9] px-3 py-2 rounded whitespace-pre-line">
           {value || "—"}
         </div>
       )}
