@@ -119,9 +119,9 @@ export default function Accidentes() {
       {/* Columna izquierda - imagen ocupa toda la pantalla */}
       <div className="h-screen">
         <img
-          src="/iglesia.jpg"
+          src="/panecillo.jpg"
           alt="Quito"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover object-[50%_400%]"
         />
       </div>
 

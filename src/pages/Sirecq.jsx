@@ -177,7 +177,7 @@ export default function Sirecq() {
     <div className="min-h-screen w-full grid grid-cols-[380px_1fr]">
       {/* Imagen lateral */}
       <div className="h-screen">
-        <img src="/iglesia.jpg" alt="Quito" className="w-full h-full object-cover" />
+        <img src="/catedral.jpg" alt="Quito" className="w-full h-full object-cover" />
       </div>
 
       {/* Contenido */}

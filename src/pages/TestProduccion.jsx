@@ -92,7 +92,7 @@ export default function TestProduccion() {
     <div className="min-h-screen w-full grid grid-cols-[380px_1fr]">
       {/* Columna izquierda */}
       <div className="h-screen">
-        <img src="/iglesia.jpg" alt="Quito" className="w-full h-full object-cover" />
+        <img src="/estatua.jpg" alt="Quito" className="w-full h-full object-cover" />
       </div>
 
       {/* Columna derecha */}

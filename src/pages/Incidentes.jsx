@@ -121,7 +121,7 @@ useEffect(() => {
       {/* Columna izquierda - imagen */}
       <div className="h-screen">
         <img
-          src="/iglesia.jpg"
+          src="/mitad.jpeg"
           alt="Quito"
           className="w-full h-full object-cover"
         />
