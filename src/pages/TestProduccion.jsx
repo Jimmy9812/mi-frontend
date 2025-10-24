@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Search, Eye, Plus, Download } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { listRequerimientos, exportRequerimientosCsv } from "../services/testProduccionService";
+import { listRequerimientos, exportRequerimientosCsv, exportRequerimientosXlsx, } from "../services/testProduccionService";
 
 // 🔹 Estados posibles (mock)
 const ESTADOS = [
@@ -124,13 +124,18 @@ export default function TestProduccion() {
               onClick={async () => {
                 setLoading(true);
                 try {
-                  // solicitamos todos usando pageSize grande
-                  const resp = await listRequerimientos({ page: 1, pageSize: 10000, search, status, token: user?.token });
+                  const resp = await listRequerimientos({
+                    page: 1,
+                    pageSize: 10000,
+                    search,
+                    status,
+                    token: user?.token,
+                  });
                   const items = resp.items || [];
-                  await exportRequerimientosCsv(items);
+                  await exportRequerimientosXlsx(items);
                 } catch (err) {
-                  console.error("Error exportando:", err);
-                  alert("Error al exportar test producción");
+                  console.error("Error exportando XLSX:", err);
+                  alert("Error al exportar los registros");
                 } finally {
                   setLoading(false);
                 }
@@ -138,8 +143,9 @@ export default function TestProduccion() {
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
             >
               <Download className="w-4 h-4" />
-              EXPORT
+              EXPORTAR XLSX
             </button>
+
 
             <div className="relative">
               <input

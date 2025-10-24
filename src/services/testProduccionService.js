@@ -1,3 +1,5 @@
+
+
 // src/services/testProduccionService.js
 // Servicio para TestProduccion — soporta modo API (NestJS) y fallback MOCK
 
@@ -225,6 +227,70 @@ export async function exportRequerimientosCsv(items) {
   link.click();
   document.body.removeChild(link);
 }
+
+
+// 🔹 Exportar a XLSX (solo los campos del formulario)
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
+export async function exportRequerimientosXlsx(items = []) {
+  if (!items || items.length === 0) {
+    alert("No hay datos para exportar");
+    return;
+  }
+
+  // 🔸 Define las columnas del formulario
+  const headers = [
+    "N° Requerimiento",
+    "Ejecutor",
+    "Etapa",
+    "Oficio de Envío",
+    "Fecha de Envío",
+    "Oficio de Recepción",
+    "Fecha de Recepción",
+    "Observaciones",
+    "Respuesta TICS",
+    "Descripción",
+  ];
+
+  // 🔸 Estructura los datos de salida
+  const rows = items.map((it) => {
+    const firstVersion = it.raw?.test_versions?.[0]?.versionamiento || {};
+
+    return {
+      "N° Requerimiento": it.no_requerimiento || "—",
+      "Ejecutor":
+        it.raw?.rolUsuario?.usuario
+          ? `${it.raw.rolUsuario.usuario.nombre_usuario} ${it.raw.rolUsuario.usuario.apellidos_usuario}`
+          : "—",
+      "Etapa": it.etapa_implementation || it.raw?.etapa_implementacion || "—",
+      "Oficio de Envío": firstVersion.oficioenviodmi || "—",
+      "Fecha de Envío": firstVersion.fechaenvioreq
+        ? firstVersion.fechaenvioreq.split("T")[0]
+        : "—",
+      "Oficio de Recepción": firstVersion.ofi_desp_pt || "—",
+      "Fecha de Recepción": firstVersion.fech_desp_pt
+        ? firstVersion.fech_desp_pt.split("T")[0]
+        : "—",
+      "Observaciones": firstVersion.obs_version || "—",
+      "Respuesta TICS": it.raw?.respuesta_tics || "—",
+      "Descripción": it.raw?.descripcion || "—",
+    };
+  });
+
+  // 🔸 Crea la hoja de Excel
+  const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "TestProduccion");
+
+  // 🔸 Genera archivo y descarga
+  const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  saveAs(blob, "test_produccion.xlsx");
+}
+
 
 // ✅ Eliminar TestProduccion
 export async function deleteTestProduccion(id, token) {
