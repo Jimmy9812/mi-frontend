@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Home, Search, Eye, Plus, Download, Users, Save } from "lucide-react";
+import { Home, Search, Eye, Plus, Download, Users, Save, Trash } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { createUserWithRoles, getAllUsuarios, getAllRoles, getUsuarioById, updateUsuarioConRoles } from "../services/usersService";
+import { createUserWithRoles, getAllUsuarios, getAllRoles, getUsuarioById, updateUsuarioConRoles, deleteUsuarioConRoles} from "../services/usersService";
 
 export default function GestionUsuarios() {
   const { token, user, activeRole } = useAuth();
@@ -126,7 +126,7 @@ export default function GestionUsuarios() {
     <div className="min-h-screen w-full grid grid-cols-[380px_1fr]">
       {/* Imagen lateral */}
       <div className="h-screen">
-        <img src="/INM.jpg" alt="Quito" className="w-full h-full object-cover" />
+        <img src="/INM.png" alt="Quito" className="w-full h-full object-cover" />
       </div>
 
       {/* Contenido derecho */}
@@ -211,8 +211,37 @@ export default function GestionUsuarios() {
                   <div className="px-4 py-3">{(u.roles || []).map((r,i) => <span key={i} className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded mr-2 text-xs">{r}</span>)}</div>
                   <div className="px-4 py-3 flex items-center justify-center">
                     <button onClick={() => startEdit(u.id)} className="px-3 py-1 bg-[#3F6592] text-white rounded-md mr-2" title="Ver/Editar"><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => { if (confirm('¿Eliminar usuario #' + u.id + '? Esta acción no se puede deshacer.')) { alert('Eliminar usuario ' + u.id + ' (pendiente de implementación)'); } }} className="px-3 py-1 bg-red-500 text-white rounded-md" title="Eliminar">Eliminar</button>
-                  </div>
+                    
+                    <button
+                    onClick={async () => {
+                        if (!confirm(`¿Eliminar usuario #${u.id}? Esta acción no se puede deshacer.`)) return;
+                        try {
+                        setLoading(true);
+                        const roles = u.raw?.roles_usuario?.map(r => r?.rol?.id_rol).filter(Boolean) || [];
+                        if (roles.length === 0) {
+                            alert("El usuario no tiene roles asignados para eliminar.");
+                            return;
+                        }
+
+                        await deleteUsuarioConRoles({ token, id_usuario: u.id, roles_ids: roles });
+                        alert(`✅ Usuario #${u.id} eliminado correctamente.`);
+
+                        // refrescar lista
+                        const refreshed = await getAllUsuarios({ token });
+                        setItems(Array.isArray(refreshed) ? refreshed : []);
+                        } catch (err) {
+                        console.error("Error eliminando usuario:", err);
+                        alert("❌ Error al eliminar usuario: " + (err?.message || ""));
+                        } finally {
+                        setLoading(false);
+                        }
+                    }}
+                    className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
+                    title="Eliminar usuario"
+                    >
+                    <Trash className="w-4 h-4" />
+                    </button>
+                    </div>
                 </div>
               ))
           )}
@@ -253,40 +282,156 @@ export default function GestionUsuarios() {
 
       </div>
 
-      {/* Modal simple de creación */}
-      {openForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded p-6 w-full max-w-2xl">
-            <h2 className="text-lg font-semibold mb-4">{isEditing ? 'Editar usuario' : 'Crear usuario'}</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <input name="cedula_usuario" value={form.cedula_usuario} onChange={handleChange} placeholder="Cédula" className="p-2 border rounded" />
-              <input name="nombre_usuario" value={form.nombre_usuario} onChange={handleChange} placeholder="Nombre" className="p-2 border rounded" />
-              <input name="apellidos_usuario" value={form.apellidos_usuario} onChange={handleChange} placeholder="Apellidos" className="p-2 border rounded" />
-              <input name="correo_usuario" value={form.correo_usuario} onChange={handleChange} placeholder="Correo" className="p-2 border rounded" />
-              <input name="contrasenia_usuario" value={form.contrasenia_usuario} onChange={handleChange} placeholder={isEditing ? "Dejar vacío para no cambiar" : "Contraseña"} className="p-2 border rounded" />
-              <div>
-                <label className="block text-sm font-semibold mb-1">Roles</label>
-                <select multiple name="roles_ids" value={form.roles_ids} onChange={handleRolesChange} className="w-full p-2 border rounded h-40 bg-white">
-                  {rolesList.map((r) => (
-                    <option key={r.id_rol} value={r.id_rol}>{r.nombre_rol}</option>
-                  ))}
-                </select>
-                <div className="text-xs text-slate-500 mt-1">Mantén presionada Ctrl/Cmd para seleccionar múltiples roles</div>
-              </div>
+        {/* Modal mejorado de creación / edición */}
+        {openForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-200 overflow-hidden animate-fade-in">
+            
+            {/* Encabezado */}
+            <div className="bg-[#3F6592] text-white px-6 py-3 flex justify-between items-center">
+                <h2 className="text-lg font-semibold tracking-wide">
+                {isEditing ? "✏️ Editar usuario" : "➕ Crear usuario"}
+                </h2>
+                <button
+                onClick={() => {
+                    setOpenForm(false);
+                    setIsEditing(false);
+                    setEditUserId(null);
+                    setForm({
+                    cedula_usuario: "",
+                    apellidos_usuario: "",
+                    nombre_usuario: "",
+                    correo_usuario: "",
+                    contrasenia_usuario: "",
+                    roles_ids: [],
+                    });
+                }}
+                className="text-white hover:text-gray-200 transition"
+                title="Cerrar"
+                >
+                ✖
+                </button>
             </div>
 
-            <div className="flex justify-between items-center gap-2 mt-4">
-              <div className="text-sm text-slate-600">{isEditing ? 'Editando usuario #' + editUserId : 'Creando nuevo usuario'}</div>
-              <div className="flex justify-end gap-2">
-                <button onClick={() => { setOpenForm(false); setIsEditing(false); setEditUserId(null); setForm({ cedula_usuario: "", apellidos_usuario: "", nombre_usuario: "", correo_usuario: "", contrasenia_usuario: "", roles_ids: [] }); }} className="px-4 py-2 rounded border">Cancelar</button>
-                <button onClick={isEditing ? handleUpdate : handleCreate} className="px-4 py-2 rounded bg-blue-600 text-white flex items-center gap-2">
-                  <Save className="w-4 h-4" /> {isEditing ? 'Actualizar' : 'Guardar'}
-                </button>
-              </div>
+            {/* Cuerpo */}
+            <div className="p-6 space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-700">Cédula</label>
+                    <input
+                    name="cedula_usuario"
+                    value={form.cedula_usuario}
+                    onChange={handleChange}
+                    placeholder="Ej. 1712345678"
+                    className="p-2 border rounded-lg w-full focus:ring-2 focus:ring-[#3F6592] outline-none"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-700">Nombre</label>
+                    <input
+                    name="nombre_usuario"
+                    value={form.nombre_usuario}
+                    onChange={handleChange}
+                    placeholder="Ej. Juan"
+                    className="p-2 border rounded-lg w-full focus:ring-2 focus:ring-[#3F6592] outline-none"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-700">Apellidos</label>
+                    <input
+                    name="apellidos_usuario"
+                    value={form.apellidos_usuario}
+                    onChange={handleChange}
+                    placeholder="Ej. Pérez López"
+                    className="p-2 border rounded-lg w-full focus:ring-2 focus:ring-[#3F6592] outline-none"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-700">Correo electrónico</label>
+                    <input
+                    name="correo_usuario"
+                    value={form.correo_usuario}
+                    onChange={handleChange}
+                    placeholder="usuario@correo.com"
+                    className="p-2 border rounded-lg w-full focus:ring-2 focus:ring-[#3F6592] outline-none"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-700">Contraseña</label>
+                    <input
+                    type="password"
+                    name="contrasenia_usuario"
+                    value={form.contrasenia_usuario}
+                    onChange={handleChange}
+                    placeholder={isEditing ? "Dejar vacío para no cambiar" : "Contraseña segura"}
+                    className="p-2 border rounded-lg w-full focus:ring-2 focus:ring-[#3F6592] outline-none"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-700">Roles</label>
+                    <select
+                    multiple
+                    name="roles_ids"
+                    value={form.roles_ids}
+                    onChange={handleRolesChange}
+                    className="w-full p-2 border rounded-lg h-40 bg-white focus:ring-2 focus:ring-[#3F6592] outline-none"
+                    >
+                    {rolesList.map((r) => (
+                        <option key={r.id_rol} value={r.id_rol}>
+                        {r.nombre_rol}
+                        </option>
+                    ))}
+                    </select>
+                    <p className="text-xs text-slate-500">
+                    Mantén presionada <strong>Ctrl</strong> o <strong>Cmd</strong> para seleccionar varios roles.
+                    </p>
+                </div>
+                </div>
             </div>
-          </div>
+
+            {/* Pie del modal */}
+            <div className="bg-gray-50 px-6 py-3 flex justify-between items-center border-t">
+                <div className="text-sm text-slate-600">
+                {isEditing ? `Editando usuario #${editUserId}` : "Creando nuevo usuario"}
+                </div>
+                <div className="flex gap-2">
+                <button
+                    onClick={() => {
+                    setOpenForm(false);
+                    setIsEditing(false);
+                    setEditUserId(null);
+                    setForm({
+                        cedula_usuario: "",
+                        apellidos_usuario: "",
+                        nombre_usuario: "",
+                        correo_usuario: "",
+                        contrasenia_usuario: "",
+                        roles_ids: [],
+                    });
+                    }}
+                    className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    onClick={isEditing ? handleUpdate : handleCreate}
+                    className="px-4 py-2 rounded-lg bg-[#3F6592] text-white flex items-center gap-2 hover:bg-[#2c4c73] transition"
+                >
+                    <Save className="w-4 h-4" />
+                    {isEditing ? "Actualizar" : "Guardar"}
+                </button>
+                </div>
+            </div>
+            </div>
         </div>
-      )}
+        )}
+
     </div>
   );
 }

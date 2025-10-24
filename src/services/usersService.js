@@ -147,6 +147,31 @@ export async function updateUsuarioConRoles({ token, id, payload } = {}) {
   return res.json();
 }
 
+export async function deleteUsuarioConRoles({ token, id_usuario, roles_ids } = {}) {
+  if (!API) {
+    console.warn("⚠️ Modo fake: simulando eliminación de usuario", id_usuario);
+    return { success: true, id_usuario, roles_ids };
+  }
+
+  if (!id_usuario || !Array.isArray(roles_ids)) {
+    throw new Error("Debe enviar un id_usuario y un arreglo roles_ids válidos");
+  }
+
+  const res = await fetch(`${API}/users-rol/remover-roles/${encodeURIComponent(id_usuario)}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+    body: JSON.stringify({ roles: roles_ids }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Error ${res.status}`);
+  }
+
+  return res.json();
+}
+
+
 export async function getAllRoles({ token } = {}) {
   // Intentar endpoints comunes y si no existe, devolver lista fake
   if (!API) {

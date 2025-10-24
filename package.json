@@ -1,6 +1,9 @@
 {
   "name": "mi-frontend",
   "private": true,
+  "authors": [
+  { "name": "Jimmy Maila" },
+  { "name": "Karol Pineda" }],
   "version": "0.0.0",
   "type": "module",
   "scripts": {
