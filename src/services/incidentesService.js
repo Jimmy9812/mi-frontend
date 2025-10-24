@@ -408,40 +408,38 @@ export async function exportIncidentesXlsx({ token, items, search = "", status =
     throw new Error("No hay datos para exportar");
   }
 
-  // Mapear items a formato tabular
+  // Mapear items a formato tabular según campos del formulario
   const rows = items.map(item => ({
-    "N° Incidente": item.numero,
-    "Estado": item.estado,
-    "Fecha Ingreso": item.fecha_ingreso || item.fecha,
-    "Descripción": item.descripcion,
-    "Zona": item.zona,
-    "Tipología": item.tipologia_tramite || item.tipologia,
-    "Año SIREC-Q": item.aniosirecq || item.anio_sirecq,
-    "Mensaje Error": item.mensaje_error,
-    "Fecha Solución": item.fecha_solucion,
-    "Observaciones": item.observaciones,
-    "Técnico": item.tecnico_nombre || item.tecnico,
-    "Analista": item.analista_nombre || item.analista
+    "N° De Incidencia": item.numero,
+    "Tipología de trámite": item.tipologia_tramite || item.tipologia,
+    "Técnico responsable": item.tecnico_nombre || item.tecnico,
+    "Analista que reporta": item.analista_nombre || item.analista,
+    "Unidad zonal": item.zona || item.unidad_zonal,
+    "Fecha Solución": item.fecha_solucion || "",
+    "Fecha de ingreso del error": item.fecha_ingreso || item.fecha,
+    "Año Sirec-Q error": item.aniosirecq || item.anio_sirecq,
+    "Mensaje visualizado del error": item.mensaje_error || "",
+    "Descripción del error": item.descripcion || "",
+    "Observaciones": item.observaciones || ""
   }));
 
   // Crear workbook y worksheet
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(rows);
 
-  // Ajustar ancho de columnas
+  // Ajustar ancho de columnas según campos del formulario
   ws['!cols'] = [
-    { wch: 12 }, // N° Incidente
-    { wch: 12 }, // Estado
-    { wch: 12 }, // Fecha
-    { wch: 40 }, // Descripción
-    { wch: 15 }, // Zona
-    { wch: 15 }, // Tipología
-    { wch: 12 }, // Año
-    { wch: 30 }, // Mensaje Error
-    { wch: 12 }, // Fecha Solución
-    { wch: 40 }, // Observaciones
-    { wch: 25 }, // Técnico
-    { wch: 25 }  // Analista
+    { wch: 15 }, // N° De Incidencia
+    { wch: 20 }, // Tipología de trámite
+    { wch: 25 }, // Técnico responsable
+    { wch: 25 }, // Analista que reporta
+    { wch: 25 }, // Unidad zonal
+    { wch: 15 }, // Fecha Solución
+    { wch: 15 }, // Fecha de ingreso del error
+    { wch: 15 }, // Año Sirec-Q error
+    { wch: 40 }, // Mensaje visualizado del error
+    { wch: 40 }, // Descripción del error
+    { wch: 40 }  // Observaciones
   ];
 
   // Añadir la hoja al libro
