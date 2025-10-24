@@ -45,6 +45,7 @@ const makeInitialPropuesta = () => ({
   id: Date.now(),
   oficio: "",
   fecha: "",
+  observaciones: "",
   version: 1,
 });
 
@@ -168,6 +169,7 @@ export default function TestProduccionEditor() {
                   ? data.propuesta.map((p) => ({
                       ...p,
                       fecha: normalizeDateFromBackend(p.fecha),
+                      observaciones: p.obs_version || p.observaciones || "",
                     }))
                   : [makeInitialPropuesta()],
               respuestaTics: data.respuestaTics || "",
@@ -205,6 +207,7 @@ const handleSave = async () => {
         fechaenvioreq: form.fechaEnvio[0]?.valor || null,
         ofi_desp_pt: form.propuesta[0]?.oficio || null,
         fech_desp_pt: form.propuesta[0]?.fecha || null,
+        obs_version: form.propuesta[0]?.observaciones || null,
       };
 
       await createRequerimiento(
@@ -235,7 +238,7 @@ const handleSave = async () => {
           fechaenvioreq: form.fechaEnvio[i]?.valor || null,
           ofi_desp_pt: propuesta?.oficio || null,
           fech_desp_pt: propuesta?.fecha || null,
-          obs_version: null,
+          obs_version: propuesta?.observaciones || null,
         });
       } else {
         // ✅ Nueva versión
@@ -244,7 +247,7 @@ const handleSave = async () => {
           fechaenvioreq: form.fechaEnvio[i]?.valor || null,
           ofi_desp_pt: propuesta?.oficio || null,
           fech_desp_pt: propuesta?.fecha || null,
-          obs_version: null,
+          obs_version: propuesta?.observaciones || null,
         };
       }
     });
@@ -296,6 +299,7 @@ const handleSave = async () => {
           id: Date.now(),
           oficio: "",
           fecha: "",
+          observaciones: "",
           version: (p.propuesta?.length || 0) + 1,
         },
       ],
@@ -586,7 +590,7 @@ function SectionWithBox({
               />
             )}
             {schema === "propuesta" && (
-            <>
+            <div className="grid grid-cols-3 gap-3 w-full">
               <InputBox
                 label="Oficio de recepción"
                 value={it.oficio}
@@ -602,7 +606,24 @@ function SectionWithBox({
                 onChange={(v) => onChangePropuesta?.(it.id, "fecha", v)}
                 isEditing={isEditing}
               />
-            </>
+              <div className="flex-1">
+                <div className="text-sm font-semibold mb-1">Observaciones</div>
+                {isEditing ? (
+                  <textarea
+                    value={it.observaciones || ""}
+                    onChange={(e) => onChangePropuesta?.(it.id, "observaciones", e.target.value)}
+                    className="w-full bg-[#f1f5f9] px-3 py-2 rounded resize-none h-24 overflow-y-auto"
+                  />
+                ) : (
+                  <div
+                className="bg-[#f1f5f9] px-3 py-2 rounded h-24 overflow-y-auto whitespace-pre-wrap break-words"
+                style={{ wordBreak: "break-word" }}
+              >
+                {it.observaciones || "—"}
+              </div>
+                )}
+              </div>
+            </div>
           )}
 
           {schema === "fecha" && (
@@ -639,14 +660,26 @@ function InputBox({ label, type = "text", value, onChange, isEditing }) {
     <div className="flex-1">
       <div className="text-sm font-semibold mb-1">{label}</div>
       {isEditing ? (
-        <input
-          type={type}
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-[#f1f5f9] px-3 py-2 rounded"
-        />
+        label === "Observaciones" ? (
+          <textarea
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full bg-[#f1f5f9] px-3 py-2 rounded resize-none h-24 overflow-y-auto"
+          />
+        ) : (
+          <input
+            type={type}
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full bg-[#f1f5f9] px-3 py-2 rounded"
+          />
+        )
       ) : (
-        <div className="bg-[#f1f5f9] px-3 py-2 rounded">
+        <div className={`bg-[#f1f5f9] px-3 py-2 rounded ${
+          label === "Observaciones" 
+            ? "h-24 overflow-y-auto whitespace-pre-wrap" 
+            : ""
+        }`}>
           {value || "—"}
         </div>
       )}
@@ -666,9 +699,13 @@ function BlockText({ title, value, isEditing, onChange }) {
           className="w-full border rounded p-3 bg-[#f1f5f9]"
         />
       ) : (
-        <div className="bg-[#f1f5f9] px-3 py-2 rounded whitespace-pre-line">
-          {value || "—"}
-        </div>
+        <div
+        className="bg-[#f1f5f9] px-3 py-2 rounded whitespace-pre-line break-words overflow-y-auto max-h-40"
+        style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+      >
+        {value || "—"}
+      </div>
+
       )}
     </div>
   );
