@@ -7,7 +7,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
 
-const TIPOS = ["Todos", "RSW", "RD", "RPM"];
+//const TIPOS = ["Todos", "RSW", "RD", "RPM"];
 const ESTADOS = ["Todos", "EN REVISIÓN", "ENVIADO", "PENDIENTE", "DEVUELTO", "FAVORABLE"];
 
 export default function Externos() {
@@ -283,20 +283,7 @@ const filteredData = useMemo(() => {
                 </option>
               ))}
             </select>
-            <select
-              value={tipo}
-              onChange={(e) => {
-                setTipo(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {TIPOS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+            
           </div>
         </div>
 

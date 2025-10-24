@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
+const TIPOS = ["Todos", "RSW", "RD", "RPM"];
 
 const ESTADOS = [
   { label: "Todos", value: "Todos" },
@@ -23,6 +24,8 @@ export default function Sirecq() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [estadosList, setEstadosList] = useState([]);
+  const [tipo, setTipo] = useState("Todos");
+
 
 
   const [data, setData] = useState({
@@ -244,6 +247,23 @@ export default function Sirecq() {
               </option>
             ))}
           </select>
+
+          {/* 🔹 Select Tipo (nuevo) */}
+          <select
+            value={tipo}
+            onChange={(e) => {
+              setTipo(e.target.value);
+              setPage(1);
+            }}
+            className="px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {TIPOS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+
 
           </div>
 
