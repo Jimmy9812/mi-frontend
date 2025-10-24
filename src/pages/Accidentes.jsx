@@ -1,11 +1,12 @@
 // src/pages/Accidentes.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Home, Search, Eye, Plus, Download } from "lucide-react";
+import { Home, Search, Eye, Plus, Download, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import {
   listAccidentes,
   exportAccidentesCsv,
+  exportAccidentesXlsx,
 } from "../services/accidentesService";
 
 // 👉 Helper para dar estilos a cada estado
@@ -151,12 +152,37 @@ export default function Accidentes() {
 
           {/* Acciones */}
           <div className="flex flex-wrap items-center gap-3">
+            
+            
             <button
-              onClick={handleExport}
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  const allData = await listAccidentes({
+                    token,
+                    page: 1,
+                    pageSize: 10000,
+                    search,
+                    status
+                  });
+                  await exportAccidentesXlsx({
+                    token,
+                    items: allData.items,
+                    search,
+                    status
+                  });
+                } catch (error) {
+                  console.error("Error exportando a Excel:", error);
+                  alert("Error al exportar a Excel: " + error.message);
+                } finally {
+                  setLoading(false);
+                }
+              }}
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
+              title="Exportar Excel"
             >
-              <Download className="w-4 h-4" />
-              EXPORTAR
+              <FileSpreadsheet className="w-4 h-4" />
+              EXCEL
             </button>
 
             <div className="relative">

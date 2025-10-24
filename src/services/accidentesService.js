@@ -316,6 +316,86 @@ export async function updateAccidente({ token, id, payload }) {
   }
 }
 
+export async function exportAccidentesXlsx({ token, items, search = "", status = "ALL", filename = null }) {
+  const XLSX = await import('xlsx');
+
+  // Si no hay items, obtenerlos del servicio
+  if (!items) {
+    const data = await listAccidentes({
+      token,
+      page: 1,
+      pageSize: 10000,
+      search,
+      status
+    });
+    items = data.items;
+  }
+
+  // Mapear items según los campos del formulario
+  const rows = items.map(item => ({
+    // Información General
+    "Trámite": item.tramite || '',
+    "Número interno": item.numero_interno || '',
+    "Oficio/Memorando/Mail": item.oficio || '',
+    "Número de documento": item.numero_documento || item.documento || '',
+    "Nombre del propietario": item.nom_propietario || item.propietario || '',
+    
+    // Fechas
+    "Ingreso del trámite": item.fecha_ingreso_tramite || item.fecha || '',
+    "Asignación del trámite": item.fecha_asignacion_tramite || '',
+    
+    // Personal y Tipología
+    "Técnico responsable": item.tecnico_responsable || '',
+    "Tipología de trámite": item.tipologia_tramite || '',
+    "Inspección": item.inspeccion || '',
+    
+    // Información Catastral y Estado
+    "Número de predio": item.numero_predio || item.predio || '',
+    "Clave catastral": item.clave_catastral || '',
+    "Zona/Parroquia": item.zona || '',
+    "Estado de trámite": item.estado || item.estado_tramite || '',
+    
+    // Control y Observaciones
+    "Fecha de control": item.fecha_estado || '',
+    "Control de calidad": item.control_calidad || '',
+    "Código consulta/Dato seguro": item.cod_consulta || item.codigo_consulta || '',
+    "Observaciones": item.observaciones || ''
+  }));
+
+  // Crear workbook y worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Ajustar ancho de columnas
+  ws['!cols'] = [
+    { wch: 15 }, // Trámite
+    { wch: 15 }, // Número interno
+    { wch: 25 }, // Oficio/Memorando/Mail
+    { wch: 20 }, // Número de documento
+    { wch: 30 }, // Nombre del propietario
+    { wch: 15 }, // Ingreso del trámite
+    { wch: 15 }, // Asignación del trámite
+    { wch: 25 }, // Técnico responsable
+    { wch: 20 }, // Tipología de trámite
+    { wch: 15 }, // Inspección
+    { wch: 15 }, // Número de predio
+    { wch: 20 }, // Clave catastral
+    { wch: 20 }, // Zona/Parroquia
+    { wch: 15 }, // Estado de trámite
+    { wch: 15 }, // Fecha de control
+    { wch: 25 }, // Control de calidad
+    { wch: 25 }, // Código consulta/Dato seguro
+    { wch: 40 }  // Observaciones
+  ];
+
+  // Añadir la hoja al libro
+  XLSX.utils.book_append_sheet(wb, ws, "Accidentes");
+
+  // Generar archivo
+  const defaultFilename = `accidentes_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename || defaultFilename);
+}
+
 export async function exportAccidentesCsv(arg = {}) {
   const { token, search = "", status = "ALL" } = arg;
 
