@@ -235,6 +235,7 @@ export default function ExternosEditor({ mode = "view" }) {
       tramitecat: externo.tramite_cat || "",
       observacionesgen: externo.observaciones || "",
       id_dependencia: externo.id_dependencia || 1,
+      responext: externo.responsable || "",
     };
 
     if (isUpdate) {
