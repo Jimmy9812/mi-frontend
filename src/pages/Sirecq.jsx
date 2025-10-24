@@ -176,6 +176,36 @@ export default function Sirecq() {
     });
   };
 
+    // 🔹 Filtro local: tipo (RSW, RD, RPM), estado y búsqueda
+  const filteredItems = useMemo(() => {
+    const items = data.items || [];
+    return items.filter((row) => {
+      const nombre = row?.sirecqExterno?.requerimiento?.no_requerimiento || "";
+      const tema = row?.sirecqExterno?.requerimiento?.tema || "";
+      const estado =
+        row?.sirecqExterno?.requerimiento?.estadoRequerimiento
+          ?.nombre_estado_requerimiento || "";
+
+      // Filtro por prefijo (RSW, RD, RPM)
+      const byTipo =
+        tipo === "Todos" || nombre.toUpperCase().startsWith(tipo.toUpperCase());
+
+      // Filtro por estado
+      const byEstado =
+        status === "Todos" || estado.toUpperCase() === status.toUpperCase();
+
+      // Filtro por búsqueda
+      const q = search.trim().toLowerCase();
+      const bySearch =
+        q === "" ||
+        nombre.toLowerCase().includes(q) ||
+        tema.toLowerCase().includes(q);
+
+      return byTipo && byEstado && bySearch;
+    });
+  }, [data.items, tipo, status, search]);
+
+
   return (
     <div className="min-h-screen w-full grid grid-cols-[380px_1fr]">
       {/* Imagen lateral */}
@@ -276,12 +306,14 @@ export default function Sirecq() {
               <div className="px-4 py-3 text-center">Acción</div>
             </div>
 
+
             {loading ? (
               <div className="p-6 text-center text-slate-500">Cargando…</div>
-            ) : data.items.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
+
               <div className="p-6 text-center text-slate-500">No hay resultados</div>
             ) : (
-              data.items.map((row) => (
+              filteredItems.map((row) => (
                 <div
                   key={row.id_sirecq_interno}
                   className="grid grid-cols-[1.5fr_1fr_1fr_120px] border-t items-center text-sm hover:bg-slate-50"

@@ -143,7 +143,7 @@ export default function TestProduccion() {
               className="flex items-center gap-2 px-4 py-2 rounded-md border text-slate-700 hover:bg-slate-50"
             >
               <Download className="w-4 h-4" />
-              EXPORTAR XLSX
+              EXPORTAR
             </button>
 
 
