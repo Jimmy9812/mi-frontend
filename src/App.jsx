@@ -16,6 +16,7 @@ import TestProduccionEditor from "./pages/TestProduccionEditor";
 import Sirecq from "./pages/Sirecq";
 import SirecqEditor from "./pages/SirecqEditor";
 import Error403 from "./pages/errors/Error403";
+import GestionUsuarios from "./pages/GestionUsuarios";
 
 
 export default function App() {
@@ -162,6 +163,16 @@ export default function App() {
             element={
               <PrivateRoute>
                 <Sirecq />
+              </PrivateRoute>
+            }
+          />
+
+          {/* GESTIÓN DE USUARIOS - solo admin */}
+          <Route
+            path="/gestion-usuarios"
+            element={
+              <PrivateRoute>
+                <GestionUsuarios />
               </PrivateRoute>
             }
           />

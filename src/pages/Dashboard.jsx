@@ -103,10 +103,21 @@ export default function Dashboard() {
 
           {/* Dropdown */}
           {open && (
-            <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200">
+            <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200">
+              {/* Enlace a gestión de usuarios visible solo para Administrador */}
+              {activeRole === "Administrador" && (
+                <button
+                  onClick={() => navigate('/gestion-usuarios')}
+                  className="flex items-center gap-2 px-4 py-2 w-full text-slate-700 hover:bg-slate-50 rounded-t-lg"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Gestión usuarios</span>
+                </button>
+              )}
+
               <button
                 onClick={logout}
-                className="flex items-center justify-center gap-2 px-4 py-2 w-full text-red-600 hover:bg-red-50 rounded-lg"
+                className="flex items-center justify-center gap-2 px-4 py-2 w-full text-red-600 hover:bg-red-50 rounded-b-lg"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Cerrar sesión</span>

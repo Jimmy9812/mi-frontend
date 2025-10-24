@@ -13,12 +13,12 @@ export function AuthProvider({ children }) {
 
   // 🔹 Definición de módulos y rutas por rol
   const ROLE_ACCESS = {
-    "Tecnico Incidente": {
+    "Técnico Incidentes": {
       modules: ["INCIDENTES"],
       routes: ["/incidentes", "/incidentes/nuevo", "/incidentes/:id", "/dashboard", "/dashboard-home"],
       defaultRoute: "/dashboard"
     },
-    "Tecnico Accidente": {
+    "Técnico Accidentes": {
       modules: ["ACCIDENTES"],
       routes: ["/accidentes", "/accidentes/nuevo", "/accidentes/:id", "/dashboard", "/dashboard-home"],
       defaultRoute: "/dashboard"
@@ -47,6 +47,7 @@ export function AuthProvider({ children }) {
         "/externos", "/externos/nuevo", "/externos/:id",
         "/sirecq", "/sirecq/nuevo", "/sirecq/:id",
         "/dashboard-home",
+        "/gestion-usuarios",
         "/dashboard"
       ],
       defaultRoute: "/dashboard"
