@@ -20,8 +20,25 @@ export async function createUserWithRoles({ token, payload } = {}) {
   };
 
   if (!API) {
-    // Modo fake: devolver el payload con id simulado
-    return { id: Math.floor(Math.random() * 1000000), ...body };
+    // fake
+    const fake = {
+      id_usuario: Math.floor(Math.random() * 1000000),
+      ...body,
+      roles_usuario: (body.roles_ids || []).map((id_rol, i) => ({
+        id_rol_usuario: i + 1,
+        rol: { id_rol, nombre_rol: `ROL_${id_rol}` }
+      }))
+    };
+    const rolesTexto = (fake.roles_usuario || []).map(r => r?.rol?.nombre_rol || "");
+    return {
+      id: fake.id_usuario,
+      cedula_usuario: fake.cedula_usuario ?? "",
+      nombre_usuario: fake.nombre_usuario ?? "",
+      apellidos_usuario: fake.apellidos_usuario ?? "",
+      correo_usuario: fake.correo_usuario ?? "",
+      roles: rolesTexto,
+      raw: fake,
+    };
   }
 
   const res = await fetch(`${API}/users-rol/create`, {
@@ -35,8 +52,26 @@ export async function createUserWithRoles({ token, payload } = {}) {
     throw new Error(text || `Error ${res.status}`);
   }
 
-  return res.json();
+  const json = await res.json();
+
+  // 👇 tu backend responde directo con el usuario (sin contenedor)
+  const data = json.usuario ?? json; // por si algún día lo envías envuelto
+
+  const rolesTexto = (data.roles_usuario || data.roles || [])
+    .map(r => r?.rol?.nombre_rol || r?.nombre_rol || "");
+
+  // Devolvemos un objeto LISTO para pintar en la tabla
+  return {
+    id: data.id_usuario ?? data.id,
+    cedula_usuario: data.cedula_usuario ?? "",
+    nombre_usuario: data.nombre_usuario ?? "",
+    apellidos_usuario: data.apellidos_usuario ?? "",
+    correo_usuario: data.correo_usuario ?? "",
+    roles: rolesTexto,
+    raw: data,
+  };
 }
+
 
 export async function getAllUsuarios({ token } = {}) {
   if (!API) {
@@ -183,7 +218,7 @@ export async function getAllRoles({ token } = {}) {
   }
 
   // probar /roles
-  const tryEndpoints = ["roles", "rol", "roles/list"];
+  const tryEndpoints = [ "rol", "roles/list", "roles",];
   for (const ep of tryEndpoints) {
     try {
       const res = await fetch(`${API}/${ep}`, { headers: authHeaders(token) });

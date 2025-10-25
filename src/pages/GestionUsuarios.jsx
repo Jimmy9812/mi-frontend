@@ -21,22 +21,30 @@ export default function GestionUsuarios() {
   const [editUserId, setEditUserId] = useState(null);
 
   useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        const res = await getAllUsuarios({ token });
-        setItems(Array.isArray(res) ? res : []);
-        const roles = await getAllRoles({ token });
-        setRolesList(Array.isArray(roles) ? roles : []);
-      } catch (err) {
-        console.error("Error cargando usuarios:", err);
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
+  async function load() {
+    try {
+      setLoading(true);
+      const res = await getAllUsuarios({ token });
+
+      // 🔥 Ordenamos SIEMPRE por id_usuario ascendente
+      const ordenados = Array.isArray(res)
+        ? res.sort((a, b) => a.id_usuario - b.id_usuario)
+        : [];
+
+      setItems(ordenados);
+
+      const roles = await getAllRoles({ token });
+      setRolesList(Array.isArray(roles) ? roles : []);
+    } catch (err) {
+      console.error("Error cargando usuarios:", err);
+      setItems([]);
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, [token]);
+  }
+  load();
+}, [token]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,22 +57,59 @@ export default function GestionUsuarios() {
     setForm((f) => ({ ...f, roles_ids: values }));
   };
 
-  const handleCreate = async () => {
-    try {
-      setLoading(true);
-      const payload = { ...form, roles_ids: form.roles_ids || [] };
-      const res = await createUserWithRoles({ token, payload });
-      setItems((prev) => [res, ...prev]);
-      setOpenForm(false);
-      setForm({ cedula_usuario: "", apellidos_usuario: "", nombre_usuario: "", correo_usuario: "", contrasenia_usuario: "", roles_ids: [] });
-      alert("Usuario creado");
-    } catch (err) {
-      console.error(err);
-      alert("Error creando usuario: " + (err?.message || ""));
-    } finally {
-      setLoading(false);
-    }
-  };
+        const handleCreate = async () => {
+        try {
+          setLoading(true);
+
+          const payload = { ...form, roles_ids: form.roles_ids || [] };
+          const nuevoUsuario = await createUserWithRoles({ token, payload });
+
+          // 🧠 Algunos backends no devuelven los roles al crear
+          // Por eso hacemos un GET inmediato para traerlos actualizados
+          const fullUser = await getUsuarioById({ token, id: nuevoUsuario.id });
+
+          // Normalizamos roles en texto plano
+          const rolesLimpios = (fullUser.roles_raw || fullUser.raw?.roles_usuario || [])
+            .map(r => r?.rol?.nombre_rol || r?.nombre_rol || "")
+            .filter(Boolean);
+
+          const usuarioFinal = {
+            id: fullUser.id ?? fullUser.id_usuario,
+            cedula_usuario: fullUser.cedula_usuario ?? "",
+            nombre_usuario: fullUser.nombre_usuario ?? "",
+            apellidos_usuario: fullUser.apellidos_usuario ?? "",
+            correo_usuario: fullUser.correo_usuario ?? "",
+            roles: rolesLimpios,
+            raw: fullUser.raw ?? fullUser,
+          };
+
+          // 🔄 Agregar a la tabla y mover a la última página
+          setItems((prev) => [...prev, usuarioFinal]);
+
+          const total = items.length + 1;
+          const totalPages = Math.ceil(total / pageSize);
+          setPage(totalPages);
+
+          setOpenForm(false);
+          setForm({
+            cedula_usuario: "",
+            apellidos_usuario: "",
+            nombre_usuario: "",
+            correo_usuario: "",
+            contrasenia_usuario: "",
+            roles_ids: [],
+          });
+
+          alert("✅ Usuario creado correctamente");
+        } catch (err) {
+          console.error("❌ Error creando usuario:", err);
+          alert("Error creando usuario: " + (err?.message || ""));
+        } finally {
+          setLoading(false);
+        }
+      };
+
+
 
   const startEdit = async (id) => {
     try {
@@ -203,12 +248,36 @@ export default function GestionUsuarios() {
               })
               .slice((page - 1) * pageSize, page * pageSize)
               .map((u, idx) => (
-                <div key={u.id} className="grid grid-cols-[0.6fr_1fr_2fr_2fr_2fr_120px] border-t items-center text-sm hover:bg-gray-50">
+                <div
+                key={u.id ?? u.id_usuario ?? `${u.cedula_usuario || 'sinid'}-${idx}`}
+                className="grid grid-cols-[0.6fr_1fr_2fr_2fr_2fr_120px] border-t items-center text-sm hover:bg-gray-50"
+              >
+
                   <div className="px-4 py-3">{(page - 1) * pageSize + idx + 1}</div>
                   <div className="px-4 py-3">{u.cedula_usuario || '—'}</div>
                   <div className="px-4 py-3">{u.nombre_usuario} {u.apellidos_usuario}</div>
                   <div className="px-4 py-3">{u.correo_usuario || '—'}</div>
-                  <div className="px-4 py-3">{(u.roles || []).map((r,i) => <span key={i} className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded mr-2 text-xs">{r}</span>)}</div>
+                  <div className="px-4 py-3">
+                    {(u.roles || []).map((r, idx) => {
+                      const nombreRol =
+                        typeof r === "object"
+                          ? r?.rol?.nombre_rol || r?.nombre_rol || ""
+                          : r;
+
+                      // Asignar un key único y seguro
+                      const keyVal = r?.id_rol_usuario ?? r?.id_rol ?? idx;
+
+                      return (
+                        <span
+                          key={keyVal}
+                          className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded mr-2 text-xs"
+                        >
+                          {nombreRol}
+                        </span>
+                      );
+                    })}
+                  </div>
+
                   <div className="px-4 py-3 flex items-center justify-center">
                     <button onClick={() => startEdit(u.id)} className="px-3 py-1 bg-[#3F6592] text-white rounded-md mr-2" title="Ver/Editar"><Eye className="w-4 h-4" /></button>
                     
