@@ -328,20 +328,57 @@ export default function GestionUsuarios() {
             <span className="text-slate-500">{items.length === 0 ? '0-0 de 0' : `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, items.length)} de ${items.length}`}</span>
           </div>
 
+          
           {/* Paginación */}
           <div className="flex flex-col items-center gap-1">
-            <p className="uppercase text-sm text-gray-600">Página</p>
+            <p className="uppercase text-sm text-gray-600">PÁGINA</p>
             <div className="flex items-center gap-1">
-              <button disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed">«</button>
-              {Array.from({ length: Math.min(items.length ? Math.ceil(items.length / pageSize) : 1, 8) }, (_, i) => {
-                const pageNum = i + 1;
+              {/* Botón anterior */}
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                «
+              </button>
+
+              {/* Botones dinámicos (máximo 8 visibles) */}
+              {Array.from({ length: Math.min(8, Math.ceil(items.length / pageSize)) }, (_, i) => {
+                const totalPages = Math.ceil(items.length / pageSize);
+                const startPage = Math.max(1, Math.min(page - 3, totalPages - 7));
+                const pageNum = startPage + i;
+                if (pageNum > totalPages) return null;
+
                 return (
-                  <button key={pageNum} onClick={() => setPage(pageNum)} className={`w-8 h-8 rounded ${pageNum === page ? 'bg-[#3F6592] text-white' : 'hover:bg-slate-100'}`}>{pageNum}</button>
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`w-8 h-8 rounded ${
+                      pageNum === page
+                        ? "bg-[#3F6592] text-white"
+                        : "hover:bg-slate-100"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
                 );
               })}
-              <button disabled={page >= Math.ceil(items.length / pageSize)} onClick={() => setPage((p) => Math.min(Math.ceil(items.length / pageSize) || 1, p + 1))} className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed">»</button>
+
+              {/* Botón siguiente */}
+              <button
+                disabled={page >= Math.ceil(items.length / pageSize)}
+                onClick={() =>
+                  setPage((p) =>
+                    Math.min(Math.ceil(items.length / pageSize) || 1, p + 1)
+                  )
+                }
+                className="w-8 h-8 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                »
+              </button>
             </div>
           </div>
+
 
           {/* Botón agregar */}
           <button onClick={() => setOpenForm(true)} className="flex items-center gap-2 bg-[#3F6592] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-opacity">
