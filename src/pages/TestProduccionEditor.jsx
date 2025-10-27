@@ -333,9 +333,6 @@ const handleSave = async () => {
     <ArrowLeft className="w-5 h-5" /> Atrás
   </button>
 
-  <span className="text-sm font-semibold">
-    {user?.nombre_usuario || user?.name || user?.email || "Usuario"}
-  </span>
 </div>
 
 <div className="h-[2px] bg-[#3F6592] mx-6 my-2"></div>
