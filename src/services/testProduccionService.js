@@ -131,6 +131,10 @@ export async function getRequerimientoById(id, token) {
         ejecutor: `${it.rolUsuario?.usuario?.nombre_usuario || ""} ${it.rolUsuario?.usuario?.apellidos_usuario || ""}`.trim(),
         id_rol_usuario: it.rolUsuario?.id_rol_usuario || null,
         etapa: it.etapa_implementacion || "",
+        ofi_env_pt: it.ofi_env_pt || "",
+        fech_env_pt: it.fech_env_pt
+          ? it.fech_env_pt.split("T")[0] // ✅ garantiza formato "2024-04-27"
+          : "",
         oficioEnvio:
           it.test_versions?.map((tv) => ({
             id: tv.id_test_version,

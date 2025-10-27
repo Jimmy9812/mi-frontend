@@ -7,6 +7,7 @@ import {
   updateRequerimiento,
   addVersionToTest,
   updateTestCompleto, 
+  deleteTestProduccion,
 } from "../services/testProduccionService";
 import { useAuth } from "../context/AuthContext";
 import { getEjecutores } from "../services/testProduccionService";
@@ -108,6 +109,9 @@ export default function TestProduccionEditor() {
     propuesta: [makeInitialPropuesta()],
     respuestaTics: "",
     descripcion: "",
+    ofi_env_pt: "",
+    fech_env_pt: "",
+
   });
 
   
@@ -127,64 +131,89 @@ export default function TestProduccionEditor() {
 
 
   /* 🔹 Cargar registro si es modo edición */
-  useEffect(() => {
-    const load = async () => {
-      if (!isCreate) {
-        try {
-          const data = await getRequerimientoById(id, user?.token);
-          console.log("📦 Data recibida desde API:", data);
-          if (data) {
-            setForm({
-              numero: data.numero || "",
-              id_rol_usuario:
-                data.id_rol_usuario ||
-                data.rolUsuario?.id_rol_usuario ||
-                null,
-              ejecutor:
-                data.ejecutor ||
-                (data.rolUsuario?.usuario
-                  ? `${data.rolUsuario.usuario.nombre_usuario} ${data.rolUsuario.usuario.apellidos_usuario}`
-                  : ""),
-              etapa:
+  /* 🔹 Cargar registro si es modo edición */
+useEffect(() => {
+  const load = async () => {
+    if (!isCreate) {
+      try {
+        const data = await getRequerimientoById(id, user?.token);
+        console.log("📦 Data recibida desde API:", data);
+        
+        if (data) {
+          // 🔥 Función helper para validar si una propuesta tiene datos reales
+          const tieneDatosPropuesta = (p) => {
+            return (
+              (p.oficio && p.oficio.trim() !== "") ||
+              (p.fecha && p.fecha.trim() !== "") ||
+              (p.observaciones && p.observaciones.trim() !== "") ||
+              (p.obs_version && p.obs_version.trim() !== "")
+            );
+          };
+
+          // 🔥 Filtrar propuestas vacías
+          const propuestasFiltradas = data.propuesta?.length > 0
+            ? data.propuesta
+                .filter(tieneDatosPropuesta) // 👈 Solo las que tienen datos
+                .map((p) => ({
+                  ...p,
+                  fecha: normalizeDateFromBackend(p.fecha),
+                  observaciones: p.obs_version || p.observaciones || "",
+                }))
+            : [];
+
+          setForm({
+            numero: data.numero || "",
+            id_rol_usuario:
+              data.id_rol_usuario ||
+              data.rolUsuario?.id_rol_usuario ||
+              null,
+            ejecutor:
+              data.ejecutor ||
+              (data.rolUsuario?.usuario
+                ? `${data.rolUsuario.usuario.nombre_usuario} ${data.rolUsuario.usuario.apellidos_usuario}`
+                : ""),
+            etapa:
               data.etapa_implementation ||
               data.etapa ||
               data.etapa_implementacion ||
-              data.raw?.etapa_implementation || // 👈 AQUI ESTABA EL CAMPO REAL
+              data.raw?.etapa_implementation ||
               "",
 
-
-              oficioEnvio:
-                data.oficioEnvio?.length > 0
-                  ? data.oficioEnvio
-                  : [makeInitialVersion()],
-              fechaEnvio:
-                data.fechaEnvio?.length > 0
-                  ? data.fechaEnvio.map((f) => ({
-                      ...f,
-                      valor: normalizeDateFromBackend(f.valor),
-                    }))
-                  : [makeInitialVersion()],
-              propuesta:
-                data.propuesta?.length > 0
-                  ? data.propuesta.map((p) => ({
-                      ...p,
-                      fecha: normalizeDateFromBackend(p.fecha),
-                      observaciones: p.obs_version || p.observaciones || "",
-                    }))
-                  : [makeInitialPropuesta()],
-              respuestaTics: data.respuestaTics || "",
-              descripcion: data.descripcion || "",
-            });
-          }
-        } catch (err) {
-          console.error("Error cargando TestProduccion:", err);
+            oficioEnvio:
+              data.oficioEnvio?.length > 0
+                ? data.oficioEnvio
+                : [makeInitialVersion()],
+            
+            fechaEnvio:
+              data.fechaEnvio?.length > 0
+                ? data.fechaEnvio.map((f) => ({
+                    ...f,
+                    valor: normalizeDateFromBackend(f.valor),
+                  }))
+                : [makeInitialVersion()],
+            
+            // 🔥 Si no hay propuestas con datos, dejar array vacío
+            propuesta:
+              propuestasFiltradas.length > 0
+                ? propuestasFiltradas
+                : [], // 👈 Array vacío en lugar de [makeInitialPropuesta()]
+            
+            respuestaTics: data.respuestaTics || "",
+            descripcion: data.descripcion || "",
+            ofi_env_pt: data.ofi_env_pt || "",
+            fech_env_pt: data.fech_env_pt
+              ? normalizeDateFromBackend(data.fech_env_pt)
+              : "",
+          });
         }
+      } catch (err) {
+        console.error("Error cargando TestProduccion:", err);
       }
-      setLoading(false);
-    };
-    load();
-  }, [id, isCreate, user?.token]);
-
+    }
+    setLoading(false);
+  };
+  load();
+}, [id, isCreate, user?.token]);
   
 // ✅ Actualizar registro existente
 /* ---------------- GUARDAR ---------------- */
@@ -195,6 +224,8 @@ const handleSave = async () => {
     etapa_implementation: form.etapa,
     respuesta_tics: form.respuestaTics,
     descripcion: form.descripcion,
+    ofi_env_pt: form.ofi_env_pt || null,
+    fech_env_pt: form.fech_env_pt || null,
   };
 
   try {
@@ -216,95 +247,140 @@ const handleSave = async () => {
       );
 
       showAlert("success", "Registro creado correctamente con versión 1");
-
-      
       return;
     }
 
-    // ✅ EDICIÓN EXISTENTE (Actualizar versiones)
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    const versionesActualizadas = [];
-    let versionamiento = null;
+    // ✅ EDICIÓN EXISTENTE
+    // ✅ EDICIÓN EXISTENTE
+await new Promise((resolve) => setTimeout(resolve, 50));
 
-    form.oficioEnvio.forEach((of, i) => {
-      const propuesta = form.propuesta[i];
-      const fecha = form.fechaEnvio[i];
+const versionesActualizadas = [];
+let versionamiento = null;
 
-      if (of.id_version) {
-        // ✅ Actualiza versión existente
-        versionesActualizadas.push({
-          id_version: of.id_version,
-          oficioenviodmi: of.valor || null,
-          fechaenvioreq: form.fechaEnvio[i]?.valor || null,
-          ofi_desp_pt: propuesta?.oficio || null,
-          fech_desp_pt: propuesta?.fecha || null,
-          obs_version: propuesta?.observaciones || null,
-        });
-      } else {
-        // ✅ Nueva versión
-        versionamiento = {
-          oficioenviodmi: of.valor || null,
-          fechaenvioreq: form.fechaEnvio[i]?.valor || null,
-          ofi_desp_pt: propuesta?.oficio || null,
-          fech_desp_pt: propuesta?.fecha || null,
-          obs_version: propuesta?.observaciones || null,
-        };
-      }
-    });
+// 🔹 Procesar oficioEnvio solo si tiene datos reales
+form.oficioEnvio.forEach((of) => {
+  if (of.valor && of.valor.trim() !== "") {
+    if (of.id_version) {
+      versionesActualizadas.push({
+        id_version: of.id_version,
+        oficioenviodmi: of.valor,
+      });
+    } else {
+      versionamiento = { ...(versionamiento || {}), oficioenviodmi: of.valor };
+    }
+  }
+});
 
-    const updatePayload = {
-      ...basePayload,
-      versionesActualizadas,
-      ...(versionamiento ? { versionamiento } : {}),
+// 🔹 Procesar fechaEnvio solo si tiene datos reales
+form.fechaEnvio.forEach((f) => {
+  if (f.valor && f.valor.trim() !== "") {
+    if (f.id_version) {
+      const existing = versionesActualizadas.find(v => v.id_version === f.id_version);
+      if (existing) existing.fechaenvioreq = f.valor;
+      else versionesActualizadas.push({
+        id_version: f.id_version,
+        fechaenvioreq: f.valor,
+      });
+    } else {
+      versionamiento = { ...(versionamiento || {}), fechaenvioreq: f.valor };
+    }
+  }
+});
+
+// 🔹 Procesar propuesta técnica solo si tiene al menos un campo lleno
+form.propuesta.forEach((p) => {
+  const tieneDatos =
+    (p.oficio && p.oficio.trim() !== "") ||
+    (p.fecha && p.fecha.trim() !== "") ||
+    (p.observaciones && p.observaciones.trim() !== "");
+
+  if (tieneDatos) {
+    const base = {
+      ...(p.oficio ? { ofi_desp_pt: p.oficio } : {}),
+      ...(p.fecha ? { fech_desp_pt: p.fecha } : {}),
+      ...(p.observaciones ? { obs_version: p.observaciones } : {}),
     };
 
-    await updateTestCompleto(id, updatePayload, user?.token);
+    if (p.id_version) {
+      const existing = versionesActualizadas.find(v => v.id_version === p.id_version);
+      if (existing) Object.assign(existing, base);
+      else versionesActualizadas.push({ id_version: p.id_version, ...base });
+    } else {
+      versionamiento = { ...(versionamiento || {}), ...base };
+    }
+  }
+});
 
-    showAlert("success", "Cambios guardados correctamente");
+
+// 🔹 Arma payload final
+const updatePayload = {
+  no_requerimiento: form.numero,
+  id_rol_usuario: form.id_rol_usuario,
+  etapa_implementation: form.etapa,
+  respuesta_tics: form.respuestaTics,
+  descripcion: form.descripcion,
+  ofi_env_pt: form.ofi_env_pt || null,
+  fech_env_pt: form.fech_env_pt || null,
+  versionesActualizadas,
+  ...(versionamiento ? { versionamiento } : {}),
+};
+
+await updateTestCompleto(id, updatePayload, user?.token);
+showAlert("success", "Cambios guardados correctamente");
+
     
   } catch (err) {
     console.error("❌ Error en handleSave:", err);
-    showAlert("error", "No se pudo cargar el registro desde el servidor.");
+    showAlert("error", "No se pudo guardar el registro.");
   } finally {
     setLoading(false);
   }
 };
 
-
   /* ---------------- AÑADIR NUEVAS VERSIONES ---------------- */
   const addOficioEnvio = () =>
-    setForm((p) => ({
-      ...p,
-      oficioEnvio: [
-        ...(p.oficioEnvio || []),
-        { id: Date.now(), valor: "", version: (p.oficioEnvio?.length || 0) + 1 },
-      ],
-    }));
+  setForm((p) => ({
+    ...p,
+    oficioEnvio: [
+      ...(p.oficioEnvio || []),
+      { 
+        id: Date.now(), 
+        valor: "", 
+        version: (p.oficioEnvio?.length || 0) + 1 
+      },
+    ],
+    // 🔥 NO tocar fechaEnvio ni propuesta
+  }));
 
-  const addFechaEnvio = () =>
-    setForm((p) => ({
-      ...p,
-      fechaEnvio: [
-        ...(p.fechaEnvio || []),
-        { id: Date.now(), valor: "", version: (p.fechaEnvio?.length || 0) + 1 },
-      ],
-    }));
+const addFechaEnvio = () =>
+  setForm((p) => ({
+    ...p,
+    fechaEnvio: [
+      ...(p.fechaEnvio || []),
+      { 
+        id: Date.now(), 
+        valor: "", 
+        version: (p.fechaEnvio?.length || 0) + 1 
+      },
+    ],
+    // 🔥 NO tocar oficioEnvio ni propuesta
+  }));
 
-  const addPropuesta = () =>
-    setForm((p) => ({
-      ...p,
-      propuesta: [
-        ...(p.propuesta || []),
-        {
-          id: Date.now(),
-          oficio: "",
-          fecha: "",
-          observaciones: "",
-          version: (p.propuesta?.length || 0) + 1,
-        },
-      ],
-    }));
-
+const addPropuesta = () =>
+  setForm((p) => ({
+    ...p,
+    propuesta: [
+      ...(p.propuesta || []),
+      {
+        id: Date.now(),
+        oficio: "",
+        fecha: "",
+        observaciones: "",
+        version: (p.propuesta?.length || 0) + 1,
+      },
+    ],
+    // 🔥 NO tocar oficioEnvio ni fechaEnvio
+  }));
   /* ---------------- RENDER ---------------- */
   if (loading) return <div className="p-6">Cargando…</div>;
   
@@ -347,17 +423,26 @@ const handleSave = async () => {
       {/* 🔴 Botón Eliminar — visible solo para Administrador */}
       {(activeRole === "Administrador" || activeRole === "ADMINISTRACIÓN") && !isCreate && (
         <button
-          onClick={() => {
-            if (window.confirm("¿Desea eliminar este registro de Test/Producción? Esta acción no se puede deshacer.")) {
-              // aquí puedes llamar a tu función deleteTest(id)
-              console.log("🗑️ Eliminando registro ID:", id);
-            }
-          }}
-          className="w-10 h-10 flex items-center justify-center bg-[#e11d48] hover:bg-[#b91c1c] text-white shadow-md rounded-md transition-all duration-200"
-          title="Eliminar Test / Producción"
-        >
-          <Trash className="w-5 h-5" />
-        </button>
+        onClick={async () => {
+          if (!window.confirm("¿Desea eliminar este registro de Test/Producción? Esta acción no se puede deshacer.")) return;
+          try {
+            setLoading(true);
+            await deleteTestProduccion(id, user?.token);
+            showAlert("success", "Registro eliminado correctamente");
+            setTimeout(() => navigate("/test-produccion"), 1000); // 🔁 vuelve a la lista
+          } catch (err) {
+            console.error("❌ Error al eliminar:", err);
+            showAlert("error", "No se pudo eliminar el registro. Revise la consola.");
+          } finally {
+            setLoading(false);
+          }
+        }}
+        className="w-10 h-10 flex items-center justify-center bg-[#e11d48] hover:bg-[#b91c1c] text-white shadow-md rounded-md transition-all duration-200"
+        title="Eliminar Test / Producción"
+      >
+        <Trash className="w-5 h-5" />
+      </button>
+
       )}
 
       {/* 🟡✏️ Botón Editar / 💾 Guardar */}
@@ -547,6 +632,62 @@ const handleSave = async () => {
             />
           </div>
         </div>
+
+        {/* Oficio de envío de propuesta técnica a DMSIST */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block font-bold mb-1">
+                Oficio de envío de propuesta técnica a DMSIST
+              </label>
+              <div className="border rounded-lg p-3">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Campo oficio */}
+                  <div>
+                    <div className="text-sm font-semibold mb-1">Oficio</div>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={form.ofi_env_pt || ""}
+                        onChange={(e) =>
+                          setForm((p) => ({ ...p, ofi_env_pt: e.target.value }))
+                        }
+                        className="w-full bg-[#f1f5f9] px-3 py-2 rounded"
+                      />
+                    ) : (
+                      <div className="bg-[#f1f5f9] px-3 py-2 rounded">
+                        {form.ofi_env_pt || "—"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Campo fecha */}
+                  <div>
+                    <div className="text-sm font-semibold mb-1">Fecha</div>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={form.fech_env_pt || ""}
+                        onChange={(e) =>
+                          setForm((p) => ({ ...p, fech_env_pt: e.target.value }))
+                        }
+                        className="w-full bg-[#f1f5f9] px-3 py-2 rounded"
+                      />
+                    ) : (
+                      <div className="bg-[#f1f5f9] px-3 py-2 rounded">
+                        {form.fech_env_pt
+                          ? new Date(form.fech_env_pt).toLocaleDateString("es-EC")
+                          : "—"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Columna vacía (para igualar proporciones con la sección de “Fecha”) */}
+            <div></div>
+          </div>
+
       </div>
 
       <hr className="border-t-2 border-[#3F6592] mt-6 mb-4" />
@@ -576,72 +717,79 @@ function SectionWithBox({
     <div>
       <label className="block font-bold mb-1">{title}</label>
       <div className="border rounded-lg p-3">
-        {items.map((it) => (
-          <div key={it.id} className="flex items-center gap-3 mb-2">
-            {schema === "oficio" && (
-              <InputBox
-                label="Oficio de envío"
-                value={it.valor}
-                onChange={(v) => onChange?.(it.id, v)}
-                isEditing={isEditing}
-              />
-            )}
-            {schema === "propuesta" && (
-            <div className="grid grid-cols-3 gap-3 w-full">
-              <InputBox
-                label="Oficio de recepción"
-                value={it.oficio}
-                onChange={(v) =>
-                  onChangePropuesta?.(it.id, "oficio", v)
-                }
-                isEditing={isEditing}
-              />
-              <InputBox
-                label="Fecha"
-                type="date"
-                value={it.fecha}
-                onChange={(v) => onChangePropuesta?.(it.id, "fecha", v)}
-                isEditing={isEditing}
-              />
-              <div className="flex-1">
-                <div className="text-sm font-semibold mb-1">Observaciones</div>
-                {isEditing ? (
-                  <textarea
-                    value={it.observaciones || ""}
-                    onChange={(e) => onChangePropuesta?.(it.id, "observaciones", e.target.value)}
-                    className="w-full bg-[#f1f5f9] px-3 py-2 rounded resize-none h-24 overflow-y-auto"
-                  />
-                ) : (
-                  <div
-                className="bg-[#f1f5f9] px-3 py-2 rounded h-24 overflow-y-auto whitespace-pre-wrap break-words"
-                style={{ wordBreak: "break-word" }}
-              >
-                {it.observaciones || "—"}
-              </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {schema === "fecha" && (
-            <InputBox
-              label="Envío de requerimiento"
-              type="date"
-              value={it.valor}
-              onChange={(v) => onChangeFecha?.(it.id, v)}
-              isEditing={isEditing}
-            />
-          )}
-
-            <span className="bg-[#f1f5f9] px-3 py-2 rounded text-sm font-semibold">
-              Versión {it.version}
-            </span>
+        {/* 🔥 Solo renderizar si hay items */}
+        {items.length === 0 ? (
+          <div className="text-sm text-gray-400 italic py-2">
+            Sin versiones registradas
           </div>
-        ))}
+        ) : (
+          items.map((it) => (
+            <div key={it.id} className="flex items-center gap-3 mb-2">
+              {schema === "oficio" && (
+                <InputBox
+                  label="Oficio de envío"
+                  value={it.valor}
+                  onChange={(v) => onChange?.(it.id, v)}
+                  isEditing={isEditing}
+                />
+              )}
+              
+              {schema === "propuesta" && (
+                <div className="grid grid-cols-3 gap-3 w-full">
+                  <InputBox
+                    label="Oficio de recepción"
+                    value={it.oficio}
+                    onChange={(v) => onChangePropuesta?.(it.id, "oficio", v)}
+                    isEditing={isEditing}
+                  />
+                  <InputBox
+                    label="Fecha"
+                    type="date"
+                    value={it.fecha}
+                    onChange={(v) => onChangePropuesta?.(it.id, "fecha", v)}
+                    isEditing={isEditing}
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold mb-1">Observaciones</div>
+                    {isEditing ? (
+                      <textarea
+                        value={it.observaciones || ""}
+                        onChange={(e) => onChangePropuesta?.(it.id, "observaciones", e.target.value)}
+                        className="w-full bg-[#f1f5f9] px-3 py-2 rounded resize-none h-24 overflow-y-auto"
+                      />
+                    ) : (
+                      <div
+                        className="bg-[#f1f5f9] px-3 py-2 rounded h-24 overflow-y-auto whitespace-pre-wrap break-words"
+                        style={{ wordBreak: "break-word" }}
+                      >
+                        {it.observaciones || "—"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {schema === "fecha" && (
+                <InputBox
+                  label="Envío de requerimiento"
+                  type="date"
+                  value={it.valor}
+                  onChange={(v) => onChangeFecha?.(it.id, v)}
+                  isEditing={isEditing}
+                />
+              )}
+
+              <span className="bg-[#f1f5f9] px-3 py-2 rounded text-sm font-semibold">
+                Versión {it.version}
+              </span>
+            </div>
+          ))
+        )}
+        
         {isEditing && !window.location.pathname.includes("nuevo") && (
           <button
             onClick={onAdd}
-            className="p-2 border border-[#3F6592] rounded-full text-[#3F6592] hover:bg-[#3F6592] hover:text-white"
+            className="p-2 border border-[#3F6592] rounded-full text-[#3F6592] hover:bg-[#3F6592] hover:text-white mt-2"
             title="Añadir versión"
           >
             <Plus className="w-4 h-4" />
@@ -651,7 +799,6 @@ function SectionWithBox({
     </div>
   );
 }
-
 function InputBox({ label, type = "text", value, onChange, isEditing }) {
   return (
     <div className="flex-1">
