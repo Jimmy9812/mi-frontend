@@ -19,12 +19,17 @@ export default function GestionUsuarios() {
   const [rolesList, setRolesList] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editUserId, setEditUserId] = useState(null);
+  const [modalKey, setModalKey] = useState(Date.now());
+
 
   useEffect(() => {
   async function load() {
     try {
       setLoading(true);
       const res = await getAllUsuarios({ token });
+
+      
+
 
       // 🔥 Ordenamos SIEMPRE por id_usuario ascendente
       const ordenados = Array.isArray(res)
@@ -44,6 +49,20 @@ export default function GestionUsuarios() {
   }
   load();
 }, [token]);
+
+// 🧼 Limpia automáticamente el formulario cuando se abre en modo "crear"
+useEffect(() => {
+  if (openForm && !isEditing) {
+    setForm({
+      cedula_usuario: "",
+      apellidos_usuario: "",
+      nombre_usuario: "",
+      correo_usuario: "",
+      contrasenia_usuario: "",
+      roles_ids: [],
+    });
+  }
+}, [openForm, isEditing]);
 
 
   const handleChange = (e) => {
@@ -381,17 +400,45 @@ export default function GestionUsuarios() {
 
 
           {/* Botón agregar */}
-          <button onClick={() => setOpenForm(true)} className="flex items-center gap-2 bg-[#3F6592] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-opacity">
-            <Plus className="w-4 h-4" /> ADD NUEVO USUARIO
-          </button>
+         <button
+          onClick={() => {
+            // 💥 Reinicia todo ANTES de abrir modal
+            setIsEditing(false);
+            setEditUserId(null);
+            setForm({
+              cedula_usuario: "",
+              apellidos_usuario: "",
+              nombre_usuario: "",
+              correo_usuario: "",
+              contrasenia_usuario: "",
+              roles_ids: [],
+            });
+
+            // 🧠 Forzamos recrear el modal limpiamente
+            setModalKey(Date.now());
+
+            // 🕐 Y abrimos el modal un poco después
+            setTimeout(() => setOpenForm(true), 50);
+          }}
+          className="flex items-center gap-2 bg-[#3F6592] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-opacity"
+        >
+          <Plus className="w-4 h-4" /> ADD NUEVO USUARIO
+        </button>
+
+
         </div>
 
       </div>
 
         {/* Modal mejorado de creación / edición */}
         {openForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-200 overflow-hidden animate-fade-in">
+          <div
+            key={modalKey}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          >
+
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-200 overflow-hidden animate-fade-in">
+
             
             {/* Encabezado */}
             <div className="bg-[#3F6592] text-white px-6 py-3 flex justify-between items-center">
@@ -461,6 +508,7 @@ export default function GestionUsuarios() {
                     name="correo_usuario"
                     value={form.correo_usuario}
                     onChange={handleChange}
+                    autoComplete="off"
                     placeholder="usuario@correo.com"
                     className="p-2 border rounded-lg w-full focus:ring-2 focus:ring-[#3F6592] outline-none"
                     />
@@ -473,6 +521,7 @@ export default function GestionUsuarios() {
                     name="contrasenia_usuario"
                     value={form.contrasenia_usuario}
                     onChange={handleChange}
+                    autoComplete="new-password"
                     placeholder={isEditing ? "Dejar vacío para no cambiar" : "Contraseña segura"}
                     className="p-2 border rounded-lg w-full focus:ring-2 focus:ring-[#3F6592] outline-none"
                     />
