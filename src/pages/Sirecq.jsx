@@ -167,14 +167,24 @@ export default function Sirecq() {
     }
   };
 
-  const formatDate = (iso) => {
-    if (!iso) return "N/A";
-    return new Date(iso).toLocaleDateString("es-EC", {
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-    });
-  };
+      const formatDate = (iso) => {
+      if (!iso) return "N/A";
+
+      // Caso 1: viene como "YYYY-MM-DD" (date-only) → formatear por string, sin Date()
+      const m = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+      if (m) {
+        const [y, mm, dd] = iso.split("-");
+        return `${Number(dd)}/${Number(mm)}/${y}`; // dd/mm/yyyy
+      }
+
+      // Caso 2: viene con hora (ISO completo) → formatear normalmente
+      return new Date(iso).toLocaleDateString("es-EC", {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      });
+    };
+
 
     // 🔹 Filtro local: tipo (RSW, RD, RPM), estado y búsqueda
   const filteredItems = useMemo(() => {

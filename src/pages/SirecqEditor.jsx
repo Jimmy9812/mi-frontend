@@ -13,6 +13,7 @@ import {
   listEstadosRequerimiento,
   listAnalistas,
   deleteSirecq,
+  listCategorias,
   addVersionToSirecq,
 } from "../services/sirecqService";
 
@@ -82,6 +83,7 @@ export default function SirecqEditor({ mode = "view" }) {
   const [sistemasList, setSistemasList] = useState([]);
   const [estadosList, setEstadosList] = useState([]);
   const [analistas, setAnalistas] = useState([]);
+  const [categoriasList, setCategoriasList] = useState([]); // ✅ AGREGAR
   
   // Estado inicial vacío
   const [requerimiento, setRequerimiento] = useState({
@@ -102,6 +104,7 @@ export default function SirecqEditor({ mode = "view" }) {
     observaciones: "",
     obsv_tecnica: "",
     requerimientoId: null,
+     id_categoria: null,
   });
 
 
@@ -126,10 +129,9 @@ export default function SirecqEditor({ mode = "view" }) {
         const estados = await listEstadosRequerimiento({ token });
         setEstadosList(estados);
 
-
-
-
-
+        const cats = await listCategorias({ token });
+        console.log("📋 Categorías cargadas:", cats);
+        setCategoriasList(cats);
 
         if (isCreate) {
           setVersiones([{
@@ -181,6 +183,8 @@ export default function SirecqEditor({ mode = "view" }) {
           descripcion: req?.descripcion || "",
           observaciones: data?.sirecqExterno?.observacionesgen || "",
           obsv_tecnica: data?.obsv_tecnica || "",
+          id_categoria: req?.categoria?.id_categoria || null,
+          siglas_categoria: req?.categoria?.siglas_categoria || "",
         });
 
         // 🔹 Cargar versiones
@@ -310,17 +314,68 @@ const handleDelete = async () => {
     }
   });
 };
-  // Guardar (crear o actualizar)
-  const handleSave = async () => {
-    // Validaciones
-    if (!requerimiento.numero?.trim()) {
-    showAlert("El número de requerimiento es requerido.", "warning");
-    return;
-  }
-  if (!requerimiento.descripcion?.trim()) {
-    showAlert("La descripción es requerida.", "warning");
-    return;
-  }
+
+      // 🆕 Manejar cambio de categoría y actualizar N° Requerimiento
+      // 🆕 Manejar cambio de categoría y actualizar N° Requerimiento
+        const handleCategoriaChange = (e) => {
+          const selectedId = Number(e.target.value);
+          console.log("🎯 ID seleccionado:", selectedId);
+          console.log("📋 Categorías disponibles:", categoriasList);
+          
+          const selected = categoriasList.find((c) => c.id_categoria === selectedId);
+          console.log("✅ Categoría encontrada:", selected);
+          
+          if (selected) {
+            const prefix = selected.siglas_categoria.toUpperCase().trim();
+            console.log("🔤 Prefijo extraído:", `"${prefix}"`);
+            
+            // Obtener el número actual sin prefijo si existe
+            const currentNumero = requerimiento.numero || "";
+            console.log("📝 Número actual completo:", `"${currentNumero}"`);
+            
+            // Extraer solo la parte después del primer guion bajo
+            let sinPrefijo = "";
+            if (currentNumero.includes("_")) {
+              const partes = currentNumero.split("_");
+              sinPrefijo = partes.slice(1).join("_"); // Todo después del primer _
+            } else {
+              sinPrefijo = currentNumero; // Si no tiene _, usar todo
+            }
+            console.log("✂️ Sin prefijo:", `"${sinPrefijo}"`);
+            
+            // Construir nuevo número con prefijo
+            const nuevoNumero = sinPrefijo ? `${prefix}_${sinPrefijo}` : `${prefix}_`;
+            console.log("🆕 Nuevo número construido:", `"${nuevoNumero}"`);
+            
+            console.log("💾 Actualizando estado con:");
+            console.log("  - id_categoria:", selectedId);
+            console.log("  - numero:", `"${nuevoNumero}"`);
+            
+            setRequerimiento((prev) => {
+              const newState = {
+                ...prev,
+                id_categoria: selectedId,
+                numero: nuevoNumero,
+              };
+              console.log("✅ Nuevo estado del requerimiento:", newState);
+              return newState;
+            });
+          } else {
+            console.error("❌ No se encontró categoría con ID:", selectedId);
+          }
+        };
+
+        // Guardar (crear o actualizar)
+        const handleSave = async () => {
+          // Validaciones
+          if (!requerimiento.numero?.trim()) {
+          showAlert("El número de requerimiento es requerido.", "warning");
+          return;
+        }
+        if (!requerimiento.descripcion?.trim()) {
+          showAlert("La descripción es requerida.", "warning");
+          return;
+        }
 
     try {
       setLoading(true);
@@ -333,8 +388,6 @@ const handleDelete = async () => {
   prioridad: Number(requerimiento.prioridad) || null,
   tecnico: requerimiento.tecnico_desarrollo || "",
   id_clasif_catastral: Number(requerimiento.id_clasif_catastral) || null,
-  // ❌ ELIMINAR ESTA LÍNEA:
-  // id_responsable: requerimiento.id_responsable || null,
   // ✅ AGREGAR ESTOS CAMPOS:
   id_analista: requerimiento.id_responsable || null, // ← Mapeo correcto
   id_tecnico: 2, // ← Mantener
@@ -346,7 +399,7 @@ const handleDelete = async () => {
     fase: "Requisito",
     fecha_registro: new Date().toISOString().split("T")[0],
     id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
-    id_categoria: 1, // ✅ AGREGAR CAMPO OBLIGATORIO (valor por defecto o del formulario)
+    id_categoria: Number(requerimiento.id_categoria) || 1,
     id_sistema: Number(requerimiento.id_sistema) || null,
     id_rol_usuario: requerimiento.id_responsable || null, // ← Responsable del requerimiento
 
@@ -391,7 +444,7 @@ console.log("📤 Payload enviado al backend:", payload);
       descripcion: requerimiento.descripcion,
       fase: "Requisito",
       id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
-      //id_categoria: Number(requerimiento.prioridad) || 1,
+      id_categoria: Number(requerimiento.id_categoria) || 1,
       id_sistema: Number(requerimiento.id_sistema) || 1, // ✅ ← corrección
       id_rol_usuario: requerimiento.id_responsable || null,
     },
@@ -460,6 +513,8 @@ const data = refreshed?.data || refreshed; // compatibilidad
 const req = data?.sirecqExterno?.requerimiento;
 const clasif = data?.clasifCatastral;
 const analista = req?.rolUsuario?.usuario;
+const categoria = req?.categoria;
+
 
 // ✅ Esperar un poco para asegurar que los analistas ya se hayan cargado
 await new Promise((resolve) => setTimeout(resolve, 300));
@@ -495,6 +550,8 @@ setRequerimiento({
   descripcion: req?.descripcion || "",
   observaciones: data?.sirecqExterno?.observacionesgen || "",
   obsv_tecnica: data?.obsv_tecnica || "",
+  id_categoria: req?.categoria?.id_categoria || null, // ✅ AGREGAR
+  siglas_categoria: categoria?.siglas_categoria || "",
 });
 
 // 🔄 Actualizar versiones también
@@ -615,36 +672,62 @@ navigate("/sirecq");
       <div className="px-8 flex flex-col xl:flex-row gap-6">
         {/* Columna Izquierda */}
         <div className="flex-1 space-y-6">
-{/* Sección 1 - Datos principales */}
-<div className="border-2 border-[#3f6592] rounded-xl overflow-hidden p-5">
-  {/* Fila 1 */}
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-    <SimpleField
-      label="N° Requerimiento"
-      value={requerimiento.numero}
-      name="numero"
-      onChange={handleChange}
-      editMode={editMode || isCreate}
-      className="bg-[#f1f5f9]"
-    />
-    <SimpleField
-      label="Trámite priorizado relacionado"
-      value={requerimiento.tramite_priorizado}
-      name="tramite_priorizado"
-      onChange={handleChange}
-      editMode={editMode || isCreate}
-      className="bg-[#f1f5f9]"
-    />
-    <SimpleField
-      label="Trámite CAT"
-      value={requerimiento.tramite_cat}
-      name="tramite_cat"
-      onChange={handleChange}
-      editMode={editMode || isCreate}
-      className="bg-[#f1f5f9]"
-    />
-  </div>
 
+          {/* Sección 1 - Datos principales */}
+          <div className="border-2 border-[#3f6592] rounded-xl overflow-hidden p-5">
+            {/* Fila 1 - CON SELECTOR DE CATEGORÍA */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              {/* ✅ NUEVO: Selector de Categoría */}
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-gray-700">
+                  Categoría
+                </label>
+                {editMode || isCreate ? (
+                  <select
+                    name="id_categoria"
+                    value={requerimiento.id_categoria || ""}
+                    onChange={handleCategoriaChange}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-[#f1f5f9] focus:ring-1 focus:ring-[#3f6592]"
+                  >
+                    <option value="">Seleccione...</option>
+                    {categoriasList.map((cat) => (
+                      <option key={cat.id_categoria} value={cat.id_categoria}>
+                        {cat.siglas_categoria}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="w-full px-3 py-2 text-sm bg-[#f1f5f9] rounded text-gray-700">
+                    {categoriasList.find(c => c.id_categoria === requerimiento.id_categoria)?.siglas_categoria || ""}
+                  </div>
+                )}
+              </div>
+
+              <SimpleField
+                label="N° Requerimiento"
+                value={requerimiento.numero}
+                name="numero"
+                onChange={handleChange}
+                editMode={editMode || isCreate}
+                className="bg-[#f1f5f9]"
+              />
+              <SimpleField
+                label="Trámite priorizado relacionado"
+                value={requerimiento.tramite_priorizado}
+                name="tramite_priorizado"
+                onChange={handleChange}
+                editMode={editMode || isCreate}
+                className="bg-[#f1f5f9]"
+              />
+              <SimpleField
+                label="Trámite CAT"
+                value={requerimiento.tramite_cat}
+                name="tramite_cat"
+                onChange={handleChange}
+                editMode={editMode || isCreate}
+                className="bg-[#f1f5f9]"
+              />
+            </div>
   {/* Bloque visual azul */}
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
     {/* Prioridad */}

@@ -2,6 +2,7 @@
 const LS_KEY = "sirecq-interno@seed";
 const API = (import.meta.env.VITE_API_URL || "").trim() || null;
 
+
 const authHeaders = (token) => ({
   "Content-Type": "application/json",
   ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -562,6 +563,81 @@ export async function listAnalistas({ token } = {}) {
   return data.data || [];
 }
 
+/**
+ * Obtener todas las categorías
+ */
+export async function listCategorias({ token }) {
+  try {
+    const response = await fetch(`${API}/categoria`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error al obtener categorías:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener una categoría por ID
+ */
+export async function getCategoria(id, { token }) {
+  try {
+    const response = await fetch(`${API}/categoria/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error al obtener categoría ${id}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Crear una nueva categoría
+ */
+export async function createCategoria({ token, payload }) {
+  try {
+    const response = await fetch(`${API}/categoria`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error al crear categoría:", error);
+    throw error;
+  }
+}
 
 
 // 🧹 util para debug manual
