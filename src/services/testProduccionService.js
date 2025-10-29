@@ -63,9 +63,10 @@ export async function listRequerimientos({
   page = 1,
   pageSize = 10,
   search = "",
-  status = "ALL",
+  etapa = "ALL",
   token,
 } = {}) {
+
   if (API && USE_API) {
     try {
       const res = await fetch(`${API}/test-produccion`, {
@@ -90,14 +91,25 @@ export async function listRequerimientos({
       });
 
       // ✅ Búsqueda opcional
-      const s = search.trim().toLowerCase();
-      let filtered = mapped.filter((x) => {
-        const okSearch =
-          !s ||
-          (x.no_requerimiento || "").toLowerCase().includes(s) ||
-          ((x.raw?.descripcion || "") + " " + (x.raw?.respuesta_tics || "")).toLowerCase().includes(s);
-        return okSearch;
-      });
+const s = search.trim().toLowerCase();
+let filtered = mapped.filter((x) => {
+  const okSearch =
+    !s ||
+    (x.no_requerimiento || "").toLowerCase().includes(s) ||
+    ((x.raw?.descripcion || "") + " " + (x.raw?.respuesta_tics || "")).toLowerCase().includes(s);
+  return okSearch;
+});
+
+// ✅ Filtro por etapa (solo si no es "ALL")
+if (etapa && etapa !== "ALL") {
+  filtered = filtered.filter(
+    (x) =>
+      (x.etapa_implementation || "").toLowerCase() === etapa.toLowerCase()
+  );
+}
+
+
+
 
       // ✅ Paginación
       const total = filtered.length;

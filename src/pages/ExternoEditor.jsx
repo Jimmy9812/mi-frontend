@@ -278,7 +278,7 @@ export default function ExternosEditor({ mode = "view" }) {
 
   const handleSave = async () => {
     // Validación de campos requeridos
-    if (!externo.numero?.trim()) {
+    /*if (!externo.numero?.trim()) {
       showAlert("❌ El número de requerimiento es requerido.", "warning");
       return;
     }
@@ -297,7 +297,7 @@ export default function ExternosEditor({ mode = "view" }) {
     if (!externo.estado) {
       showAlert("❌ Debe seleccionar un estado.", "warning");
       return;
-    }
+    }*/
 
     try {
       const payload = buildPayload(externo, user, mode !== "create");

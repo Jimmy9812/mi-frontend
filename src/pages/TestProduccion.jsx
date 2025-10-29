@@ -5,11 +5,10 @@ import { useAuth } from "../context/AuthContext";
 import { listRequerimientos, exportRequerimientosCsv, exportRequerimientosXlsx, } from "../services/testProduccionService";
 
 // 🔹 Estados posibles (mock)
-const ESTADOS = [
-  { label: "Todos", value: "ALL" },
-  { label: "ENVIADO", value: "ENVIADO" },
-  { label: "ATENDIDO", value: "ATENDIDO" },
-  { label: "RECHAZADO", value: "RECHAZADO" },
+const ETAPAS = [
+  { label: "Todas", value: "ALL" },
+  { label: "Test", value: "Test" },
+  { label: "Producción", value: "Producción" },
 ];
 
 // 🔹 Datos MOCK
@@ -25,7 +24,7 @@ export default function TestProduccion() {
   const canWrite = hasPermission("TESTPRODUCCION_WRITE");
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("ALL");
+  const [etapa, setEtapa] = useState("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
@@ -39,9 +38,10 @@ export default function TestProduccion() {
       page,
       pageSize,
       search,
-      status,
+      etapa,
       token: user?.token || null,
     });
+
 
     // ✅ Se corrige acceso a items
     const items = resp?.items || [];
@@ -65,7 +65,7 @@ export default function TestProduccion() {
     useEffect(() => {
       load();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, pageSize, status, search, user?.token]);
+    }, [page, pageSize, etapa, search, user?.token]);
 
     // ✅ Al volver desde otra ruta, vuelve a ejecutar load()
     useEffect(() => {
@@ -164,19 +164,19 @@ export default function TestProduccion() {
             </div>
 
             <select
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2 rounded-md border focus:ring-2 focus:ring-indigo-500"
-            >
-              {ESTADOS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            value={etapa}
+            onChange={(e) => {
+              setEtapa(e.target.value);
+              setPage(1);
+            }}
+            className="px-3 py-2 rounded-md border focus:ring-2 focus:ring-indigo-500"
+          >
+            {ETAPAS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
           </div>
 
           {/* Tabla */}
