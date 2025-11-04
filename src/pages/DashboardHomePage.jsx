@@ -273,27 +273,57 @@ export default function DashboardHomePage() {
             </div>
             <div className="flex-1 divide-y divide-gray-300 overflow-y-auto">
               {loading ? (
-                <div className="p-6 text-center text-slate-500">Cargando…</div>
-              ) : paginatedItems.length === 0 ? (
-                <div className="p-6 text-center text-slate-500">No hay resultados</div>
-              ) : (
-paginatedItems.map((r, i) => (
-  <div key={i} className="flex items-center px-4 py-3 text-sm">
-    <span className="flex-1">
-      {r.no_incidente || r.id_incidente || r.no_requerimiento || r.requerimiento?.no_requerimiento || r.id || r.numero}
-    </span>
-    <span className="flex-1">
-      {r.estado ||
-        r.estado_tramite ||
-        r.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
-        r.requerimiento?.estadoRequerimiento?.nombre_estado}
-    </span>
-    <span className="flex-1">
-      {r.fecha || r.fecha_registro || r.requerimiento?.fecha_registro || r.fechaingresoerror}
-    </span>
-  </div>
-))
-              )}
+              <div className="p-6 text-center text-slate-500">Cargando…</div>
+            ) : paginatedItems.length === 0 ? (
+              <div className="p-6 text-center text-slate-500">No hay resultados</div>
+            ) : (
+              paginatedItems.map((row, i) => (
+                <div
+                  key={row.id || row.no_incidente || i}
+                  className="grid grid-cols-[1.2fr_1fr_1fr] border-b items-center text-sm hover:bg-gray-50"
+                >
+                  {/* N° de Incidencia */}
+                  <div className="px-4 py-3 truncate" title={row.descripcion || ''}>
+                    {row.numero || row.no_incidente || "Sin número"}
+                  </div>
+
+                  {/* Estado con colores */}
+                  <div className="px-4 py-3">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        row.estado === "FAVORABLE"
+                          ? "bg-green-100 text-green-800"
+                          : row.estado === "PENDIENTE"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : row.estado === "RECHAZADO"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {row.estado || "Sin estado"}
+                    </span>
+                  </div>
+
+                  {/* Fecha */}
+                  <div className="px-4 py-3">
+                    {(() => {
+                      const d = row.fecha || row.fecha_registro || row.requerimiento?.fecha_registro;
+                      if (!d) return "Sin fecha";
+                      try {
+                        return new Date(d).toLocaleDateString("es-ES", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                        });
+                      } catch {
+                        return "Fecha inválida";
+                      }
+                    })()}
+                  </div>
+                </div>
+              ))
+            )}
+
             </div>
             {/* Paginación compacta */}
             <div className="flex items-center justify-center gap-1 py-2">
