@@ -6,6 +6,8 @@ import { listRequerimientos as listTestRequerimientos } from "../services/testPr
 import { listSirecq } from "../services/sirecqService";
 import { useAuth } from "../context/AuthContext";
 import { Bar, Doughnut, Radar } from "react-chartjs-2";
+import TablaIncidentes from "./dashboard/TablaIncidentes";
+import TablaAccidentes from "./dashboard/TablaAccidentes";
 import {
   Chart,
   CategoryScale,
@@ -154,16 +156,33 @@ export default function DashboardHomePage() {
     ],
   };
 
-  const doughnutData = {
-    labels: Object.keys(stats.porEstado),
-    datasets: [
-      {
-        data: Object.values(stats.porEstado),
-        backgroundColor: ["#60a5fa", "#fbbf24", "#f472b6", "#34d399", "#f87171", "#a78bfa", "#fb7185"],
-        borderWidth: 1,
-      },
-    ],
-  };
+  // 🎨 Colores fijos por estado
+const coloresEstado = {
+  FAVORABLE: "#facc15",   // Amarillo
+  CANCELADO: "#9ca3af",   // Gris medio
+  NEGADO: "#ef4444",      // Rojo
+  "SIN ESTADO": "#64748b",// Slate
+  PENDIENTE: "#3b82f6",   // Azul
+  DEVUELTO: "#a855f7",    // Violeta
+  "EN TRÁMITE": "#38bdf8",// Celeste
+  REINGRESO: "#ec4899",   // Rosa
+};
+
+
+    // ✅ Generar dataset dinámico por estado
+    const doughnutData = {
+      labels: Object.keys(stats.porEstado),
+      datasets: [
+        {
+          data: Object.values(stats.porEstado),
+          backgroundColor: Object.keys(stats.porEstado).map(
+            (estado) => coloresEstado[estado] || "#d1d5db" // gris si no coincide
+          ),
+          borderWidth: 1,
+        },
+      ],
+    };
+
 
   const radarData = {
     labels: Object.keys(stats.porMes),
@@ -251,80 +270,73 @@ export default function DashboardHomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100%-150px)]">
           {/* Tabla de registros con paginación y filtro de estado */}
           <div className="bg-white rounded-xl shadow flex flex-col">
-            <div className={`flex items-center ${colores[moduloActivo]} rounded-t-xl px-4 py-2 text-white font-bold`}>
-              <span className="flex-1">ID</span>
-              <span className="flex-1 flex items-center">Estado
-                <select
-                  value={estadoFiltro}
-                  onChange={(e) => {
-                    setEstadoFiltro(e.target.value);
-                    setPage(1);
-                  }}
-                  className="ml-2 px-2 py-1 border rounded text-xs text-black bg-white"
-                  style={{ minWidth: 90 }}
-                >
-                  <option value="Todos">Todos</option>
-                  {Object.keys(stats.porEstado).map((estado) => (
-                    <option key={estado} value={estado}>{estado}</option>
-                  ))}
-                </select>
-              </span>
-              <span className="flex-1">Fecha</span>
-            </div>
-            <div className="flex-1 divide-y divide-gray-300 overflow-y-auto">
-              {loading ? (
-              <div className="p-6 text-center text-slate-500">Cargando…</div>
-            ) : paginatedItems.length === 0 ? (
-              <div className="p-6 text-center text-slate-500">No hay resultados</div>
-            ) : (
-              paginatedItems.map((row, i) => (
-                <div
-                  key={row.id || row.no_incidente || i}
-                  className="grid grid-cols-[1.2fr_1fr_1fr] border-b items-center text-sm hover:bg-gray-50"
-                >
-                  {/* N° de Incidencia */}
-                  <div className="px-4 py-3 truncate" title={row.descripcion || ''}>
-                    {row.numero || row.no_incidente || "Sin número"}
-                  </div>
+          
+            <div className="flex-1 overflow-y-auto">
+            {moduloActivo === "incidentes" && (
+            <TablaIncidentes
+              items={paginatedItems}
+              loading={loading}
+              color="bg-green-400"
+              onFiltroChange={(nuevoEstado) => {
+                setEstadoFiltro(nuevoEstado);
+                setPage(1);
+              }}
+            />
+          )}
 
-                  {/* Estado con colores */}
-                  <div className="px-4 py-3">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        row.estado === "FAVORABLE"
-                          ? "bg-green-100 text-green-800"
-                          : row.estado === "PENDIENTE"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : row.estado === "RECHAZADO"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {row.estado || "Sin estado"}
-                    </span>
-                  </div>
+            {moduloActivo === "accidentes" && (
+            <TablaAccidentes
+              items={paginatedItems}
+              loading={loading}
+              onFiltroChange={(nuevoEstado) => {
+                // 🔹 Actualiza el filtro global
+                setEstadoFiltro(nuevoEstado);
+                setPage(1);
 
-                  {/* Fecha */}
-                  <div className="px-4 py-3">
-                    {(() => {
-                      const d = row.fecha || row.fecha_registro || row.requerimiento?.fecha_registro;
-                      if (!d) return "Sin fecha";
-                      try {
-                        return new Date(d).toLocaleDateString("es-ES", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                        });
-                      } catch {
-                        return "Fecha inválida";
-                      }
-                    })()}
-                  </div>
-                </div>
-              ))
-            )}
+                // 🔹 Filtra los datos en memoria para sincronizar estadísticas y gráficos
+                const filtrados =
+                  nuevoEstado === "Todos"
+                    ? items
+                    : items.filter(
+                        (i) =>
+                          i.estado?.toUpperCase().trim() === nuevoEstado.toUpperCase().trim()
+                      );
 
-            </div>
+                // 🔹 Calcula estadísticas actualizadas según el filtro
+                const total = filtrados.length;
+                const porEstado = {};
+                filtrados.forEach((a) => {
+                  const est = a.estado || "SIN ESTADO";
+                  porEstado[est] = (porEstado[est] || 0) + 1;
+                });
+
+                const porMes = {};
+                filtrados.forEach((a) => {
+                  const fecha = a.fecha;
+                  if (fecha) {
+                    const mes = new Date(fecha).toLocaleString("es-EC", {
+                      month: "long",
+                      year: "numeric",
+                    });
+                    porMes[mes] = (porMes[mes] || 0) + 1;
+                  }
+                });
+
+                setStats({ total, porEstado, porMes });
+              }}
+              onColorChange={(nuevoColor) => {
+                // Cambia color dinámico del encabezado y del gráfico
+                colores.accidentes = nuevoColor;
+              }}
+            />
+          )}
+
+
+
+            {/* seguirán extern os, test, sirecq */}
+          </div>
+
+
             {/* Paginación compacta */}
             <div className="flex items-center justify-center gap-1 py-2">
               <button
