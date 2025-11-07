@@ -70,6 +70,9 @@ export default function SirecqEditor({ mode = "view" }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token, user, activeRole } = useAuth();
+    // 🕓 Obtiene fecha local exacta sin desfase (corrige problema de UTC)
+  const hoyLocal = new Date();
+  const fechaLocal = hoyLocal.toLocaleDateString("en-CA"); // ✅ formato YYYY-MM-DD
   // Estado para alertas modales
   const [alert, setAlert] = useState({ open: false, message: "", type: "info" });
   const showAlert = (message, type = "info") => setAlert({ open: true, message, type });
@@ -93,6 +96,7 @@ export default function SirecqEditor({ mode = "view" }) {
     prioridad: "",
     dependencia: "",
     seguimiento: "",
+     tema: "", 
     clasificacion: "",
     sistema: "",
     responsable: "",       // nombre legible
@@ -104,7 +108,8 @@ export default function SirecqEditor({ mode = "view" }) {
     observaciones: "",
     obsv_tecnica: "",
     requerimientoId: null,
-     id_categoria: null,
+    id_categoria: null,
+    fecha_registro: fechaLocal,
   });
 
 
@@ -156,7 +161,8 @@ export default function SirecqEditor({ mode = "view" }) {
         setRequerimiento({
           requerimientoId: req?.id_requerimiento || null,
           numero: req?.no_requerimiento || "",
-          tramite_priorizado: req?.tema || "",
+          tema: req?.tema || "", // ✅ mapeo real del campo tema
+          tramite_priorizado: data?.sirecqExterno?.tramitepr || "",
           tramite_cat: data?.sirecqExterno?.tramitecat || "",
           //prioridad: req?.id_categoria || "",
           prioridad: data?.prioridad ?? "", 
@@ -175,9 +181,14 @@ export default function SirecqEditor({ mode = "view" }) {
           sistema: req?.sistema || null,
           id_responsable: req?.rolUsuario?.id_rol_usuario || null, // ✅ usar id_rol_usuario
           responsable: responsable? `${responsable.nombre_usuario} ${responsable.apellidos_usuario}`.trim(): "",
-          fecha_envio_dmc: data?.fecha_env_dmc 
-            ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0] 
-            : req?.fecha_registro?.slice(0, 10) || "",
+          fecha_registro: req?.fecha_registro
+          ? req.fecha_registro.slice(0, 10)
+          : "",
+
+        fecha_envio_dmc: data?.fecha_env_dmc
+          ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0]
+          : "",
+        
           estado: req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
           //tecnico_desarrollo: tecnico ? `${tecnico.nombre_usuario} ${tecnico.apellidos_usuario}`.trim() : "",
           descripcion: req?.descripcion || "",
@@ -394,10 +405,10 @@ const handleDelete = async () => {
 
   requerimiento: {
     no_requerimiento: requerimiento.numero,
-    tema: requerimiento.tramite_priorizado,
+    tema: requerimiento.tema || "", // ✅ ahora el tema se guarda independiente
     descripcion: requerimiento.descripcion,
     fase: "Requisito",
-    fecha_registro: new Date().toISOString().split("T")[0],
+    fecha_registro: fechaLocal, // ✅ mantiene la fecha local sin sumar un día
     id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
     id_categoria: Number(requerimiento.id_categoria) || 1,
     id_sistema: Number(requerimiento.id_sistema) || null,
@@ -440,7 +451,7 @@ console.log("📤 Payload enviado al backend:", payload);
     id_tecnico: 2,
     requerimiento: {
       no_requerimiento: requerimiento.numero,
-      tema: requerimiento.tramite_priorizado,
+       tema: requerimiento.tema || "",
       descripcion: requerimiento.descripcion,
       fase: "Requisito",
       id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
@@ -523,7 +534,8 @@ await new Promise((resolve) => setTimeout(resolve, 300));
 setRequerimiento({
   requerimientoId: req?.id_requerimiento || null,
   numero: req?.no_requerimiento || "",
-  tramite_priorizado: req?.tema || "",
+  tema: req?.tema || "", // ✅ nuevo campo tema
+  tramite_priorizado: data?.sirecqExterno?.tramitepr || "",
   tramite_cat: data?.sirecqExterno?.tramitecat || "",
   prioridad: data?.prioridad ?? "", // ⚙️ viene directo de sirecq_interno
   dependencia: data?.sirecqExterno?.dependencia || null,
@@ -536,11 +548,11 @@ setRequerimiento({
   responsable: analista
     ? `${analista.nombre_usuario} ${analista.apellidos_usuario}`.trim()
     : "",
+  fecha_registro: req?.fecha_registro || "",
   fecha_envio_dmc: data?.fecha_env_dmc
-    ? new Date(data.fecha_env_dmc + "T12:00:00")
-        .toISOString()
-        .split("T")[0]
-    : req?.fecha_registro?.slice(0, 10) || "",
+    ? new Date(data.fecha_env_dmc + "T12:00:00").toISOString().split("T")[0]
+    : "",
+  
   estado:
     req?.estadoRequerimiento?.nombre_estado_requerimiento || "Enviado",
   tecnico_desarrollo:
@@ -711,14 +723,15 @@ navigate("/sirecq");
                 editMode={editMode || isCreate}
                 className="bg-[#f1f5f9]"
               />
-              <SimpleField
-                label="Trámite priorizado relacionado"
-                value={requerimiento.tramite_priorizado}
-                name="tramite_priorizado"
-                onChange={handleChange}
-                editMode={editMode || isCreate}
-                className="bg-[#f1f5f9]"
+              <DateFieldComp
+              label="Fecha de registro"
+              name="fecha_registro"
+              value={requerimiento.fecha_registro}
+              onChange={handleChange}
+              editMode={true} // 👈 debe estar en true para que renderice el <input type="date">
+              readOnly // 👈 opcional si no quieres permitir edición
               />
+
               <SimpleField
                 label="Trámite CAT"
                 value={requerimiento.tramite_cat}
@@ -849,8 +862,10 @@ navigate("/sirecq");
     </div>
   </div>
 
-  {/* Seguimiento */}
-  <div className="mt-4">
+  {/* Seguimiento + Tema */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+  {/* Seguimiento Institucional */}
+  <div>
     <label className="block text-xs font-semibold mb-1 text-gray-700">
       Seguimiento Institucional
     </label>
@@ -868,6 +883,28 @@ navigate("/sirecq");
       </div>
     )}
   </div>
+
+  {/* Nuevo campo: Tema */}
+  <div>
+    <label className="block text-xs font-semibold mb-1 text-gray-700">
+      Tema
+    </label>
+    {editMode ? (
+      <input
+        type="text"
+        name="tema"
+        value={requerimiento.tema || ""}
+        onChange={handleChange}
+        className="w-full px-3 py-2 text-sm rounded bg-[#f1f5f9]"
+      />
+    ) : (
+      <div className="w-full px-3 py-2 text-sm bg-[#f1f5f9] rounded text-gray-700">
+        {requerimiento.tema || ""}
+      </div>
+    )}
+  </div>
+</div>
+
 </div>
 
    {/* Sección 2 - Detalles adicionales */}
@@ -1063,6 +1100,28 @@ navigate("/sirecq");
               )}
             </div>
           </div>
+
+          {/* Trámite priorizado relacionado */}
+          <div className="border-2 border-[#3f6592] rounded-xl overflow-hidden">
+            <div className="bg-white px-4 py-2 border-b border-gray-200">
+              <h3 className="font-bold text-sm text-gray-800">Trámite priorizado relacionado</h3>
+            </div>
+            <div className="p-4">
+              {editMode || isCreate ? (
+                <textarea
+                  name="tramite_priorizado"
+                  value={requerimiento.tramite_priorizado}
+                  onChange={handleChange}
+                  rows={5}
+                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded bg-[#f1f5f9] resize-none"
+                />
+              ) : (
+                <div className="w-full px-3 py-2 text-xs bg-[#f1f5f9] rounded text-gray-700 min-h-[120px]">
+                  {requerimiento.tramite_priorizado}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1099,7 +1158,7 @@ function SimpleField({ label, name, value, onChange, editMode, type = "text" }) 
 }
 
 
-function DateFieldComp({ label, name, value, onChange, editMode }) {
+function DateFieldComp({ label, name, value, onChange, editMode, readOnly = false }) {
   return (
     <div>
       <label className="block text-xs font-semibold mb-1 text-gray-700">
@@ -1111,7 +1170,10 @@ function DateFieldComp({ label, name, value, onChange, editMode }) {
           name={name}
           value={value || ""}
           onChange={onChange}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-[#f1f5f9] focus:ring-1 focus:ring-[#3f6592]"
+          readOnly={readOnly} // ✅ evita edición si solo lectura
+          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded bg-[#f1f5f9] ${
+            readOnly ? "cursor-not-allowed text-gray-600" : ""
+          }`}
         />
       ) : (
         <div className="w-full px-3 py-2 text-sm bg-[#f1f5f9] rounded text-gray-700">
@@ -1121,6 +1183,7 @@ function DateFieldComp({ label, name, value, onChange, editMode }) {
     </div>
   );
 }
+
 
 
 function VersionBlock({ version, index, onChange, editMode }) {

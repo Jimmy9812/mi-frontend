@@ -141,7 +141,7 @@ export default function ExternosEditor({ mode = "view" }) {
           tramite_cat: res.tramitecat ?? "",
           dependencia: res.dependencia?.sigla_dependencia || "",
           id_dependencia: res.dependencia?.id_dependencia || null,
-          fecha_envio_dmc: res.requerimiento?.fecha_registro
+          fecha_registro: res.requerimiento?.fecha_registro
             ? new Date(res.requerimiento.fecha_registro).toISOString().split("T")[0]
             : "",
           observaciones: res.observacionesgen ?? "",
@@ -220,7 +220,7 @@ export default function ExternosEditor({ mode = "view" }) {
     const baseRequerimiento = {
       no_requerimiento: externo.numero || "",
       documento: "REQ-EXT",
-      tema: externo.descripcion?.slice(0, 50) || "Tema externo",
+      tema: "",
       descripcion: externo.descripcion || "",
       fase: "Requisito",
       id_estado_requerimiento: externo.id_estado_requerimiento || 1,
@@ -449,8 +449,8 @@ export default function ExternosEditor({ mode = "view" }) {
 
           <DateField
             label="Fecha de registro"
-            name="fecha_envio_dmc"
-            value={externo.fecha_envio_dmc}
+            name="fecha_registro"
+            value={externo.fecha_registro}
             onChange={() => {}}
             editMode={false}
           />
