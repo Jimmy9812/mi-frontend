@@ -103,18 +103,20 @@ export default function DashboardHomePage() {
 
   // ✅ Filtrar por estado (usando useMemo para evitar renders infinitos)
   const filteredItems = useMemo(() => {
-    return estadoFiltro === "Todos"
-      ? items
-      : items.filter((i) => {
-          const estado =
-            i.estado ||
-            i.estado_tramite ||
-            i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
-            i.requerimiento?.estadoRequerimiento?.nombre_estado ||
-            "SIN ESTADO";
-          return estado === estadoFiltro;
-        });
-  }, [estadoFiltro, items]);
+  if (estadoFiltro === "Todos") return items;
+
+  return items.filter(i => {
+    const estado =
+      i.estado ||
+      i.estado_tramite ||
+      i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+      i.requerimiento?.estadoRequerimiento?.nombre_estado ||
+      "SIN ESTADO";
+
+    return estado?.toUpperCase().trim() === estadoFiltro.toUpperCase().trim();
+  });
+}, [items, estadoFiltro]);
+
 
   // Paginación
   const totalPages = Math.min(5, Math.max(1, Math.ceil(filteredItems.length / pageSize)));
@@ -237,12 +239,15 @@ const coloresEstado = {
             <span>Incidentes</span>
           </button>
           <button
-            onClick={() => setModuloActivo("accidentes")}
-            className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-blue-50 border border-gray-300 text-blue-600"
-          >
-            <AlertTriangle className="w-5 h-5" />
-            <span>Accidentes</span>
-          </button>
+          onClick={() => {
+            setModuloActivo("accidentes");
+            setPage(1); // 🔹 Reinicia la paginación
+          }}
+          className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-blue-50 border border-gray-300 text-blue-600"
+        >
+          <AlertTriangle className="w-5 h-5" />
+          <span>Accidentes</span>
+        </button>
           <button
             onClick={() => setModuloActivo("externos")}
             className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-orange-50 border border-gray-300 text-orange-600"
@@ -273,63 +278,21 @@ const coloresEstado = {
           
             <div className="flex-1 overflow-y-auto">
             {moduloActivo === "incidentes" && (
-            <TablaIncidentes
+              <TablaIncidentes
               items={paginatedItems}
               loading={loading}
-              color="bg-green-400"
               onFiltroChange={(nuevoEstado) => {
                 setEstadoFiltro(nuevoEstado);
                 setPage(1);
               }}
             />
-          )}
+
+            )}
 
             {moduloActivo === "accidentes" && (
-            <TablaAccidentes
-              items={paginatedItems}
-              loading={loading}
-              onFiltroChange={(nuevoEstado) => {
-                // 🔹 Actualiza el filtro global
-                setEstadoFiltro(nuevoEstado);
-                setPage(1);
+              <TablaAccidentes items={paginatedItems} loading={loading} />
+            )}
 
-                // 🔹 Filtra los datos en memoria para sincronizar estadísticas y gráficos
-                const filtrados =
-                  nuevoEstado === "Todos"
-                    ? items
-                    : items.filter(
-                        (i) =>
-                          i.estado?.toUpperCase().trim() === nuevoEstado.toUpperCase().trim()
-                      );
-
-                // 🔹 Calcula estadísticas actualizadas según el filtro
-                const total = filtrados.length;
-                const porEstado = {};
-                filtrados.forEach((a) => {
-                  const est = a.estado || "SIN ESTADO";
-                  porEstado[est] = (porEstado[est] || 0) + 1;
-                });
-
-                const porMes = {};
-                filtrados.forEach((a) => {
-                  const fecha = a.fecha;
-                  if (fecha) {
-                    const mes = new Date(fecha).toLocaleString("es-EC", {
-                      month: "long",
-                      year: "numeric",
-                    });
-                    porMes[mes] = (porMes[mes] || 0) + 1;
-                  }
-                });
-
-                setStats({ total, porEstado, porMes });
-              }}
-              onColorChange={(nuevoColor) => {
-                // Cambia color dinámico del encabezado y del gráfico
-                colores.accidentes = nuevoColor;
-              }}
-            />
-          )}
 
 
 

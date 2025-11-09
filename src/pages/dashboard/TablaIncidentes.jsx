@@ -12,8 +12,8 @@ export default function TablaIncidentes({
   items = [],
   loading,
   onFiltroChange,
-  onColorChange,
 }) {
+
   const estados = ["Todos", "FAVORABLE", "PENDIENTE"];
   const [estadoFiltro, setEstadoFiltro] = useState("Todos");
    const filtered =
@@ -23,13 +23,16 @@ export default function TablaIncidentes({
           (a) => a.estado?.toUpperCase().trim() === estadoFiltro.toUpperCase().trim()
         );
   
-  const handleChange = (e) => {
-    const value = e.target.value;
-    setEstadoFiltro(value);
-    if (onFiltroChange) onFiltroChange(value);
-  };
+      const handleChange = (e) => {
+        const value = e.target.value;
+        setEstadoFiltro(value);
+        if (onFiltroChange) onFiltroChange(value);
+      };
+
 
   const formatDate = (dateString) => {
+    
+
     if (!dateString) return "Sin fecha";
     try {
       return new Date(dateString).toLocaleDateString("es-ES", {
@@ -41,6 +44,18 @@ export default function TablaIncidentes({
       return "Fecha inválida";
     }
   };
+
+   const estadoClass = (estado) => {
+    switch (estado) {
+      case "FAVORABLE":
+        return "bg-yellow-100 text-yellow-800";
+      case "PENDIENTE":
+        return "bg-blue-100 text-blue-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
 
   if (loading)
     return <div className="p-6 text-center text-slate-500">Cargando…</div>;
@@ -56,11 +71,8 @@ export default function TablaIncidentes({
       Estado
       <select
         value={estadoFiltro}
-        onChange={(e) => {
-          const value = e.target.value;
-          setEstadoFiltro(value);
-          if (onFiltroChange) onFiltroChange(value);
-        }}
+        onChange={(e) => setEstadoFiltro(e.target.value)}
+
         className="ml-2 px-2 py-1 rounded text-black text-xs bg-white"
       >
         <option value="Todos">Todos</option>
@@ -129,7 +141,7 @@ export default function TablaIncidentes({
 
 
       {/* Filas */}
-      {items.map((row, index) => (
+      {filtered.map((row, index) => (
         <div
           key={row.id || row.numero}
           className={`grid grid-cols-[1.2fr_1fr_1fr] items-center text-sm hover:bg-gray-50 ${
