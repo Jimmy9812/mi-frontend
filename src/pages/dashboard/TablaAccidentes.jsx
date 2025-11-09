@@ -1,13 +1,14 @@
 import { useState } from "react";
 
-/**
- * TablaAccidentes (versión Dashboard)
- * Encabezado fijo azul, columnas completas y filtro funcional.
- */
 export default function TablaAccidentes({ items = [], loading, onFiltroChange }) {
   const [estadoFiltro, setEstadoFiltro] = useState("Todos");
 
-  // 📊 Filtrar registros por estado
+  const handleChange = (e) => {
+    const value = e.target.value;
+    setEstadoFiltro(value);
+    if (onFiltroChange) onFiltroChange(value); // comunica al Dashboard
+  };
+
   const filtered =
     estadoFiltro === "Todos"
       ? items
@@ -15,7 +16,6 @@ export default function TablaAccidentes({ items = [], loading, onFiltroChange })
           (a) => a.estado?.toUpperCase().trim() === estadoFiltro.toUpperCase().trim()
         );
 
-  // 🗓️ Formato de fecha legible
   const formatDate = (fecha) => {
     if (!fecha) return "N/A";
     try {
@@ -29,7 +29,6 @@ export default function TablaAccidentes({ items = [], loading, onFiltroChange })
     }
   };
 
-  // 🎯 Colores visuales para cada estado
   const estadoClass = (estado) => {
     switch (estado) {
       case "FAVORABLE":
@@ -56,77 +55,41 @@ export default function TablaAccidentes({ items = [], loading, onFiltroChange })
   if (loading)
     return <div className="p-6 text-center text-slate-500">Cargando accidentes…</div>;
 
-  if (filtered.length === 0)
+  if (items.length === 0)
     return (
       <div className="divide-y divide-gray-200">
-  {/* Encabezado */}
-  <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] bg-[#3F6592] text-white font-bold text-sm rounded-t-xl">
-    <div className="px-4 py-2 flex items-center">Trámite</div>
-    <div className="px-4 py-2 flex items-center">Oficio</div>
-    <div className="px-4 py-2 flex items-center">
-      Estado
-      <select
-        value={estadoFiltro}
-        onChange={(e) => {
-          const value = e.target.value;
-          setEstadoFiltro(value);
-          if (onFiltroChange) onFiltroChange(value);
-        }}
-        className="ml-2 px-2 py-1 rounded text-black text-xs bg-white"
-      >
-        <option value="Todos">Todos</option>
-        <option value="FAVORABLE">FAVORABLE</option>
-        <option value="PENDIENTE">PENDIENTE</option>
-        <option value="CANCELADO">CANCELADO</option>
-        <option value="DEVUELTO">DEVUELTO</option>
-        <option value="EN TRÁMITE">EN TRÁMITE</option>
-        <option value="NEGADO">NEGADO</option>
-        <option value="REINGRESO">REINGRESO</option>
-        <option value="SIN ESTADO">SIN ESTADO</option>
-      </select>
-    </div>
-    <div className="px-4 py-2 flex items-center">Fecha</div>
-  </div>
-
-  {/* Cuerpo */}
-  {loading ? (
-    <div className="p-6 text-center text-slate-500">Cargando accidentes…</div>
-  ) : filtered.length === 0 ? (
-    <div className="p-10 text-center text-slate-400 italic">
-      No hay resultados para los filtros seleccionados
-    </div>
-  ) : (
-    filtered.map((row, i) => (
-      <div
-        key={i}
-        className={`grid grid-cols-[1.5fr_1fr_1fr_1fr] text-sm hover:bg-gray-50 ${
-          i !== filtered.length - 1 ? "border-b border-gray-200" : ""
-        }`}
-      >
-        <div className="px-4 py-3">{row.tramite || "N/A"}</div>
-        <div className="px-4 py-3 text-slate-500 italic">{row.oficio || "N/A"}</div>
-        <div className="px-4 py-3">
-          <span
-            className={`px-2 py-1 rounded-full text-xs font-medium ${estadoClass(
-              row.estado
-            )}`}
-          >
-            {row.estado || "SIN ESTADO"}
-          </span>
+        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] bg-[#3F6592] text-white font-bold text-sm rounded-t-xl">
+          <div className="px-4 py-2 flex items-center">Trámite</div>
+          <div className="px-4 py-2 flex items-center">Oficio</div>
+          <div className="px-4 py-2 flex items-center">
+            Estado
+            <select
+              value={estadoFiltro}
+              onChange={handleChange}
+              className="ml-2 px-2 py-1 rounded text-black text-xs bg-white"
+            >
+              <option value="Todos">Todos</option>
+              <option value="FAVORABLE">FAVORABLE</option>
+              <option value="PENDIENTE">PENDIENTE</option>
+              <option value="CANCELADO">CANCELADO</option>
+              <option value="DEVUELTO">DEVUELTO</option>
+              <option value="EN TRÁMITE">EN TRÁMITE</option>
+              <option value="NEGADO">NEGADO</option>
+              <option value="REINGRESO">REINGRESO</option>
+              <option value="SIN ESTADO">SIN ESTADO</option>
+            </select>
+          </div>
+          <div className="px-4 py-2 flex items-center">Fecha</div>
         </div>
-        <div className="px-4 py-3">
-          {row.fecha ? new Date(row.fecha).toLocaleDateString("es-EC") : "N/A"}
+
+        <div className="p-10 text-center text-slate-400 italic">
+          No hay resultados para los filtros seleccionados
         </div>
       </div>
-    ))
-  )}
-</div>
-
     );
 
   return (
     <div className="divide-y divide-gray-200">
-      {/* Encabezado fijo azul */}
       <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] bg-[#3F6592] text-white font-bold text-sm rounded-t-xl">
         <div className="px-4 py-2 flex items-center">Trámite</div>
         <div className="px-4 py-2 flex items-center">Oficio</div>
@@ -134,11 +97,7 @@ export default function TablaAccidentes({ items = [], loading, onFiltroChange })
           Estado
           <select
             value={estadoFiltro}
-            onChange={(e) => {
-              const value = e.target.value;
-              setEstadoFiltro(value);
-              if (onFiltroChange) onFiltroChange(value);
-            }}
+            onChange={handleChange}
             className="ml-2 px-2 py-1 rounded text-black text-xs bg-white"
           >
             <option value="Todos">Todos</option>
@@ -155,7 +114,6 @@ export default function TablaAccidentes({ items = [], loading, onFiltroChange })
         <div className="px-4 py-2 flex items-center">Fecha</div>
       </div>
 
-      {/* Filas */}
       {filtered.map((row, i) => (
         <div
           key={row.id || i}
@@ -167,9 +125,7 @@ export default function TablaAccidentes({ items = [], loading, onFiltroChange })
           <div className="px-4 py-3 text-slate-500 italic">{row.oficio || "N/A"}</div>
           <div className="px-4 py-3">
             <span
-              className={`px-2 py-1 rounded-full text-xs font-medium ${estadoClass(
-                row.estado
-              )}`}
+              className={`px-2 py-1 rounded-full text-xs font-medium ${estadoClass(row.estado)}`}
             >
               {row.estado || "SIN ESTADO"}
             </span>

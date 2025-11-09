@@ -8,6 +8,10 @@ import { useAuth } from "../context/AuthContext";
 import { Bar, Doughnut, Radar } from "react-chartjs-2";
 import TablaIncidentes from "./dashboard/TablaIncidentes";
 import TablaAccidentes from "./dashboard/TablaAccidentes";
+import TablaExternos from "./dashboard/TablaExternos";
+import TablaTestProduccion from "./dashboard/TablaTestProduccion";
+import TablaSirecq from "./dashboard/TablaSirecq";
+
 import {
   Chart,
   CategoryScale,
@@ -63,6 +67,63 @@ export default function DashboardHomePage() {
   // Estadísticas
   const [stats, setStats] = useState({ total: 0, porEstado: {}, porMes: {} });
 
+
+  const getColoresEstadoPorModulo = (modulo) => {
+  switch (modulo) {
+    // ✅ INCIDENTES: solo dos estados
+    case "incidentes":
+      return {
+        FAVORABLE: "#22C55E", // Verde
+        PENDIENTE: "#3B82F6", // Azul
+      };
+
+    // ✅ ACCIDENTES: mostrar todos los posibles estados institucionales
+    case "accidentes":
+      return {
+        FAVORABLE: "#34D399", // Verde esmeralda
+        PENDIENTE: "#60A5FA", // Azul
+        DEVUELTO: "#F59E0B", // Amarillo fuerte
+        NEGADO: "#EF4444", // Rojo
+        CANCELADO: "#9CA3AF", // Gris
+        "EN TRÁMITE": "#C084FC", // Morado
+        REINGRESO: "#22D3EE", // Celeste
+        "SIN ESTADO": "#CBD5E1", // Gris claro
+      };
+
+    // ✅ EXTERNOS: eliminar "SIN ESTADO"
+    case "externos":
+      return {
+        ENVIADO: "#FACC15", // Amarillo
+        DEVUELTO: "#F87171", // Rojo
+        "EN REVISIÓN": "#C084FC", // Morado
+        FAVORABLE: "#22C55E", // Verde
+        PENDIENTE: "#3B82F6", // Azul
+        CANCELADO: "#9CA3AF", // Gris
+      };
+
+    // ✅ TEST PRODUCCIÓN
+    case "testproduccion":
+      return {
+        EN_PROCESO: "#A78BFA", // Morado
+        FINALIZADO: "#F97316", // Naranja
+        PENDIENTE: "#60A5FA", // Azul
+        "SIN ESTADO": "#CBD5E1",
+      };
+
+    // ✅ SIRECQ
+case "sirecq":
+  return {
+    ENVIADO: "#3B82F6",      // Azul
+    DEVUELTO: "#F87171",     // Rojo
+    "EN REVISIÓN": "#A78BFA", // Morado
+    ATENDIDO: "#22C55E",     // Verde
+  };
+    // Por defecto (seguridad)
+    default:
+      return { "SIN ESTADO": "#D1D5DB" };
+  }
+};
+
   // Cargar datos según módulo
   useEffect(() => {
     async function fetchData() {
@@ -70,9 +131,21 @@ export default function DashboardHomePage() {
       let res;
       try {
         if (moduloActivo === "incidentes") {
-          res = await listIncidentes({ token, page: 1, pageSize: 10000 });
-          setItems(res.items || []);
-        } else if (moduloActivo === "accidentes") {
+        res = await listIncidentes({ token, page: 1, pageSize: 10000 });
+
+        console.log("📦 Datos incidentes:", res);
+
+        // Detecta automáticamente el campo que contiene los registros
+        const datos =
+          res.items ||
+          res.data ||
+          res.rows ||
+          (Array.isArray(res) ? res : []) ||
+          [];
+
+        setItems(datos);
+      }
+ else if (moduloActivo === "accidentes") {
           res = await listAccidentes({ token, page: 1, pageSize: 10000 });
           setItems(res.items || []);
         } else if (moduloActivo === "externos") {
@@ -97,25 +170,71 @@ export default function DashboardHomePage() {
   }, [moduloActivo, token]);
 
   // Filtro de estado y paginación
-  const [estadoFiltro, setEstadoFiltro] = useState("Todos");
+      const [estadoFiltros, setEstadoFiltros] = useState({
+      incidentes: "Todos",
+      accidentes: "Todos",
+      externos: "Todos",
+      testproduccion: "Todos",
+      sirecq: "Todos",
+    });
+
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const estadoFiltroActivo = estadoFiltros[moduloActivo] || "Todos";
+
 
   // ✅ Filtrar por estado (usando useMemo para evitar renders infinitos)
-  const filteredItems = useMemo(() => {
-  if (estadoFiltro === "Todos") return items;
+     // ✅ Filtrar por estado (usando useMemo para evitar renders infinitos)
+// ✅ Filtrar por estado (usando useMemo para evitar renders infinitos)
+const filteredItems = useMemo(() => {
+  if (!Array.isArray(items)) return [];
 
-  return items.filter(i => {
+  // 🔹 Normaliza el valor del filtro global
+  const estadoFiltro = (estadoFiltros[moduloActivo] || "").toUpperCase().trim();
+
+  // 🔹 Si el filtro está vacío o es "TODOS"/"TODAS", mostramos todos los registros
+  if (!estadoFiltro || estadoFiltro === "TODAS" || estadoFiltro === "TODOS") {
+    return items;
+  }
+
+  // 🔹 Test/Producción: filtra por etapa de implementación
+  if (moduloActivo === "testproduccion") {
+    return items.filter((r) => {
+      const etapa = (r.etapa_implementation || r.etapa || "").toUpperCase();
+      return etapa.includes(estadoFiltro);
+    });
+  }
+
+  // 🔹 SIRECQ: filtra por estado del requerimiento (usando jerarquía completa)
+  if (moduloActivo === "sirecq") {
+    return items.filter((r) => {
+      const estado =
+        r.estado ||
+        r.sirecqExterno?.requerimiento?.estadoRequerimiento
+          ?.nombre_estado_requerimiento ||
+        r.sirecqExterno?.requerimiento?.estadoRequerimiento?.nombre_estado ||
+        r.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+        r.requerimiento?.estadoRequerimiento?.nombre_estado ||
+        "SIN ESTADO";
+
+      return estado.toUpperCase().trim() === estadoFiltro;
+    });
+  }
+
+  // 🔹 Módulos normales: filtran por estado simple
+  return items.filter((i) => {
     const estado =
       i.estado ||
       i.estado_tramite ||
       i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
       i.requerimiento?.estadoRequerimiento?.nombre_estado ||
-      "SIN ESTADO";
-
-    return estado?.toUpperCase().trim() === estadoFiltro.toUpperCase().trim();
+      "";
+    return estado.toUpperCase().trim() === estadoFiltro;
   });
-}, [items, estadoFiltro]);
+}, [items, estadoFiltros, moduloActivo]);
+
+
+
 
 
   // Paginación
@@ -123,27 +242,131 @@ export default function DashboardHomePage() {
 
   const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
 
-  // ✅ Calcular estadísticas
-  useEffect(() => {
-    // Total
-    const total = filteredItems.length;
-    // Por estado
-    const porEstado = {};
-    filteredItems.forEach((i) => {
-      let estado = i.estado || i.estado_tramite || i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento || i.requerimiento?.estadoRequerimiento?.nombre_estado || "SIN ESTADO";
-      porEstado[estado] = (porEstado[estado] || 0) + 1;
-    });
-    // Por mes
-    const porMes = {};
-    filteredItems.forEach((i) => {
-      let fecha = i.fecha || i.fecha_registro || i.requerimiento?.fecha_registro;
-      if (fecha) {
-        const mes = (new Date(fecha)).toLocaleString("es-EC", { month: "long", year: "numeric" });
-        porMes[mes] = (porMes[mes] || 0) + 1;
-      }
-    });
-    setStats({ total, porEstado, porMes });
-  }, [filteredItems]);
+// ✅ Calcular estadísticas completas (con filtro activo o "Todos")
+// ✅ Calcular estadísticas completas (con filtro activo o "Todos")
+useEffect(() => {
+  // 🔹 Si hay datos, tomamos la fuente según el filtro actual
+  const fuenteDatos =
+    estadoFiltros[moduloActivo] === "Todas" ||
+    estadoFiltros[moduloActivo] === "Todos"
+      ? items
+      : filteredItems;
+
+  const total = fuenteDatos.length;
+  const porEstado = {};
+  const porMes = {};
+
+  // 🔹 Caso especial: módulo Test/Producción
+  if (moduloActivo === "testproduccion") {
+  // 🔹 Inicializamos las etapas para que siempre existan
+  const etapas = ["Test", "Producción", "Sin etapa"];
+  etapas.forEach((e) => (porEstado[e] = 0));
+
+  fuenteDatos.forEach((r) => {
+    const etapa =
+      r.etapa_implementation ||
+      r.etapa ||
+      "Sin etapa";
+
+    const etapaNorm = etapa.trim().toLowerCase();
+
+    if (etapaNorm.includes("test")) porEstado["Test"]++;
+    else if (etapaNorm.includes("produc")) porEstado["Producción"]++;
+    else porEstado["Sin etapa"]++;
+
+    const fecha = r.fechaenvioreq || r.fecha_envio || r.fecha;
+    if (fecha) {
+      const mes = new Date(fecha).toLocaleString("es-EC", {
+        month: "long",
+        year: "numeric",
+      });
+      porMes[mes] = (porMes[mes] || 0) + 1;
+    }
+  });
+
+  // 🔹 Aseguramos que las claves estén siempre presentes (incluso si valen 0)
+  etapas.forEach((e) => {
+    if (!porEstado[e]) porEstado[e] = 0;
+  });
+}
+else {
+  // 🔸 Caso especial: módulo SIRECQ (solo 4 estados)
+  // 🔸 Caso especial: módulo SIRECQ (solo 4 estados)
+if (moduloActivo === "sirecq") {
+  const estadosValidos = ["ENVIADO", "DEVUELTO", "EN REVISIÓN", "ATENDIDO"];
+  estadosValidos.forEach((e) => (porEstado[e] = 0));
+
+  fuenteDatos.forEach((r) => {
+    const estado =
+      r.estado ||
+      r.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+      r.requerimiento?.estadoRequerimiento?.nombre_estado ||
+      "SIN ESTADO";
+
+    const estadoUpper = estado.toUpperCase().trim();
+    if (porEstado.hasOwnProperty(estadoUpper)) porEstado[estadoUpper]++;
+
+    const fecha =
+      r.fecha_env_dmc ||
+      r.requerimiento?.fecha_envio ||
+      r.requerimiento?.fecha_registro;
+
+    if (fecha) {
+      const mes = new Date(fecha).toLocaleString("es-EC", {
+        month: "long",
+        year: "numeric",
+      });
+      porMes[mes] = (porMes[mes] || 0) + 1;
+    }
+  });
+
+  setStats({ total, porEstado, porMes });
+  return; // Detenemos aquí para no ejecutar el bloque general
+}
+
+
+
+  // 🔹 Módulos normales (flujo general)
+  const coloresModulo = getColoresEstadoPorModulo(moduloActivo);
+  Object.keys(coloresModulo).forEach((estado) => {
+    porEstado[estado] = 0;
+  });
+
+  fuenteDatos.forEach((i) => {
+    let estado =
+      i.estado ||
+      i.estado_tramite ||
+      i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+      i.requerimiento?.estadoRequerimiento?.nombre_estado ||
+      "SIN ESTADO";
+
+    estado = estado
+      .toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .trim();
+
+    if (porEstado.hasOwnProperty(estado)) porEstado[estado]++;
+
+    const fecha =
+      i.fecha || i.fecha_registro || i.requerimiento?.fecha_registro;
+    if (fecha) {
+      const mes = new Date(fecha).toLocaleString("es-EC", {
+        month: "long",
+        year: "numeric",
+      });
+      porMes[mes] = (porMes[mes] || 0) + 1;
+    }
+  });
+
+  setStats({ total, porEstado, porMes });
+}
+
+
+  setStats({ total, porEstado, porMes });
+}, [items, filteredItems, estadoFiltros, moduloActivo]);
+
 
   // Datos para gráficos
   const barData = {
@@ -158,32 +381,39 @@ export default function DashboardHomePage() {
     ],
   };
 
-  // 🎨 Colores fijos por estado
-const coloresEstado = {
-  FAVORABLE: "#facc15",   // Amarillo
-  CANCELADO: "#9ca3af",   // Gris medio
-  NEGADO: "#ef4444",      // Rojo
-  "SIN ESTADO": "#64748b",// Slate
-  PENDIENTE: "#3b82f6",   // Azul
-  DEVUELTO: "#a855f7",    // Violeta
-  "EN TRÁMITE": "#38bdf8",// Celeste
-  REINGRESO: "#ec4899",   // Rosa
+
+
+// 🟢 Generar dataset dinámico por estado (con colores de módulo)
+const coloresEstado = getColoresEstadoPorModulo(moduloActivo);
+
+// 🎨 Paleta personalizada para el módulo Test/Producción
+const coloresEtapasTestProd = {
+  Test: "#facc15",        // Amarillo dorado
+  Producción: "#22c55e",  // Verde esmeralda
+  "Sin etapa": "#94a3b8", // Gris neutro
 };
 
+// Si no es testproducción, usa los colores por módulo normales
+const coloresFinal =
+  moduloActivo === "testproduccion"
+    ? coloresEtapasTestProd
+    : getColoresEstadoPorModulo(moduloActivo);
 
-    // ✅ Generar dataset dinámico por estado
-    const doughnutData = {
-      labels: Object.keys(stats.porEstado),
-      datasets: [
-        {
-          data: Object.values(stats.porEstado),
-          backgroundColor: Object.keys(stats.porEstado).map(
-            (estado) => coloresEstado[estado] || "#d1d5db" // gris si no coincide
-          ),
-          borderWidth: 1,
-        },
-      ],
-    };
+const doughnutData = {
+  labels: Object.keys(stats.porEstado),
+  datasets: [
+    {
+      data: Object.values(stats.porEstado),
+      backgroundColor: Object.keys(stats.porEstado).map(
+        (estado) => coloresFinal[estado] || "#E5E7EB"
+      ),
+      borderColor: "#fff",
+      borderWidth: 2,
+      hoverOffset: 10,
+      spacing: 3,
+    },
+  ],
+};
 
 
   const radarData = {
@@ -232,29 +462,41 @@ const coloresEstado = {
         {/* Botones navegación */}
         <div className="flex flex-wrap gap-6 mb-8 justify-center">
           <button
-            onClick={() => setModuloActivo("incidentes")}
-            className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-green-50 border border-gray-300 text-green-600"
-          >
-            <Activity className="w-5 h-5" />
-            <span>Incidentes</span>
-          </button>
+          onClick={() => {
+            setModuloActivo("incidentes");
+            setPage(1); // opcional pero recomendado
+            setEstadoFiltros((prev) => ({ ...prev, incidentes: "Todos" }));
+          }}
+          className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-green-50 border border-gray-300 text-green-600"
+        >
+          <Activity className="w-5 h-5" />
+          <span>Incidentes</span>
+        </button>
+
           <button
           onClick={() => {
             setModuloActivo("accidentes");
-            setPage(1); // 🔹 Reinicia la paginación
+            setPage(1);
+            setEstadoFiltros((prev) => ({ ...prev, accidentes: "Todos" }));
           }}
           className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-blue-50 border border-gray-300 text-blue-600"
         >
           <AlertTriangle className="w-5 h-5" />
           <span>Accidentes</span>
         </button>
+
           <button
-            onClick={() => setModuloActivo("externos")}
-            className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-orange-50 border border-gray-300 text-orange-600"
-          >
-            <Users className="w-5 h-5" />
-            <span>Externos</span>
-          </button>
+          onClick={() => {
+            setModuloActivo("externos");
+            setPage(1);
+            setEstadoFiltros((prev) => ({ ...prev, externos: "Todos" }));
+          }}
+          className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-orange-50 border border-gray-300 text-orange-600"
+        >
+          <Users className="w-5 h-5" />
+          <span>Externos</span>
+        </button>
+
           <button
             onClick={() => setModuloActivo("testproduccion")}
             className="flex items-center gap-2 bg-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-purple-50 border border-gray-300 text-purple-600"
@@ -282,24 +524,77 @@ const coloresEstado = {
               items={paginatedItems}
               loading={loading}
               onFiltroChange={(nuevoEstado) => {
-                setEstadoFiltro(nuevoEstado);
+                setEstadoFiltros((prev) => ({
+                  ...prev,
+                  [moduloActivo]: nuevoEstado, // ✅ solo cambia el filtro de ese módulo
+                }));
                 setPage(1);
               }}
             />
 
+
             )}
 
             {moduloActivo === "accidentes" && (
-              <TablaAccidentes items={paginatedItems} loading={loading} />
-            )}
+            <TablaAccidentes
+              items={paginatedItems}
+              loading={loading}
+              onFiltroChange={(nuevoEstado) => {
+                setEstadoFiltros((prev) => ({
+                  ...prev,
+                  [moduloActivo]: nuevoEstado, // ✅ independiente
+                }));
+                setPage(1);
+              }}
+            />
+          )}
 
+          {moduloActivo === "externos" && (
+            <TablaExternos
+              items={paginatedItems}
+              loading={loading}
+              onFiltroChange={(nuevoEstado) => {
+                setEstadoFiltros((prev) => ({
+                  ...prev,
+                  [moduloActivo]: nuevoEstado,
+                }));
+                setPage(1);
+              }}
+            />
+          )}
 
+          {moduloActivo === "testproduccion" && (
+          <TablaTestProduccion
+            items={paginatedItems}  // ✅ usa los datos paginados globales
+            loading={loading}
+            colorHeader="#8B5CF6"
+            onFiltroChange={(nuevoEstado) => {
+              setEstadoFiltros((prev) => ({
+                ...prev,
+                [moduloActivo]: nuevoEstado,
+              }));
+              setPage(1);
+            }}
+          />
+        )}
+
+        {moduloActivo === "sirecq" && (
+        <TablaSirecq
+          items={paginatedItems} // ✅ ahora solo se pagina, no se vuelve a filtrar aquí
+          loading={loading}
+          onFiltroChange={(nuevoEstado) => {
+            setEstadoFiltros((prev) => ({
+              ...prev,
+              [moduloActivo]: nuevoEstado,
+            }));
+            setPage(1);
+          }}
+        />
+      )}
 
 
             {/* seguirán extern os, test, sirecq */}
           </div>
-
-
             {/* Paginación compacta */}
             <div className="flex items-center justify-center gap-1 py-2">
               <button
@@ -324,18 +619,64 @@ const coloresEstado = {
 
           {/* Gráficos y tarjetas de estadísticas compactas */}
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-              <div className="rounded-lg shadow p-3 flex flex-col items-center justify-center text-white font-bold bg-gradient-to-r from-blue-400 to-blue-600">
-                <div className="text-2xl">{stats.total}</div>
-                <div className="text-xs font-semibold">Total registros</div>
-              </div>
-              {Object.entries(stats.porEstado).map(([estado, cantidad], idx) => (
-                <div key={estado} className={`rounded-lg shadow p-3 flex flex-col items-center justify-center text-white font-bold`} style={{background: `linear-gradient(90deg, hsl(${idx*60},80%,60%), hsl(${(idx+1)*60},80%,40%))`}}>
-                  <div className="text-xl">{cantidad}</div>
-                  <div className="text-xs font-semibold">{estado}</div>
-                </div>
-              ))}
-            </div>
+            {/* Tarjetas de estadísticas */}
+<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+  {/* ✅ Tarjeta Total registros solo visible en Test Producción */}
+  {moduloActivo === "testproduccion" && (
+    <div className="rounded-lg shadow p-3 flex flex-col items-center justify-center text-white font-bold bg-gradient-to-r from-purple-500 to-purple-700">
+      <div className="text-2xl">{stats.total}</div>
+      <div className="text-xs font-semibold">Total registros</div>
+    </div>
+  )}
+
+  {/* 🔹 Tarjeta total para otros módulos (se mantiene igual que antes) */}
+  {moduloActivo !== "testproduccion" &&
+    estadoFiltroActivo === "Todos" && (
+      <div className="rounded-lg shadow p-3 flex flex-col items-center justify-center text-white font-bold bg-gradient-to-r from-blue-400 to-blue-600">
+        <div className="text-2xl">{stats.total}</div>
+        <div className="text-xs font-semibold">Total registros</div>
+      </div>
+    )}
+
+  {/* 🔹 Render dinámico de las tarjetas según el filtro */}
+  {Object.entries(stats.porEstado)
+    .filter(([estado, cantidad]) =>
+      ["Todos", "Todas"].includes(estadoFiltroActivo)
+        ? true
+        : estado.toUpperCase().trim() ===
+          estadoFiltroActivo.toUpperCase().trim()
+    )
+    .map(([estado, cantidad], idx) => {
+      // Paleta por módulo
+      const coloresPorModulo = {
+        incidentes: ["#22C55E", "#3B82F6"],
+        accidentes: ["#34D399", "#60A5FA", "#F59E0B", "#EF4444", "#9CA3AF"],
+        externos: ["#FACC15", "#F87171", "#C084FC", "#22C55E", "#3B82F6"],
+        testproduccion: ["#FACC15", "#22C55E", "#94A3B8"], // amarillo, verde, gris
+        sirecq: ["#3B82F6", "#8B5CF6", "#22C55E", "#FACC15"],
+      };
+
+      const coloresActivos = coloresPorModulo[moduloActivo] || ["#9CA3AF"];
+      const colorInicio = coloresActivos[idx % coloresActivos.length];
+      const colorFin =
+        coloresActivos[(idx + 1) % coloresActivos.length] || "#6B7280";
+
+      return (
+        <div
+          key={estado}
+          className="rounded-lg shadow p-3 flex flex-col items-center justify-center text-white font-bold"
+          style={{
+            background: `linear-gradient(90deg, ${colorInicio}, ${colorFin})`,
+          }}
+        >
+          <div className="text-xl">{cantidad}</div>
+          <div className="text-xs font-semibold">{estado}</div>
+        </div>
+      );
+    })}
+</div>
+
+
             <div className="bg-white rounded-xl shadow p-4 h-[220px]">
               <Bar
                 data={barData}
