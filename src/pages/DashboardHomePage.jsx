@@ -112,10 +112,11 @@ useEffect(() => {
   switch (modulo) {
     // ✅ INCIDENTES: solo dos estados
     case "incidentes":
-      return {
-        FAVORABLE: "#22C55E", // Verde
-        PENDIENTE: "#3B82F6", // Azul
-      };
+  return {
+    FAVORABLE: "#22C55E", // Verde
+    PENDIENTE: "#3B82F6", // Azul
+    "SIN ESTADO": "#9CA3AF", // Gris
+  };
 
     // ✅ ACCIDENTES: mostrar todos los posibles estados institucionales
     case "accidentes":
@@ -700,7 +701,7 @@ const estadosFiltrados = Object.entries(stats.porEstado).filter(
   )
   .map(([estado, cantidad], idx) => {
     const coloresPorModulo = {
-      incidentes: ["#22C55E", "#3B82F6"],
+      incidentes: ["#22C55E", "#3B82F6", "#9CA3AF"],
       accidentes: ["#34D399", "#60A5FA", "#F59E0B", "#EF4444", "#9CA3AF"],
       externos: ["#FACC15", "#F87171", "#C084FC", "#22C55E", "#3B82F6"],
       testproduccion: ["#FACC15", "#22C55E", "#94A3B8"],

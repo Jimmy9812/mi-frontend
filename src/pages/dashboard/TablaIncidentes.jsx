@@ -14,14 +14,16 @@ export default function TablaIncidentes({
   onFiltroChange,
 }) {
 
-  const estados = ["Todos", "FAVORABLE", "PENDIENTE"];
+  const estados = ["Todos", "FAVORABLE", "PENDIENTE", "SIN ESTADO"];
   const [estadoFiltro, setEstadoFiltro] = useState("Todos");
-   const filtered =
-    estadoFiltro === "Todos"
-      ? items
-      : items.filter(
-          (a) => a.estado?.toUpperCase().trim() === estadoFiltro.toUpperCase().trim()
-        );
+  const filtered =
+  estadoFiltro === "Todos"
+    ? items
+    : items.filter((a) => {
+        const estado = (a.estado || "SIN ESTADO").toUpperCase().trim();
+        return estado === estadoFiltro.toUpperCase().trim();
+      });
+
   
       const handleChange = (e) => {
         const value = e.target.value;
@@ -45,16 +47,19 @@ export default function TablaIncidentes({
     }
   };
 
-   const estadoClass = (estado) => {
-    switch (estado) {
-      case "FAVORABLE":
-        return "bg-yellow-100 text-yellow-800";
-      case "PENDIENTE":
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
+  const estadoClass = (estado) => {
+  switch (estado) {
+    case "FAVORABLE":
+      return "bg-yellow-100 text-yellow-800";
+    case "PENDIENTE":
+      return "bg-blue-100 text-blue-800";
+    case "SIN ESTADO":
+      return "bg-gray-200 text-gray-700";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
+
 
 
   if (loading)
