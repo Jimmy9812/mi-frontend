@@ -31,19 +31,30 @@ export default function TablaExternos({ items = [], loading, onFiltroChange }) {
           );
         });
 
-  // 🔸 Formateo de fecha
-  const formatDate = (fecha) => {
-    if (!fecha) return "N/A";
-    try {
-      return new Date(fecha).toLocaleDateString("es-EC", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-    } catch {
-      return "N/A";
-    }
-  };
+  // ✅ Nueva función de fecha sin desfase
+        const formatDate = (iso) => {
+        if (!iso) return "N/A";
+
+        // Si viene en formato YYYY-MM-DD, usar split directo (sin crear Date)
+        if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+            const [year, month, day] = iso.split("-");
+            return `${day}/${month}/${year}`;
+        }
+
+        // Si viene con hora completa (ISO 8601)
+        if (iso.includes("T")) {
+            try {
+            const [datePart] = iso.split("T");
+            const [year, month, day] = datePart.split("-");
+            return `${day}/${month}/${year}`;
+            } catch {
+            return "N/A";
+            }
+        }
+
+        return iso;
+        };
+
 
   // 🔸 Colores por estado (igual que Incidentes/Accidentes)
   const estadoClass = (estado) => {

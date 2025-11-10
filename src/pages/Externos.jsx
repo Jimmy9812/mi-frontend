@@ -129,17 +129,29 @@ export default function Externos() {
   // 🔹 UTILIDADES
   // =============================
   const formatDate = (iso) => {
-    if (!iso) return "—";
+  if (!iso) return "—";
+  
+  // Si viene en formato YYYY-MM-DD, usar split directo (sin Date)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [year, month, day] = iso.split("-");
+    return `${day}/${month}/${year}`;
+  }
+  
+  // Si viene con hora completa, usar Date
+  if (iso.includes('T')) {
     try {
-      return new Date(iso).toLocaleDateString("es-EC", {
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-      });
+      const date = new Date(iso);
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
     } catch {
       return iso;
     }
-  };
+  }
+  
+  return iso;
+};
 
   // 🔹 Colores para estados (igual que Accidentes e Incidentes)
   const getEstadoColor = (estado) => {

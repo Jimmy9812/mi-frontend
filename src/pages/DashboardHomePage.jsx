@@ -365,32 +365,45 @@ else {
   });
 
   fuenteDatos.forEach((i) => {
-    let estado =
-      i.estado ||
-      i.estado_tramite ||
-      i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
-      i.requerimiento?.estadoRequerimiento?.nombre_estado ||
-      "SIN ESTADO";
+  let estado =
+    i.estado ||
+    i.estado_tramite ||
+    i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+    i.requerimiento?.estadoRequerimiento?.nombre_estado ||
+    "SIN ESTADO";
 
-    estado = estado
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toUpperCase()
-      .trim();
+  // 🧠 Normalizamos: quitamos tildes, pasamos a mayúsculas y eliminamos espacios extra
+  estado = estado
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // elimina tildes
+    .toUpperCase()
+    .trim();
 
-    if (porEstado.hasOwnProperty(estado)) porEstado[estado]++;
+  // 🩹 Arreglamos nombres comunes con variantes
+  if (estado === "EN REVISION" || estado === "REVISION") estado = "EN REVISIÓN";
+  if (estado === "ENVIADO" || estado === "ENVIADA") estado = "ENVIADO";
+  if (estado === "DEVUELTO" || estado === "DEVUELTA") estado = "DEVUELTO";
+  if (estado === "CANCELADO" || estado === "CANCELADA") estado = "CANCELADO";
+  if (estado === "PENDIENTE") estado = "PENDIENTE";
+  if (estado === "FAVORABLE") estado = "FAVORABLE";
 
-    const fecha =
-      i.fecha || i.fecha_registro || i.requerimiento?.fecha_registro;
-    if (fecha) {
-      const mes = new Date(fecha).toLocaleString("es-EC", {
-        month: "long",
-        year: "numeric",
-      });
-      porMes[mes] = (porMes[mes] || 0) + 1;
-    }
-  });
+  // ✅ Ahora sí se cuenta correctamente solo si existe en la paleta del módulo
+  if (porEstado.hasOwnProperty(estado)) {
+    porEstado[estado]++;
+  }
+
+  const fecha =
+    i.fecha || i.fecha_registro || i.requerimiento?.fecha_registro;
+  if (fecha) {
+    const mes = new Date(fecha).toLocaleString("es-EC", {
+      month: "long",
+      year: "numeric",
+    });
+    porMes[mes] = (porMes[mes] || 0) + 1;
+  }
+});
+
 
   setStats({ total, porEstado, porMes });
 }
