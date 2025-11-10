@@ -66,13 +66,21 @@ function AlertModal({ open, message, onClose, type = "info" }) {
   );
 }
 
+// 🧭 Convierte a fecha local exacta sin desfase de zona horaria
+function toLocalISODate(date = new Date()) {
+  const local = new Date(date);
+  local.setHours(12, 0, 0, 0); // fija mediodía local
+  return local.toISOString().split("T")[0]; // retorna YYYY-MM-DD
+}
+
+
 export default function SirecqEditor({ mode = "view" }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token, user, activeRole } = useAuth();
     // 🕓 Obtiene fecha local exacta sin desfase (corrige problema de UTC)
-  const hoyLocal = new Date();
-  const fechaLocal = hoyLocal.toLocaleDateString("en-CA"); // ✅ formato YYYY-MM-DD
+  // 🕓 Obtiene fecha local exacta sin desfase (corrige problema UTC)
+  const fechaLocal = toLocalISODate(); // ✅ "YYYY-MM-DD" local exacta
   // Estado para alertas modales
   const [alert, setAlert] = useState({ open: false, message: "", type: "info" });
   const showAlert = (message, type = "info") => setAlert({ open: true, message, type });
@@ -109,7 +117,7 @@ export default function SirecqEditor({ mode = "view" }) {
     obsv_tecnica: "",
     requerimientoId: null,
     id_categoria: null,
-    fecha_registro: fechaLocal,
+    fecha_registro: toLocalISODate(), // ✅ usa hora 12:00 local
   });
 
 
@@ -408,7 +416,7 @@ const handleDelete = async () => {
     tema: requerimiento.tema || "", // ✅ ahora el tema se guarda independiente
     descripcion: requerimiento.descripcion,
     fase: "Requisito",
-    fecha_registro: fechaLocal, // ✅ mantiene la fecha local sin sumar un día
+    fecha_registro: new Date().toISOString(), 
     id_estado_requerimiento: Number(requerimiento.id_estado_requerimiento) || 5,
     id_categoria: Number(requerimiento.id_categoria) || 1,
     id_sistema: Number(requerimiento.id_sistema) || null,

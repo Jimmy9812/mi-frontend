@@ -11,6 +11,8 @@ import TablaAccidentes from "./dashboard/TablaAccidentes";
 import TablaExternos from "./dashboard/TablaExternos";
 import TablaTestProduccion from "./dashboard/TablaTestProduccion";
 import TablaSirecq from "./dashboard/TablaSirecq";
+import { listEstadosRequerimiento } from "../services/sirecqService";
+
 
 import {
   Chart,
@@ -68,6 +70,44 @@ export default function DashboardHomePage() {
   const [stats, setStats] = useState({ total: 0, porEstado: {}, porMes: {} });
 
 
+  // 🔹 Estados dinámicos del backend (SIRECQ)
+// 🔹 Estados dinámicos del backend (SIRECQ)
+const [estadosList, setEstadosList] = useState([{ nombre_estado_requerimiento: "Todos" }]);
+
+useEffect(() => {
+  async function loadEstados() {
+    try {
+      const res = await listEstadosRequerimiento({ token });
+      if (Array.isArray(res) && res.length > 0) {
+        // ✅ Agrega "Todos" solo si no existe ya
+        const tieneTodos = res.some(
+          (e) =>
+            e.nombre_estado_requerimiento?.toUpperCase().trim() === "TODOS"
+        );
+        const nuevosEstados = tieneTodos
+          ? res
+          : [{ nombre_estado_requerimiento: "Todos" }, ...res];
+
+        setEstadosList(nuevosEstados);
+        console.log("✅ Estados cargados desde backend:", nuevosEstados);
+      } else {
+        console.warn("⚠️ No se recibieron estados del backend:", res);
+        setEstadosList([{ nombre_estado_requerimiento: "Todos" }]);
+      }
+    } catch (error) {
+      console.error("❌ Error cargando estados SIRECQ:", error);
+      setEstadosList([{ nombre_estado_requerimiento: "Todos" }]);
+    }
+  }
+
+  // 🔹 Ejecuta SIEMPRE que entras al módulo SIRECQ
+  if (moduloActivo === "sirecq" && token) {
+    loadEstados();
+  }
+}, [moduloActivo, token]);
+
+
+
   const getColoresEstadoPorModulo = (modulo) => {
   switch (modulo) {
     // ✅ INCIDENTES: solo dos estados
@@ -113,11 +153,12 @@ export default function DashboardHomePage() {
     // ✅ SIRECQ
 case "sirecq":
   return {
-    ENVIADO: "#3B82F6",      // Azul
-    DEVUELTO: "#F87171",     // Rojo
-    "EN REVISIÓN": "#A78BFA", // Morado
-    ATENDIDO: "#22C55E",     // Verde
+    ENVIADO: "#38BDF8",          // 🔵 nuevo color (azul cielo)
+    DEVUELTO: "#F87171",         // rojo
+    "EN REVISIÓN": "#A78BFA",    // morado
+    ATENDIDO: "#EAB308",         // amarillo
   };
+
     // Por defecto (seguridad)
     default:
       return { "SIN ESTADO": "#D1D5DB" };
@@ -182,53 +223,45 @@ case "sirecq":
   const pageSize = 10;
   const estadoFiltroActivo = estadoFiltros[moduloActivo] || "Todos";
 
+   useEffect(() => {
+    setEstadoFiltros((prev) => ({
+      ...prev,
+      [moduloActivo]: "Todos",
+    }));
+  }, [moduloActivo]);
 
-  // ✅ Filtrar por estado (usando useMemo para evitar renders infinitos)
-     // ✅ Filtrar por estado (usando useMemo para evitar renders infinitos)
-// ✅ Filtrar por estado (usando useMemo para evitar renders infinitos)
-const filteredItems = useMemo(() => {
+
+ const filteredItems = useMemo(() => {
   if (!Array.isArray(items)) return [];
-
-  // 🔹 Normaliza el valor del filtro global
   const estadoFiltro = (estadoFiltros[moduloActivo] || "").toUpperCase().trim();
 
-  // 🔹 Si el filtro está vacío o es "TODOS"/"TODAS", mostramos todos los registros
-  if (!estadoFiltro || estadoFiltro === "TODAS" || estadoFiltro === "TODOS") {
+  if (!estadoFiltro || estadoFiltro === "TODOS" || estadoFiltro === "TODAS") {
     return items;
   }
 
-  // 🔹 Test/Producción: filtra por etapa de implementación
   if (moduloActivo === "testproduccion") {
-    return items.filter((r) => {
-      const etapa = (r.etapa_implementation || r.etapa || "").toUpperCase();
-      return etapa.includes(estadoFiltro);
-    });
+    return items.filter((r) =>
+      (r.etapa_implementation || r.etapa || "").toUpperCase().includes(estadoFiltro)
+    );
   }
 
-  // 🔹 SIRECQ: filtra por estado del requerimiento (usando jerarquía completa)
+  // ✅ SIRECQ: usar SIEMPRE el estado de Requerimiento (NO row.estado)
   if (moduloActivo === "sirecq") {
-    return items.filter((r) => {
-      const estado =
-        r.estado ||
-        r.sirecqExterno?.requerimiento?.estadoRequerimiento
-          ?.nombre_estado_requerimiento ||
-        r.sirecqExterno?.requerimiento?.estadoRequerimiento?.nombre_estado ||
-        r.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
-        r.requerimiento?.estadoRequerimiento?.nombre_estado ||
-        "SIN ESTADO";
+    const getEstadoSirecq = (r) =>
+      r?.sirecqExterno?.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+      r?.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+      "SIN ESTADO";
 
-      return estado.toUpperCase().trim() === estadoFiltro;
-    });
+    return items.filter((r) => getEstadoSirecq(r).toUpperCase().trim() === estadoFiltro);
   }
 
-  // 🔹 Módulos normales: filtran por estado simple
+  // Otros módulos (igual que antes)
   return items.filter((i) => {
     const estado =
       i.estado ||
       i.estado_tramite ||
       i.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
-      i.requerimiento?.estadoRequerimiento?.nombre_estado ||
-      "";
+      i.requerimiento?.estadoRequerimiento?.nombre_estado || "";
     return estado.toUpperCase().trim() === estadoFiltro;
   });
 }, [items, estadoFiltros, moduloActivo]);
@@ -290,40 +323,39 @@ useEffect(() => {
   });
 }
 else {
-  // 🔸 Caso especial: módulo SIRECQ (solo 4 estados)
-  // 🔸 Caso especial: módulo SIRECQ (solo 4 estados)
-if (moduloActivo === "sirecq") {
-  const estadosValidos = ["ENVIADO", "DEVUELTO", "EN REVISIÓN", "ATENDIDO"];
+  if (moduloActivo === "sirecq") {
+  const getEstadoSirecq = (r) =>
+    r?.sirecqExterno?.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+    r?.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
+    "SIN ESTADO";
+
+  const estadosValidos = estadosList
+    .map((e) => e.nombre_estado_requerimiento?.toUpperCase())
+    .filter(Boolean);
+
   estadosValidos.forEach((e) => (porEstado[e] = 0));
 
   fuenteDatos.forEach((r) => {
-    const estado =
-      r.estado ||
-      r.requerimiento?.estadoRequerimiento?.nombre_estado_requerimiento ||
-      r.requerimiento?.estadoRequerimiento?.nombre_estado ||
-      "SIN ESTADO";
+    const est = getEstadoSirecq(r).toUpperCase().trim();
+    if (porEstado.hasOwnProperty(est)) porEstado[est]++;
 
-    const estadoUpper = estado.toUpperCase().trim();
-    if (porEstado.hasOwnProperty(estadoUpper)) porEstado[estadoUpper]++;
+    const fecha = r.fecha_env_dmc || null;
 
-    const fecha =
-      r.fecha_env_dmc ||
-      r.requerimiento?.fecha_envio ||
-      r.requerimiento?.fecha_registro;
+      // ✅ Solo contar si la fecha existe y es válida (igual que en tu módulo Sirecq.jsx)
+      if (fecha && !["", "null", "undefined"].includes(fecha.toString().trim())) {
+        const dateObj = new Date(fecha);
+        if (!isNaN(dateObj.getTime())) {
+          const mes = dateObj.toLocaleString("es-EC", { month: "long", year: "numeric" });
+          porMes[mes] = (porMes[mes] || 0) + 1;
+        }
+      }
 
-    if (fecha) {
-      const mes = new Date(fecha).toLocaleString("es-EC", {
-        month: "long",
-        year: "numeric",
-      });
-      porMes[mes] = (porMes[mes] || 0) + 1;
-    }
+
   });
 
   setStats({ total, porEstado, porMes });
-  return; // Detenemos aquí para no ejecutar el bloque general
+  return; // 👈 importante
 }
-
 
 
   // 🔹 Módulos normales (flujo general)
@@ -399,20 +431,25 @@ const coloresFinal =
     ? coloresEtapasTestProd
     : getColoresEstadoPorModulo(moduloActivo);
 
-const doughnutData = {
-  labels: Object.keys(stats.porEstado),
-  datasets: [
-    {
-      data: Object.values(stats.porEstado),
-      backgroundColor: Object.keys(stats.porEstado).map(
-        (estado) => coloresFinal[estado] || "#E5E7EB"
-      ),
-      borderColor: "#fff",
-      borderWidth: 2,
-      hoverOffset: 10,
-      spacing: 3,
-    },
-  ],
+// 🔹 Filtramos “Todos” antes de construir el dataset
+const estadosFiltrados = Object.entries(stats.porEstado).filter(
+  ([estado]) => !["TODOS", "TODAS"].includes(estado.toUpperCase().trim())
+);
+
+    const doughnutData = {
+      labels: estadosFiltrados.map(([estado]) => estado),
+      datasets: [
+        {
+          data: estadosFiltrados.map(([_, cantidad]) => cantidad),
+          backgroundColor: estadosFiltrados.map(
+            ([estado]) => coloresFinal[estado] || "#E5E7EB"
+          ),
+          borderColor: "#fff",
+          borderWidth: 2,
+          hoverOffset: 10,
+          spacing: 3,
+        },
+      ],
 };
 
 
@@ -580,17 +617,18 @@ const doughnutData = {
 
         {moduloActivo === "sirecq" && (
         <TablaSirecq
-          items={paginatedItems} // ✅ ahora solo se pagina, no se vuelve a filtrar aquí
+          items={paginatedItems}
           loading={loading}
+          estado={estadoFiltros.sirecq}
+          estadosList={estadosList}   // 👈 nuevo prop
           onFiltroChange={(nuevoEstado) => {
-            setEstadoFiltros((prev) => ({
-              ...prev,
-              [moduloActivo]: nuevoEstado,
-            }));
+            setEstadoFiltros((prev) => ({ ...prev, [moduloActivo]: nuevoEstado }));
             setPage(1);
           }}
         />
       )}
+
+
 
 
             {/* seguirán extern os, test, sirecq */}
@@ -639,41 +677,42 @@ const doughnutData = {
     )}
 
   {/* 🔹 Render dinámico de las tarjetas según el filtro */}
-  {Object.entries(stats.porEstado)
-    .filter(([estado, cantidad]) =>
-      ["Todos", "Todas"].includes(estadoFiltroActivo)
-        ? true
-        : estado.toUpperCase().trim() ===
-          estadoFiltroActivo.toUpperCase().trim()
-    )
-    .map(([estado, cantidad], idx) => {
-      // Paleta por módulo
-      const coloresPorModulo = {
-        incidentes: ["#22C55E", "#3B82F6"],
-        accidentes: ["#34D399", "#60A5FA", "#F59E0B", "#EF4444", "#9CA3AF"],
-        externos: ["#FACC15", "#F87171", "#C084FC", "#22C55E", "#3B82F6"],
-        testproduccion: ["#FACC15", "#22C55E", "#94A3B8"], // amarillo, verde, gris
-        sirecq: ["#3B82F6", "#8B5CF6", "#22C55E", "#FACC15"],
-      };
+{Object.entries(stats.porEstado)
+  // ⛔️ Oculta “Todos” o “TODOS”
+  .filter(([estado]) => !["TODOS", "TODAS"].includes(estado.toUpperCase().trim()))
+  .filter(([estado, cantidad]) =>
+    ["Todos", "Todas"].includes(estadoFiltroActivo)
+      ? true
+      : estado.toUpperCase().trim() === estadoFiltroActivo.toUpperCase().trim()
+  )
+  .map(([estado, cantidad], idx) => {
+    const coloresPorModulo = {
+      incidentes: ["#22C55E", "#3B82F6"],
+      accidentes: ["#34D399", "#60A5FA", "#F59E0B", "#EF4444", "#9CA3AF"],
+      externos: ["#FACC15", "#F87171", "#C084FC", "#22C55E", "#3B82F6"],
+      testproduccion: ["#FACC15", "#22C55E", "#94A3B8"],
+      sirecq: ["#3B82F6", "#8B5CF6", "#22C55E", "#FACC15"],
+    };
 
-      const coloresActivos = coloresPorModulo[moduloActivo] || ["#9CA3AF"];
-      const colorInicio = coloresActivos[idx % coloresActivos.length];
-      const colorFin =
-        coloresActivos[(idx + 1) % coloresActivos.length] || "#6B7280";
+    const coloresActivos = coloresPorModulo[moduloActivo] || ["#9CA3AF"];
+    const colorInicio = coloresActivos[idx % coloresActivos.length];
+    const colorFin =
+      coloresActivos[(idx + 1) % coloresActivos.length] || "#6B7280";
 
-      return (
-        <div
-          key={estado}
-          className="rounded-lg shadow p-3 flex flex-col items-center justify-center text-white font-bold"
-          style={{
-            background: `linear-gradient(90deg, ${colorInicio}, ${colorFin})`,
-          }}
-        >
-          <div className="text-xl">{cantidad}</div>
-          <div className="text-xs font-semibold">{estado}</div>
-        </div>
-      );
-    })}
+    return (
+      <div
+        key={estado}
+        className="rounded-lg shadow p-3 flex flex-col items-center justify-center text-white font-bold"
+        style={{
+          background: `linear-gradient(90deg, ${colorInicio}, ${colorFin})`,
+        }}
+      >
+        <div className="text-xl">{cantidad}</div>
+        <div className="text-xs font-semibold">{estado}</div>
+      </div>
+    );
+  })}
+
 </div>
 
 

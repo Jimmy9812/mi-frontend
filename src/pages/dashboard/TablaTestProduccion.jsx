@@ -32,17 +32,36 @@ export default function TablaTestProduccion({
     });
   }, [items, filtroEtapa]);
 
-  // 🔹 Formatear fecha
+  // 🔹 Formatear fecha (corrige desfase de -1 día)
   const formatDate = (dateString) => {
     if (!dateString) return "—";
+
     try {
-      return new Date(dateString).toLocaleDateString("es-EC", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
+      // ✅ Caso 1: formato exacto "YYYY-MM-DD"
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [y, m, d] = dateString.split("-");
+        return `${d}/${m}/${y}`;
+      }
+
+      // ✅ Caso 2: formato con hora ISO (ej. "2024-10-15T00:00:00.000Z")
+      if (dateString.includes("T")) {
+        const [y, m, d] = dateString.split("T")[0].split("-");
+        return `${d}/${m}/${y}`;
+      }
+
+      // ✅ Caso alternativo (por seguridad)
+      const parsed = new Date(dateString);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString("es-EC", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
+      }
+
+      return "—";
     } catch {
-      return "Fecha inválida";
+      return "—";
     }
   };
 

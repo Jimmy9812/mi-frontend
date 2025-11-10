@@ -344,10 +344,11 @@ export default function Sirecq() {
                     </span>
                   </div>
                   
-                  {/* Fecha */}
+                  {/* Fecha (fecha_registro) */}
                   <div className="px-4 py-3">
-                    {formatDate(row.fecha_env_dmc)}
+                    {formatDate(row.sirecqExterno?.requerimiento?.fecha_registro)}
                   </div>
+
                   
                   {/* Acción */}
                   <div className="px-4 py-3 flex items-center justify-center">
