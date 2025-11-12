@@ -16,18 +16,24 @@ export default function TablaAccidentes({ items = [], loading, onFiltroChange })
           (a) => a.estado?.toUpperCase().trim() === estadoFiltro.toUpperCase().trim()
         );
 
-  const formatDate = (fecha) => {
-    if (!fecha) return "N/A";
-    try {
-      return new Date(fecha).toLocaleDateString("es-EC", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-    } catch {
-      return "N/A";
-    }
-  };
+  // ✅ Corrige desfase sin tocar la zona horaria
+    const formatDate = (fecha) => {
+      if (!fecha) return "N/A";
+
+      // Si viene en formato "YYYY-MM-DD"
+      if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        const [y, m, d] = fecha.split("-");
+        return `${d}/${m}/${y}`; // Ejemplo: 07/05/2025
+      }
+
+      // Si llega con formato ISO completo "YYYY-MM-DDTHH:mm:ssZ"
+      try {
+        const [y, m, d] = fecha.split("T")[0].split("-");
+        return `${d}/${m}/${y}`;
+      } catch {
+        return fecha;
+      }
+    };
 
   const estadoClass = (estado) => {
     switch (estado) {

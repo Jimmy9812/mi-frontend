@@ -261,10 +261,16 @@ export default function Accidentes() {
                     </span>
                   </div>
                   
-                  {/* Fecha */}
+                  {/* Fecha sin desfase, muestra exactamente la del backend */}
                   <div className="px-4 py-3">
-                    {row.fecha ? new Date(row.fecha).toLocaleDateString("es-EC") : "N/A"}
+                    {row.fecha
+                      ? (() => {
+                          const [y, m, d] = row.fecha.split("-");
+                          return `${d}/${m}/${y}`; // muestra "07/05/2025"
+                        })()
+                      : "N/A"}
                   </div>
+
                   
                   {/* Acción */}
                   <div className="px-4 py-3 flex items-center justify-center">
