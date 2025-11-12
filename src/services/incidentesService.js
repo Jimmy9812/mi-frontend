@@ -82,27 +82,63 @@ function writeAll(list) {
   }
 }
 
-/* =====================
- * Función para transformar datos del backend
- * ===================== */
 function transformBackendData(backendItems) {
   if (!Array.isArray(backendItems)) return [];
 
-  return backendItems.map((item) => ({
-    id: item.id_incidente,
-    numero: item.no_incidente,
-    estado: item.estado_acc_inc?.nombre_estado_acc_inc || "Sin estado",
-    fecha: item.fechaingresoerror,
-    descripcion: item.descripcionerror,
-    zona: item.zona?.nombre_zona,
-    tipologia: item.tipologia,
-    anio_sirecq: item["aniosirecq"] || item.anio_sirecq || null,
-    mensaje_error: item.mensajeerror,
-    fecha_solucion: item.fech_solucion,
-    observaciones: item.obs_incidente,
-  }));
-}
+  return backendItems.map((item) => {
+    // 🔍 DEBUG: Ver qué datos vienen del backend
+    console.log("📦 Item del backend:", {
+      id: item.id_incidente,
+      numero: item.no_incidente,
+      usuariosIncidente: item.usuariosIncidente
+    });
 
+    // 🔹 Buscar técnico y analista igual que en transformBackendSingle
+    const tecnico = item.usuariosIncidente?.find((u) =>
+      normalizeText(u.rolUsuario?.rol?.nombre_rol)?.includes("tecnico")
+    );
+
+    const analista = item.usuariosIncidente?.find((u) =>
+      normalizeText(u.rolUsuario?.rol?.nombre_rol)?.includes("analista")
+    );
+
+    console.log("👷 Técnico encontrado:", tecnico ? {
+      nombre: `${tecnico.rolUsuario.usuario?.nombre_usuario} ${tecnico.rolUsuario.usuario?.apellidos_usuario}`,
+      rol: tecnico.rolUsuario?.rol?.nombre_rol
+    } : "NO ENCONTRADO");
+
+    console.log("🧑‍💻 Analista encontrado:", analista ? {
+      nombre: `${analista.rolUsuario.usuario?.nombre_usuario} ${analista.rolUsuario.usuario?.apellidos_usuario}`,
+      rol: analista.rolUsuario?.rol?.nombre_rol
+    } : "NO ENCONTRADO");
+
+    return {
+      id: item.id_incidente,
+      numero: item.no_incidente,
+      estado: item.estado_acc_inc?.nombre_estado_acc_inc || "Sin estado",
+      fecha: item.fechaingresoerror,
+      descripcion: item.descripcionerror,
+      zona: item.zona?.nombre_zona,
+      tipologia: item.tipologia,
+      tipologia_tramite: item.tipologia, // 🔹 Agregar alias
+      anio_sirecq: item["aniosirecq"] || item.aniosirecq || null,
+      aniosirecq: item["aniosirecq"] || item.aniosirecq || null, // 🔹 Agregar alias
+      mensaje_error: item.mensajeerror,
+      fecha_solucion: item.fech_solucion,
+      fecha_ingreso: item.fechaingresoerror, // 🔹 Agregar fecha_ingreso
+      observaciones: item.obs_incidente,
+      
+      // 🔹 Agregar nombres de técnico y analista
+      tecnico_nombre: tecnico
+        ? `${tecnico.rolUsuario.usuario?.nombre_usuario || ""} ${tecnico.rolUsuario.usuario?.apellidos_usuario || ""}`.trim()
+        : null,
+
+      analista_nombre: analista
+        ? `${analista.rolUsuario.usuario?.nombre_usuario || ""} ${analista.rolUsuario.usuario?.apellidos_usuario || ""}`.trim()
+        : null,
+    };
+  });
+}
 // Convert backend Buffer-like object to data URL (browser)
 function bufferToDataUrl(bufObj) {
   if (!bufObj) return null;
@@ -385,7 +421,8 @@ export async function updateIncidente({ token, id, payload }) {
   return updated;
 }
 
-// Exportar a XLSX 
+
+// Exportar a XLSX (simplificada sin técnico, analista ni descripción)
 export async function exportIncidentesXlsx({ token, items, search = "", status = "ALL", filename = null }) {
   const XLSX = await import('xlsx');
 
@@ -403,23 +440,17 @@ export async function exportIncidentesXlsx({ token, items, search = "", status =
     items = transformBackendData(data);
   }
 
-  // Si no hay items o no es array, error
-  if (!Array.isArray(items)) {
-    throw new Error("No hay datos para exportar");
-  }
+  if (!Array.isArray(items)) throw new Error("No hay datos para exportar");
 
-  // Mapear items a formato tabular según campos del formulario
+  // ✅ Campos visibles en el Excel (sin técnico, analista ni descripción)
   const rows = items.map(item => ({
     "N° De Incidencia": item.numero,
     "Tipología de trámite": item.tipologia_tramite || item.tipologia,
-    "Técnico responsable": item.tecnico_nombre || item.tecnico,
-    "Analista que reporta": item.analista_nombre || item.analista,
     "Unidad zonal": item.zona || item.unidad_zonal,
     "Fecha Solución": item.fecha_solucion || "",
     "Fecha de ingreso del error": item.fecha_ingreso || item.fecha,
     "Año Sirec-Q error": item.aniosirecq || item.anio_sirecq,
     "Mensaje visualizado del error": item.mensaje_error || "",
-    "Descripción del error": item.descripcion || "",
     "Observaciones": item.observaciones || ""
   }));
 
@@ -427,25 +458,20 @@ export async function exportIncidentesXlsx({ token, items, search = "", status =
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(rows);
 
-  // Ajustar ancho de columnas según campos del formulario
+  // Ajustar ancho de columnas
   ws['!cols'] = [
     { wch: 15 }, // N° De Incidencia
     { wch: 20 }, // Tipología de trámite
-    { wch: 25 }, // Técnico responsable
-    { wch: 25 }, // Analista que reporta
     { wch: 25 }, // Unidad zonal
     { wch: 15 }, // Fecha Solución
-    { wch: 15 }, // Fecha de ingreso del error
-    { wch: 15 }, // Año Sirec-Q error
-    { wch: 40 }, // Mensaje visualizado del error
-    { wch: 40 }, // Descripción del error
+    { wch: 20 }, // Fecha ingreso error
+    { wch: 15 }, // Año Sirec-Q
+    { wch: 35 }, // Mensaje
     { wch: 40 }  // Observaciones
   ];
 
-  // Añadir la hoja al libro
+  // Añadir hoja y guardar
   XLSX.utils.book_append_sheet(wb, ws, "Incidentes");
-
-  // Generar archivo
   const defaultFilename = `incidentes_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename || defaultFilename);
 }
